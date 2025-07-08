@@ -1,20 +1,11 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image, NativeModules, Text, View } from 'react-native';
-import AppEnums from '../enums/AppEnums';
-
 import { STACKS } from '../enums/ScreenEnums';
-import {
-  btnBG,
-  Colors,
-  primaryColor,
-  secondryColor,
-  textColor,
-} from '../utils/Styles';
+import { btnBG, Colors, secondryColor, } from '../utils/Styles';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Helper from '../utils/Helpers';
-import { useSelector } from 'react-redux';
 import FastImage from 'react-native-fast-image';
 import { LocalSvg } from 'react-native-svg/css';
 import SvgIcons from '../enums/SvgIcons';
@@ -41,7 +32,7 @@ const TabNavigator = () => {
         },
       ]}>
       <Tab.Navigator
-        initialRouteName="Network"
+        initialRouteName="Application"
         backBehavior="history"
         screenOptions={{
           headerShown: false,
@@ -99,7 +90,7 @@ const TabNavigator = () => {
           }}
         />
         <Tab.Screen
-          name={STACKS.CALL_STACK}
+          name={STACKS.CATEGORIES_STACK}
           component={Categories}
           options={{
             tabBarIcon: ({ focused }) => (
@@ -113,7 +104,7 @@ const TabNavigator = () => {
           }}
         />
         <Tab.Screen
-          name={STACKS.NETWORK_STACK}
+          name={STACKS.APPLICATION_STACK}
           component={Application}
           options={{
             tabBarIcon: ({ focused }) => (
@@ -128,7 +119,7 @@ const TabNavigator = () => {
           }}
         />
         <Tab.Screen
-          name={STACKS.CHAT_STACK}
+          name={STACKS.COURSES_STACK}
           component={Courses}
           options={{
             tabBarIcon: ({ focused }) => (
@@ -142,7 +133,7 @@ const TabNavigator = () => {
           }}
         />
         <Tab.Screen
-          name={STACKS.ACCOUNT_STACK}
+          name={STACKS.MEMBERSHIP_STACK}
           component={Membership}
           options={{
             tabBarIcon: ({ focused }) => (
