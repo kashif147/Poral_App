@@ -1,8 +1,22 @@
-import { Platform, StyleSheet } from 'react-native';
+import { Dimensions, Platform, StyleSheet } from 'react-native';
 const transparentStatus = {
   statusBarTranslucent: true,
   statusBarColor: transparent,
 };
+import {
+  widthPercentageToDP as wpOriginal,
+  heightPercentageToDP as hpOriginal,
+} from 'react-native-responsive-screen';
+
+const ACTIVE_OPACITY = 0.9;
+const WIDTH = Dimensions.get('window').width;
+const HEIGHT = Dimensions.get('window').height;
+
+const wp = percentage =>
+  wpOriginal(percentage);
+const hp = percentage =>
+  hpOriginal(percentage);
+
 const statusBarColor = '#218FB1';
 const primaryColor = '#000000';
 const secondryColor = '#FFFFFF';
@@ -26,31 +40,7 @@ const mediumTextFont = { fontFamily: mediumFont };
 const semiTextFont = { fontFamily: semiBoldFont };
 const boldTextFont = { fontFamily: boldFont };
 const styleTextFont = { fontFamily: styleFont };
-const container = StyleSheet.create({
-  parent: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  scrollView: {
-    flexGrow: 1,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // backgroundColor: '#000',
-  },
-  empty: { flex: 1, backgroundColor: primaryColor },
-  roundFormBG: {
-    flex: 1,
-    paddingVertical: 30,
-    borderTopStartRadius: 30,
-    borderTopEndRadius: 30,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    marginTop: -20,
-  },
-});
+
 const Colors = {
   primary: '#0A84FF',
   white: '#FFFFFF',
@@ -164,147 +154,467 @@ const Colors = {
   red50: '#FF443A',
   grey50: '#F2F2F7',
   blue100: '#4293EE',
-  blue200:'#0A84FF'
+  blue200: '#0A84FF'
 };
 
-const headings = StyleSheet.create({
-  h0M: { ...mediumTextFont, fontSize: 45 },
-  h0s: { ...semiTextFont, fontSize: 33, color: textColor },
-  h1b: { ...textFont, fontSize: 30, color: textColor },
-  h1s: { ...styleTextFont, fontSize: 28, color: textColor, fontWeight: 'bold' },
-  h1SB: { ...styleTextFont, fontSize: 16, color: textColor, fontWeight: 'bold' },
-  h1SS: { ...styleTextFont, fontSize: 16, color: textColor, fontWeight: '400' },
-  h1: { ...semiTextFont, fontSize: 28, color: textColor },
-  h1S: { ...semiTextFont, fontSize: 26, color: textColor },
-  h2: { ...mediumTextFont, fontSize: 24, color: textColor },
-  h2M: { ...semiTextFont, fontSize: 24, color: textColor },
-  h2s: { ...textFont, fontSize: 25, color: Colors.Azure },
-  h3: { ...mediumTextFont, fontSize: 22, color: textColor },
-  h3SB: { ...semiTextFont, fontSize: 22, color: textColor },
-  h3F: { ...mediumTextFont, fontSize: 22 },
-  h3b: { ...boldTextFont, fontSize: 22, color: textColor },
-  h3n: { ...textFont, fontSize: 22, color: textColor },
-  h3S: { ...boldTextFont, fontSize: 22, color: primaryColor },
-  h4: { ...mediumTextFont, fontSize: 20, color: textColor },
-  h4b: { ...boldTextFont, fontSize: 36, color: textColor },
-  h4S: { ...semiTextFont, fontSize: 32, color: textColor },
-  h5: { ...textFont, fontSize: 18, color: textColor },
-  h5b: { ...boldTextFont, fontSize: 32, color: textColor },
-  h5SB: { ...semiTextFont, fontSize: 38, color: textColor },
-  h5M: { ...mediumTextFont, fontSize: 18, color: textColor },
-  h5S: { ...semiTextFont, fontSize: 18, color: textColor },
-  h6: { ...textFont, fontSize: 16, color: textColor },
-  h6M: { ...semiTextFont, fontSize: 16, color: textColor },
-  h6B: { ...boldTextFont, fontSize: 16, color: textColor },
-  h7: { ...semiTextFont, fontSize: 17, color: textColor },
-  h7M: { ...semiTextFont, fontSize: 17, color: primaryColor },
-  h7B: { ...boldTextFont, fontSize: 17, color: textColor },
-  h8: { ...textFont, fontSize: 15, color: textColor },
-  h8M: { ...semiTextFont, fontSize: 15, color: textColor },
-  h8S: { ...mediumTextFont, fontSize: 15, color: Colors.MediumSilver },
-  h8B: { ...boldTextFont, fontSize: 15, color: textColor },
-  h9: { ...textFont, fontSize: 12.5, fontWeight: '400', color: primaryColor },
-  H9M: {
-    ...semiTextFont,
-    fontSize: 12.5,
+const Fonts = {
+  Satoshi: {
+    Regular: 'Satoshi-Regular',
+    Medium: 'Satoshi-Medium',
+    SemiBold: 'Satoshi-SemiBold',
+    Bold: 'Satoshi-Bold',
+  },
+};
+
+export const FontStyles = {
+  Satoshi: {
+    Regular: { fontFamily: Fonts.Satoshi.Regular },
+    Medium: { fontFamily: Fonts.Satoshi.Medium },
+    SemiBold: { fontFamily: Fonts.Satoshi.SemiBold },
+    Bold: { fontFamily: Fonts.Satoshi.Bold },
+  },
+};
+
+const TEXT_STYLE = StyleSheet.create({
+  h8: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(1),
+    fontWeight: '400',
+  },
+  h10: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(1.2),
+    fontWeight: '400',
+  },
+  h12: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(1.4),
+    fontWeight: '400',
+  },
+  h12B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(1.4),
+    fontWeight: '700',
+  },
+  h12SB: {
+    ...FontStyles.Satoshi.SemiBold,
+    fontSize: hp(1.4),
     fontWeight: '600',
-    color: Colors.frenchGray,
   },
-  H9S: { ...mediumTextFont, fontSize: 13, fontWeight: '500', color: textColor },
-  H9B: { ...semiTextFont, fontSize: 13, fontWeight: '600', color: textColor },
-  H9SB: { ...boldTextFont, fontSize: 13, fontWeight: '700', color: textColor },
-  h10: { ...textFont, fontSize: 17, fontWeight: '400', color: Colors.Blue },
-  H11M: {
-    ...mediumTextFont,
-    fontSize: 17,
+  h14: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(1.4),
+    fontWeight: '400',
+  },
+  h14M: {
+    ...FontStyles.Satoshi.Medium,
+    fontSize: hp(1.6),
     fontWeight: '500',
-    color: Colors.gingerBlue,
   },
-  H11MW: { ...mediumTextFont, fontSize: 17, fontWeight: '500', color: textColor },
-  H11: {
-    ...mediumTextFont,
-    fontSize: 11,
+  h14B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(1.55),
+    fontWeight: '700',
+  },
+  h14S: {
+    ...FontStyles.Satoshi.SemiBold,
+    fontSize: hp(1.6),
+    fontWeight: '600',
+  },
+  h15B: {
+    ...FontStyles.Satoshi.SemiBold,
+    fontSize: hp(1.5),
+    fontWeight: '600',
+  },
+  h15RB: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(1.5),
     fontWeight: '500',
-    color: Colors.SpanishGray99,
   },
-  H12: { ...textFont, fontSize: 14, fontWeight: '400', color: Colors.Azure },
-  H12B: { ...boldTextFont, fontSize: 12, fontWeight: '700', color: textColor },
-  H12M: { ...mediumTextFont, fontSize: 12, fontWeight: '500', color: textColor },
-  H13S: { ...semiTextFont, fontSize: 10, fontWeight: '600', color: textColor },
-  H13M: { ...mediumTextFont, fontSize: 10, fontWeight: '500', color: textColor },
-  H13: { ...textFont, fontSize: 10, fontWeight: '400', color: textColor },
-  H14: { ...textFont, fontSize: 11, fontWeight: '400', color: textColor },
-  H14S: { ...semiTextFont, fontSize: 11, fontWeight: '600', color: textColor },
-  H14M: { ...mediumTextFont, fontSize: 11, fontWeight: '500', color: textColor },
-  H15M: { ...mediumTextFont, fontSize: 9, fontWeight: '500', color: textColor },
-  H15: { ...textFont, fontSize: 9, fontWeight: '500', color: textColor },
-  H15B: { ...boldTextFont, fontSize: 9, fontWeight: '700', color: textColor },
-  h10SS: { ...styleTextFont, fontSize: 12, color: textColor, fontWeight: '400' },
-  h13SS: { ...styleTextFont, fontSize: 13, color: textColor, fontWeight: '400' },
-  h22SS: { ...semiTextFont, fontSize: 21, color: textColor },
+  h16: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(1.5),
+    fontWeight: '500',
+  },
+  h16M: {
+    ...FontStyles.Satoshi.Medium,
+    fontSize: hp(1.3),
+    fontWeight: '500',
+  },
+  h16SB: {
+    ...FontStyles.Satoshi.SemiBold,
+    fontSize: hp(1.8),
+    fontWeight: '600',
+  },
+  h16B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(1.7),
+    fontWeight: '700',
+  },
+  h18: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(1.7),
+    fontWeight: '400',
+  },
+  h18RB: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(1.9),
+    fontWeight: '600',
+  },
+  h18B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(1.8),
+    fontWeight: '700',
+  },
+  h18M: {
+    ...FontStyles.Satoshi.Medium,
+    fontSize: hp(1.9),
+    fontWeight: '500',
+  },
+  h19B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(2.1),
+    fontWeight: '700',
+  },
+  h20M: {
+    ...FontStyles.Satoshi.Medium,
+    fontSize: hp(2.1),
+    fontWeight: '500',
+  },
+  h20B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(2.2),
+    fontWeight: '700',
+  },
+  h20R: {
+    ...FontStyles.Satoshi.Regular,
+    fontSize: hp(2.1),
+    fontWeight: '300',
+  },
+  h24S: {
+    ...FontStyles.Satoshi.SemiBold,
+    fontSize: hp(2.1),
+    fontWeight: '600',
+    color: Colors.black,
+  },
+  h24M: {
+    ...FontStyles.Satoshi.Medium,
+    fontSize: hp(2.7),
+    fontWeight: '500',
+  },
+  h24B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(2.7),
+    fontWeight: '700',
+  },
+  h24BS: {
+    ...FontStyles.Satoshi.SemiBold,
+    fontSize: hp(2.7),
+    fontWeight: '600',
+  },
+  h30B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(3.5),
+    fontWeight: '700',
+  },
+  h40B: {
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(4.2),
+    fontWeight: '700',
+  },
 });
 
 const form = StyleSheet.create({
   inputBG: {
     flexDirection: 'row',
-    borderRadius: 20,
-    marginVertical: 10,
+    borderRadius: wp(50),
+    borderWidth: wp(0.3),
+    borderColor: Colors.lightgray,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: wp(3),
+    backgroundColor: Colors.white,
+    height: wp(12),
   },
   inputText: {
-    ...semiTextFont,
-    paddingStart: 10,
+    ...TEXT_STYLE.h14M,
     flex: 1,
-    fontSize: 15,
-    color: textColor,
+    textAlignVertical: 'center',
+    fontSize: wp(3),
   },
-  inputStyle: { ...headings.h4b, paddingStart: 10, flex: 1, textAlign: 'center' },
-  inputTextStyle: {
-    ...mediumTextFont,
-    fontSize: 17,
-    fontWeight: '500',
-    color: Colors.MidGray,
+});
+
+const container = StyleSheet.create({
+  parent: {
+    flex: 1,
+    backgroundColor: Colors.white,
   },
-  normalInputStyle: {
-    ...textFont,
-    fontSize: 15,
-    fontWeight: '400',
-    color: Colors.Gray66,
+  scrollContainer: {
+    flexGrow: 1,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  empty: { flex: 1 },
+  roundFormBG: {
+    flex: 1,
+    paddingVertical: hp(3.0),
+    borderTopStartRadius: wp(3.0),
+    borderTopEndRadius: wp(3.0),
+    borderTopLeftRadius: wp(3.0),
+    borderTopRightRadius: wp(3.0),
+    marginTop: hp(-0.2),
+  },
+});
+
+const Popupmenu = StyleSheet.create({
+  Options: {
+    ...TEXT_STYLE.h14M,
+    color: Colors.primaryColour,
+    textAlign: 'center',
+
+    fontWeight: '700',
+  },
+  Optioncont: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#fff',
+  },
+  OptionPadding: {
+    paddingVertical: 15,
+    paddingHorizontal: 40,
+  },
+  selectedOption: { color: '#fff', fontWeight: 'bold' },
+});
+
+const commonStyles = StyleSheet.create({
+  flex1: { flex: 1 },
+  flexGrow1: { flexGrow: 1 },
+  flex1Row: { flex: 1, flexDirection: 'row' },
+  flexRow: { flexDirection: 'row' },
+  screenContainer: {
+    flex: 1,
+    paddingHorizontal: wp(3.5),
+  },
+  horizontalView: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  horizontalView_m05: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginVertical: hp(0.5),
+  },
+  horizontalView_m1: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginVertical: hp(1),
+  },
+  justifyView: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  justifyView_m05: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: hp(0.5),
+  },
+  justifyView_m1: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: hp(1),
+  },
+  justifyView_m2: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: hp(2),
+  },
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shadow_5: {
+    elevation: 5,
+    shadowColor: Colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  shadow_3: {
+    elevation: 3,
+    shadowColor: Colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 2.22,
+  },
+  shadow_10: {
+    elevation: 10,
+    shadowColor: Colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.34,
+    shadowRadius: 6.27,
+  },
+  shadow_20: {
+    elevation: 20,
+    shadowColor: Colors.black,
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.51,
+    shadowRadius: 13.16,
+  },
+  noPadding: {
+    paddingTop: 0,
+    paddingLeft: 0,
+    paddingRight: 0,
+    paddingBottom: 0,
+    paddingStart: 0,
+    paddingEnd: 0,
+  },
+  noMargin: {
+    marginTop: 0,
+    marginLeft: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginStart: 0,
+    marginEnd: 0,
+  },
+  bottomView: {
+    flex: 1,
+    backgroundColor: Colors.primary,
+    borderTopRightRadius: hp(1.4),
+    borderTopLeftRadius: hp(1.4),
+    paddingHorizontal: '5%',
+    paddingTop: hp(2),
+    paddingBottom: Platform.OS === 'ios' ? hp(3.3) : hp(2),
+  },
+
+  bottomModal: {
+    justifyContent: 'flex-end',
+    margin: 0,
+  },
+
+  floatingButtonContainer: {
+    position: 'absolute',
+    right: wp(7),
+    bottom: hp(2),
+    borderRadius: 1000,
+  },
+  floatingButton: { padding: wp(2) },
+  flatlistCardContainer: {
+    flexGrow: 0.5,
+    margin: wp(1.8),
+  },
+  emptyDesc: {
+    width: wp((33.5 / Dimensions.get('window').width) * 100),
+    // width: wp((1 / 2) * 100)
+  },
+  fallingImage: {
+    position: 'absolute',
+    right: -wp(25),
+  },
+  riseImage: {
+    position: 'absolute',
+    left: -wp(25),
+  },
+  authTabletContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  authRiseImageContainer: { left: 0 },
+  authFallingImageContainer: { right: 0 },
+  authRiseImageStyle: { width: wp(30) },
+  authFallingImageStyle: { width: wp(30) },
+
+  authContentBoxStyle: {
+    flex: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  authGradientContainer: {
+    flex: 1,
+    borderTopLeftRadius: 300,
+    borderTopRightRadius: 300,
+    paddingHorizontal: wp(5),
+    marginTop: hp(2),
+    paddingTop: hp(12),
+  },
+  gradientScreenContainer: {
+    flex: 1,
+    paddingTop: hp(4),
+  },
+  horizontalRowBarWithSearch: { paddingTop: 0, paddingVertical: 0 },
+  horizontalSearchBarWithRow: {
+    paddingTop: hp(1),
+  },
+  tabletCommentWrapper: {
+    marginLeft: 20,
+    marginTop: 20,
   },
 });
 
 const shadow = StyleSheet.create({
   whiteShadow: {
-    shadowColor: primaryColor,
-    shadowColor: primaryColor,
+    shadowColor: Colors.white,
     shadowOffset: {
       width: 0,
-      height: 3,
+      height: hp(0.03),
     },
     shadowOpacity: 0.27,
     shadowRadius: 4.65,
     elevation: 6,
   },
+  blackShadow: {
+    shadowColor: Colors.white,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+  },
 });
 const btnStyle = StyleSheet.create({
   btnBG: {
-    backgroundColor: btnBG,
-    height: 50,
-    paddingHorizontal: 20,
-    borderRadius: 14,
+    height: wp(12),
+    paddingHorizontal: wp(8),
+    borderRadius: 1000,
+    borderWidth: wp(0.3),
+    borderColor: Colors.transparent,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
   },
   btnText: {
-    ...semiTextFont,
-    fontSize: 17,
-    color: primaryColor,
+    ...FontStyles.Satoshi.Bold,
+    fontSize: hp(1.8),
+    // color: Colors.black,
+  },
+  btnTextCol: {
+    ...FontStyles.Satoshi.Medium,
+    fontSize: hp(1.9),
+    color: Colors.black,
   },
 });
 
+
 export {
+  wp,
+  hp,
   transparentStatus,
   textFont,
   semiTextFont,
@@ -323,9 +633,11 @@ export {
   primaryColor,
   secondryColor,
   tertiaryColor,
-  headings,
+  // headings,
   form,
   shadow,
   transparent,
   Colors,
+  TEXT_STYLE,
+  commonStyles,
 };

@@ -7,4 +7,7 @@ export const IMAGES = {
     SETTING: require('./setting.png'),
     USER: require('./user.png'),
     EXCEL_ICON: require('./excel_icon.png'),
+    EVENT: require('./event.png'),
+    CATEGORIE: require('./categories.png'),
+    GALLERY: require('./gallery.png'),
 }

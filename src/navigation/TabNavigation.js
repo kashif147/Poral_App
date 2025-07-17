@@ -1,18 +1,17 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image, NativeModules, Platform, StyleSheet, Text, View, Dimensions, TouchableOpacity } from 'react-native';
-import { Colors } from '../utils/Styles';
+import { Colors, wp } from '../utils/Styles';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { LocalSvg } from 'react-native-svg/css';
 import Application from '../modules/application/Application';
 import Event from '../modules/event/Event';
 import Categories from '../modules/categories/Categories';
 import Courses from '../modules/courses/Courses';
 import Membership from '../modules/membership/Membership';
-import svg from '../assets/svg';
 import { STACKS } from '../enums/ScreenEnums';
 import { IMAGES } from '../assets/images';
 import { TabBarIcon } from '../common/tabBarIcon';
+import DashBoard from '../modules/dashboard/DashBoard';
 
 const Tab = createBottomTabNavigator();
 
@@ -20,27 +19,31 @@ const TAB_ICONS = [
   {
     name: STACKS.EVENTS_STACK,
     label: 'Event',
-    icon: svg.HOME || svg.NEW_EVENT_TAB,
+    icon: IMAGES.EVENT,
   },
   {
     name: STACKS.CATEGORIES_STACK,
     label: 'Categories',
-    icon: svg.SEARCH,
+    icon: IMAGES.CATEGORIE,
+
+  },
+  {
+    name: STACKS.DASHBOARD_STACK,
+    label: 'Home',
+    icon: IMAGES.HOME,
+
   },
   {
     name: STACKS.APPLICATION_STACK,
     label: 'Application',
-    icon: svg.CHAT_MESSAGE_NEW || svg.NEW_CHAT_TAB,
-  },
-  {
-    name: STACKS.COURSES_STACK,
-    label: 'Courses',
-    icon: svg.CLOCK,
+    icon: IMAGES.PEN,
+
   },
   {
     name: STACKS.MEMBERSHIP_STACK,
     label: 'Membership',
-    icon: svg.USERS_GROUP,
+    icon: IMAGES.USER,
+
   },
 ];
 
@@ -87,7 +90,15 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-              <LocalSvg asset={tab.icon} width={24} height={24} fill={isFocused ? Colors.primary : Colors.iconColor} />
+              <Image
+                source={tab.icon}
+                resizeMode="contain"
+                style={{
+                  ...styles.image,
+                  tintColor: isFocused ? Colors.primary : Colors.iconColor,
+                }}
+              />
+              {/* <LocalSvg asset={tab.icon} width={24} height={24} fill={isFocused ? Colors.primary : Colors.iconColor} /> */}
             </View>
             <Text style={{
               color: isFocused ? Colors.primary : Colors.iconColor,
@@ -117,7 +128,7 @@ const TabNavigator = () => {
         },
       ]}>
       <Tab.Navigator
-        initialRouteName="Application"
+        initialRouteName="Dashboard"
         backBehavior="history"
         tabBar={props => <CustomTabBar {...props} />}
         screenOptions={{
@@ -127,8 +138,9 @@ const TabNavigator = () => {
       >
         <Tab.Screen name={STACKS.EVENTS_STACK} component={Event} />
         <Tab.Screen name={STACKS.CATEGORIES_STACK} component={Categories} />
+        <Tab.Screen name={STACKS.DASHBOARD_STACK} component={DashBoard} />
         <Tab.Screen name={STACKS.APPLICATION_STACK} component={Application} />
-        <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
+        {/* <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} /> */}
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
       </Tab.Navigator>
     </SafeAreaProvider>
@@ -137,3 +149,12 @@ const TabNavigator = () => {
 
 
 export default TabNavigator;
+
+export const styles = StyleSheet.create({
+
+  image: {
+    height: wp(5),
+    width: wp(5),
+  },
+  title: { fontSize: wp(2.5), fontWeight: '600' },
+});

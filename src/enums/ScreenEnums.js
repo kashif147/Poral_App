@@ -9,6 +9,7 @@ const STACKS = {
   EVENTS_STACK: "Event",
   CATEGORIES_STACK: "Categories",
   APPLICATION_STACK: "Application",
+  DASHBOARD_STACK: "Dashboard",
   COURSES_STACK: "Courses",
   MEMBERSHIP_STACK: "Membership",
 

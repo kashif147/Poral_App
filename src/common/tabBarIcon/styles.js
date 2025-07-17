@@ -2,7 +2,7 @@
 import { StyleSheet } from 'react-native';
 import { Colors } from '../../utils/Styles';
 
-export const getStyles = ({ focused }: { focused: boolean }) =>
+export const getStyles = ({ focused }) =>
   StyleSheet.create({
     container: { alignItems: 'center', justifyContent: 'center' },
     buttonContaienr: {

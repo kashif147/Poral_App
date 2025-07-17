@@ -1,18 +1,11 @@
 // import {Label} from '@common';
 import React from 'react';
-import {Image, Text, TouchableOpacity, View} from 'react-native';
-import {getStyles} from './styles';
-import {LocalSvg} from 'react-native-svg/css';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { getStyles } from './styles';
+import { LocalSvg } from 'react-native-svg/css';
 import { Colors } from '../../utils/Styles';
 // import { Colors } from '@enums';
-interface TabBarIconProps {
-  focused: boolean;
-  source: any;
-  label: string;
-  onPress?: () => void;
-  type?: 'svg';
-  style?: any;
-}
+
 export const TabBarIcon = ({
   focused,
   source,
@@ -20,8 +13,8 @@ export const TabBarIcon = ({
   onPress,
   type,
   style,
-}: TabBarIconProps) => {
-  const styles = getStyles({focused});
+}) => {
+  const styles = getStyles({ focused });
   return (
     <TouchableOpacity style={style} disabled={!onPress} onPress={onPress}>
       <View style={styles.container}>
