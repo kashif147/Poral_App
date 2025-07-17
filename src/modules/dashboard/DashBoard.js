@@ -1,13 +1,13 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-
+import { Label } from '../../common/text/label';
+import { Wrapper } from '../../common/wrapper';
+import { commonStyles } from '../../utils/Styles';
 
 const DashBoard = () => {
-
   return (
-    <View style={{ flex: 1 }}>
-      <Text>DashBoard</Text>
-    </View>
+    <Wrapper style={commonStyles.screenContainer}>
+      <Label>DashBoard</Label>
+    </Wrapper>
   );
 };
 

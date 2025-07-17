@@ -2,10 +2,8 @@ import { CommonActions } from '@react-navigation/native';
 import moment from 'moment';
 import { Alert, Linking, Platform } from 'react-native';
 import InAppBrowser from 'react-native-inappbrowser-reborn';
-import { parsePhoneNumberFromString } from 'libphonenumber-js';
+// import { parsePhoneNumberFromString } from 'libphonenumber-js';
 // import { allCountries } from 'country-telephone-data';
-// import CryptoJS from 'crypto-js';
-// import { createThumbnail } from 'react-native-create-thumbnail';
 
 export const utils = {
   alert({ title, message }) {
@@ -171,42 +169,9 @@ export const utils = {
     return '';
   },
 
-  countDaysFromTodayToDate(tillDate) {
-    const today = moment();
-    const endDate = moment(tillDate);
-    return endDate.diff(today, 'days');
-  },
-
-  getAuthProviderFromProviderData(providerData) {
-    if (!this.isArrayEmpty(providerData)) {
-      const providerId = providerData?.[0]?.providerId ?? '';
-
-      return ['password', 'phone'].includes(providerId)
-        ? 'email'
-        : providerId === 'google.com'
-        ? 'google'
-        : providerId === 'facebook.com'
-        ? 'facebook'
-        : providerId === 'apple.com'
-        ? 'apple'
-        : providerId === 'linkedin.com'
-        ? 'linkedin'
-        : '';
-    }
-    return '';
-  },
 
   getDummyUserImageByName(name) {
     return `https://ui-avatars.com/api/?name=${name}&length=1&background=345E58&color=ffffff&size=150&font-size=0.5`;
-  },
-
-  getFullNameFromUserData(userData, onlyFirstName) {
-    if (onlyFirstName) {
-      return this.isStringEmpty(userData?.firstName) ? 'CollabMind' : userData?.firstName;
-    }
-    return `${this.isStringEmpty(userData?.firstName) ? 'CollabMind' : userData?.firstName} ${
-      this.isStringEmpty(userData?.lastName) ? 'User' : userData?.lastName
-    }`;
   },
 
   getInitialsFromName(userData) {
@@ -225,17 +190,6 @@ export const utils = {
     return re.test(email);
   },
 
-  secondsToMinutesFormat(seconds) {
-    if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0) {
-      this.console('Invalid input. Please provide a non-negative number of seconds.');
-      return seconds;
-    }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-
-    return `${this.addZeroBeforeNumber(minutes, 1)}:${this.addZeroBeforeNumber(remainingSeconds, 2)}`;
-  },
-
   generateSixDigitUniqueCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
   },
@@ -246,18 +200,6 @@ export const utils = {
       formatted = `${defaultCountryCode || ''}${formatted}`;
     }
     return formatted;
-  },
-
-  chunkArrayIfIDsMaxLengthReached(array, size = 30) {
-    return new Promise(resolve => {
-      const chunks = array.reduce((result, item, index) => {
-        const chunkIndex = Math.floor(index / size);
-        if (!result[chunkIndex]) result[chunkIndex] = [];
-        result[chunkIndex].push(item);
-        return result;
-      }, []);
-      resolve(chunks);
-    });
   },
 
   splitPhoneNumber(formattedNumber) {
@@ -273,27 +215,6 @@ export const utils = {
     const countryCode = code.replace('+', '');
     const country = await allCountries.find(c => c.dialCode === countryCode);
     return country?.iso2.toUpperCase();
-  },
-
-  generate16DigitNumber(email) {
-    // const hash = CryptoJS.SHA256(email).toString(CryptoJS.enc.Hex);
-    // let uid = hash.substring(0, 28);
-    // if (hash.length > 28) {
-    //   uid = hash.substring(0, 14) + hash.substring(hash.length - 14);
-    // }
-    // return uid;
-    return email; // Placeholder if CryptoJS is commented
-  },
-
-  reachedProjectCreationLimit(createdProjects, projectsLimit, displayMessage = true) {
-    const limitReached = projectsLimit !== 'unlimited' && createdProjects >= projectsLimit;
-    if (displayMessage && limitReached) {
-      this.alert({
-        title: 'Warning!',
-        message: 'You have reached your projects limit.',
-      });
-    }
-    return limitReached;
   },
 
   reachedFileStorageLimit(uploadedDocuments, storageLimit, displayMessage = true) {
@@ -368,6 +289,5 @@ export const utils = {
     }
     return { countryCode: '', mobileNumber: phoneNumber, countryISO: '' };
   },
-
 
 };

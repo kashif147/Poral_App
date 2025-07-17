@@ -640,4 +640,5 @@ export {
   Colors,
   TEXT_STYLE,
   commonStyles,
+  ACTIVE_OPACITY,
 };
