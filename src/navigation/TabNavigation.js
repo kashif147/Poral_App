@@ -1,26 +1,111 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, NativeModules, Text, View } from 'react-native';
-import { STACKS } from '../enums/ScreenEnums';
-import { btnBG, Colors, secondryColor, } from '../utils/Styles';
-import LinearGradient from 'react-native-linear-gradient';
+import { Image, NativeModules, Platform, StyleSheet, Text, View, Dimensions, TouchableOpacity } from 'react-native';
+import { Colors } from '../utils/Styles';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Helper from '../utils/Helpers';
-import FastImage from 'react-native-fast-image';
 import { LocalSvg } from 'react-native-svg/css';
-import SvgIcons from '../enums/SvgIcons';
 import Application from '../modules/application/Application';
 import Event from '../modules/event/Event';
 import Categories from '../modules/categories/Categories';
 import Courses from '../modules/courses/Courses';
 import Membership from '../modules/membership/Membership';
+import svg from '../assets/svg';
+import { STACKS } from '../enums/ScreenEnums';
+import { IMAGES } from '../assets/images';
+import { TabBarIcon } from '../common/tabBarIcon';
 
 const Tab = createBottomTabNavigator();
+
+const TAB_ICONS = [
+  {
+    name: STACKS.EVENTS_STACK,
+    label: 'Event',
+    icon: svg.HOME || svg.NEW_EVENT_TAB,
+  },
+  {
+    name: STACKS.CATEGORIES_STACK,
+    label: 'Categories',
+    icon: svg.SEARCH,
+  },
+  {
+    name: STACKS.APPLICATION_STACK,
+    label: 'Application',
+    icon: svg.CHAT_MESSAGE_NEW || svg.NEW_CHAT_TAB,
+  },
+  {
+    name: STACKS.COURSES_STACK,
+    label: 'Courses',
+    icon: svg.CLOCK,
+  },
+  {
+    name: STACKS.MEMBERSHIP_STACK,
+    label: 'Membership',
+    icon: svg.USERS_GROUP,
+  },
+];
+
+const CustomTabBar = ({ state, descriptors, navigation }) => {
+  const { width } = Dimensions.get('window');
+  return (
+    <View
+      style={{
+        height: 70,
+        flexDirection: 'row',
+        backgroundColor: Colors.white,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+      }}
+    >
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+        const tab = TAB_ICONS[index];
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            testID={options.tabBarTestID}
+            onPress={onPress}
+            activeOpacity={0.8}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <View style={{
+              borderRadius: 24,
+              marginBottom: 4,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <LocalSvg asset={tab.icon} width={24} height={24} fill={isFocused ? Colors.primary : Colors.iconColor} />
+            </View>
+            <Text style={{
+              color: isFocused ? Colors.primary : Colors.iconColor,
+              fontSize: 12,
+              fontWeight: isFocused ? '700' : '500',
+              marginTop: 2,
+            }}>{tab.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
 
 const TabNavigator = () => {
   const { StatusBarManager } = NativeModules;
   const backgroundStyle = {
-    backgroundColor: 'black',
+    backgroundColor: Colors.black,
     flex: 1,
   };
   return (
@@ -28,135 +113,27 @@ const TabNavigator = () => {
       style={[
         backgroundStyle,
         {
-          paddingTop: Helper.isIOS() ? StatusBarManager.HEIGHT || 0 : 0,
+          paddingTop: Platform.OS === 'ios' ? StatusBarManager.HEIGHT || 0 : 0,
         },
       ]}>
       <Tab.Navigator
         initialRouteName="Application"
         backBehavior="history"
+        tabBar={props => <CustomTabBar {...props} />}
         screenOptions={{
           headerShown: false,
-          tabBarStyle: {
-            backgroundColor: 'transparent',
-            borderTopWidth: 0,
-            height: Helper.isIOS() ? 82 : 75,
-            paddingLeft: 16,
-            paddingRight: 16,
-          },
-          tabBarActiveTintColor: secondryColor,
-          tabBarShowLabel: false,
-          tabBarInactiveTintColor: btnBG,
-          tabBarBackground: () => (
-            <>
-              <LinearGradient
-                colors={['#00000000', '#000000F0', '#000000']}
-                locations={[0, 0.4, 0.5]}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 100,
-                }}
-                pointerEvents="none"
-              />
-              <LinearGradient
-                colors={['#00000000', '#000000F0']}
-                locations={[0, 1]}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 80,
-                }}
-                pointerEvents="none"
-              />
-            </>
-          ),
-        }}>
-        <Tab.Screen
-          name={STACKS.EVENTS_STACK}
-          component={Event}
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-                {focused ?
-                  <LocalSvg asset={SvgIcons.NEW_EVENT_WHITE} />
-                  :
-                  <LocalSvg asset={SvgIcons.NEW_EVENT} />}
-              </View>
-            ),
-          }}
-        />
-        <Tab.Screen
-          name={STACKS.CATEGORIES_STACK}
-          component={Categories}
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <View style={{ alignItems: 'center' }}>
-                {focused ?
-                  <LocalSvg asset={SvgIcons.NEW_CALL_WHITE} />
-                  :
-                  <LocalSvg asset={SvgIcons.NEW_CALL} />}
-              </View>
-            ),
-          }}
-        />
-        <Tab.Screen
-          name={STACKS.APPLICATION_STACK}
-          component={Application}
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <View
-                style={{ alignItems: 'center' }}>
-                {focused ?
-                  <LocalSvg asset={SvgIcons.NEW_NETWORK_WHITE} />
-                  :
-                  <LocalSvg asset={SvgIcons.NEW_NETWORK} />}
-              </View>
-            ),
-          }}
-        />
-        <Tab.Screen
-          name={STACKS.COURSES_STACK}
-          component={Courses}
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <View style={{ alignItems: 'center' }}>
-                {focused ?
-                  <LocalSvg asset={SvgIcons.NEW_CHAT_WHITE} />
-                  :
-                  <LocalSvg asset={SvgIcons.NEW_CHAT} />}
-              </View>
-            ),
-          }}
-        />
-        <Tab.Screen
-          name={STACKS.MEMBERSHIP_STACK}
-          component={Membership}
-          options={{
-            tabBarIcon: ({ focused }) => (
-              <View style={{ alignItems: 'center', }}>
-                <FastImage
-                  source={{ uri: userData?.profile }}
-                  resizeMode="cover"
-                  style={{
-                    height: 32,
-                    width: 32,
-                    borderRadius: 16,
-                    overflow: 'hidden',
-                    borderWidth: focused ? 1.5 : 0,
-                    borderColor: focused ? Colors.white : 'transparent',
-                  }}
-                />
-              </View>
-            ),
-          }}
-        />
+          tabBarStyle: { display: 'none' },
+        }}
+      >
+        <Tab.Screen name={STACKS.EVENTS_STACK} component={Event} />
+        <Tab.Screen name={STACKS.CATEGORIES_STACK} component={Categories} />
+        <Tab.Screen name={STACKS.APPLICATION_STACK} component={Application} />
+        <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
+        <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
       </Tab.Navigator>
     </SafeAreaProvider>
   );
 };
+
 
 export default TabNavigator;
