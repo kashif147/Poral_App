@@ -29,7 +29,7 @@ const TAB_ICONS = [
   },
   {
     name: STACKS.DASHBOARD_STACK,
-    label: 'Home',
+    label: 'Dashboard',
     icon: IMAGES.HOME,
 
   },

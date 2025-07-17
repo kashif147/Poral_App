@@ -1,13 +1,15 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { Wrapper } from '../../common/wrapper';
+import { commonStyles } from '../../utils/Styles';
 
 
 const Application = () => {
 
   return (
-    <View style={{ flex: 1 }}>
+    <Wrapper style={commonStyles.screenContainer}>
       <Text>Application</Text>
-    </View>
+    </Wrapper>
   );
 };
 

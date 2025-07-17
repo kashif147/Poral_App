@@ -2,14 +2,14 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import TabNavigator from './src/navigation/TabNavigation';
 import { SafeAreaView, StatusBar } from 'react-native';
-import { primaryColor } from './src/utils/Styles';
+import { Colors } from './src/utils/Styles';
 
 function App() {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <StatusBar
-        backgroundColor={primaryColor}
-        barStyle={'light-content'}
+        backgroundColor={Colors.black}
+        barStyle={'dark-content'}
       />
       <NavigationContainer>
         <TabNavigator />

@@ -11,7 +11,7 @@ export const getStyles = ({
     container: {
       ...(type === 'tag'
         ? { paddingHorizontal: wp(3), paddingVertical: hp(0.6) }
-        : { height: wp(isIPad ? 10.4 : 12.5) }),
+        : { height: wp(12.5) }),
       borderRadius: hp(4),
       backgroundColor:
         disabled || isloading

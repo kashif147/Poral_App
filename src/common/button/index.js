@@ -1,11 +1,12 @@
 // import { Label, Loader, Touchable } from '@common';
-import { btnStyle, Colors } from '@enums';
+// import { btnStyle, Colors } from '@enums';
 import React from 'react';
 import { TouchableOpacityProps, View } from 'react-native';
 import { getStyles } from './styles';
 import { Label } from '../text/label';
 import { Touchable } from '../touchable';
 import { Loader } from '../loader';
+import { btnStyle, Colors } from '../../utils/Styles';
 
 
 export const Button = ({
