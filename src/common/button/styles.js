@@ -15,10 +15,10 @@ export const getStyles = ({
       borderRadius: hp(4),
       backgroundColor:
         disabled || isloading
-          ? Colors.grey800
+          ? Colors.primary
           : outlined
             ? Colors.grey500
-            : Colors.grey900,
+            : Colors.primary,
       ...(outlined && { borderWidth: 1, borderColor: Colors.primary }),
     },
     innerContainer: {
