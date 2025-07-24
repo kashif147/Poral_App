@@ -66,8 +66,68 @@ const Application = () => {
   };
 
   const validateCurrentStep = () => {
-    // Implement validation logic for each step as in your web code
-    // For now, always return true for demo
+    switch (currentStep) {
+      case 1: {
+        const {
+          title,
+          forename,
+          surname,
+          gender,
+          dob,
+          personalEmail,
+          mobileNo,
+          address1,
+          address4,
+          preferredAddress,
+        } = formData.personalInfo || {};
+        if (
+          !title ||
+          !forename ||
+          !surname ||
+          !gender ||
+          !dob ||
+          !personalEmail ||
+          !mobileNo ||
+          !address1 ||
+          !address4 ||
+          !preferredAddress
+        ) {
+          return false;
+        }
+        break;
+      }
+      case 2: {
+        const {
+          workLocation,
+          grade,
+          membershipCategory,
+          nursingAdaptation,
+          nurseType,
+          nmbiNo,
+        } = formData.professionalDetails || {};
+        if (!grade || !workLocation || !membershipCategory) {
+          return false;
+        }
+        if (nursingAdaptation === true) {
+          if (!nurseType || !nmbiNo) return false;
+        }
+        break;
+      }
+      case 3: {
+        const {
+          paymentType,
+          payrollNo,
+          irishTradeUnion,
+          membershipStatus,
+        } = formData.subscriptionDetails || {};
+        if (!paymentType) return false;
+        if (paymentType === 'Payroll Deduction' && !payrollNo) return false;
+        if (!membershipStatus) return false;
+        if (irishTradeUnion === undefined) return false;
+        // Add more validations as needed for your business logic
+        break;
+      }
+    }
     return true;
   };
 
@@ -191,7 +251,7 @@ const Application = () => {
         keyboardShouldPersistTaps="handled"
       >
         {/* Step Content */}
-        <View style={[styles.card, { padding: width * 0.04, borderRadius: width * 0.02 }]}> {renderStepContent()} </View>
+        <View style={[styles.card, { borderRadius: width * 0.02 }]}> {renderStepContent()} </View>
         {/* Navigation Buttons */}
         {/* Modal */}
         <Modal visible={isModalVisible} transparent animationType="slide">

@@ -67,7 +67,7 @@ export const InputField = ({
               ? Colors.white
               : editable
                 ? Colors.grey
-                : Colors.jetblack,
+                : Colors.black,
         }}
         value={value}
         selectionColor={Colors.gray}
@@ -78,7 +78,7 @@ export const InputField = ({
         multiline={multiline}
         placeholder={placeholder}
         placeholderTextColor={
-          holderTextColor ? holderTextColor : Colors.lightGray
+          holderTextColor ? holderTextColor : Colors.grey500
         }
         autoCapitalize={
           keyboardType === 'email-address'

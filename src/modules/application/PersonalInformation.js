@@ -36,6 +36,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
         <Text style={styles.label}>Surname *</Text>
         <InputField
           value={formData.surname}
+          checkValue={showValidation && !formData.surname}
           onChange={text => onFormDataChange({ ...formData, surname: text })}
           placeholder="Enter your surname"
         />
@@ -93,19 +94,19 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
         onChange={text => onFormDataChange({ ...formData, searchEircode: text })}
         placeholder="Enter Eircode (e.g., D01X4X0)"
       />
-      <View style={styles.row}>
-        <View style={styles.halfInput}>
-          <Text style={styles.label}>Preferred address *</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={formData.preferredAddress || preferredAddresses[0]}
-              style={pickerStyle}
-              onValueChange={val => onFormDataChange({ ...formData, preferredAddress: val })}
-            >
-              {preferredAddresses.map(a => <Picker.Item key={a} label={a} value={a} />)}
-            </Picker>
-          </View>
+      {/* <View style={styles.row}> */}
+      <View style={styles.halfInput}>
+        <Text style={styles.label}>Preferred address *</Text>
+        <View style={styles.pickerWrapper}>
+          <Picker
+            selectedValue={formData.preferredAddress || preferredAddresses[0]}
+            style={pickerStyle}
+            onValueChange={val => onFormDataChange({ ...formData, preferredAddress: val })}
+          >
+            {preferredAddresses.map(a => <Picker.Item key={a} label={a} value={a} />)}
+          </Picker>
         </View>
+        {/* </View> */}
         <View style={styles.halfInput} />
       </View>
       <Text style={styles.label}>Address line 1 (Building or House) *</Text>
