@@ -154,7 +154,8 @@ const Colors = {
   red50: '#FF443A',
   grey50: '#F2F2F7',
   blue100: '#4293EE',
-  blue200: '#0A84FF'
+  blue200: '#0A84FF',
+  lightgray: '#E7E7E7',
 };
 
 const Fonts = {

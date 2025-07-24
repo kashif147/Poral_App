@@ -18,7 +18,7 @@ const DashBoard = () => {
   const dashboardCards = [
     {
       key: 'application',
-      icon: IMAGES.INFO,
+      icon: IMAGES.PENCIL,
       title: 'Application',
       description: 'Start or continue your membership application',
       button: "Let's get started",
@@ -34,7 +34,7 @@ const DashBoard = () => {
     },
     {
       key: 'events',
-      icon: IMAGES.CALENDAR,
+      icon: IMAGES.CARD,
       title: 'Events',
       description: 'Browse and register for upcoming events',
       button: 'View Events',

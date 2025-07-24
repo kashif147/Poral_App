@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, StyleSheet, ScrollView, Alert, useWindowDimensions, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PersonalInformation from './PersonalInformation';
+import ProfessionalDetails from './ProfessionalDetails';
+import SubscriptionDetails from './SubscriptionDetails';
 import { Wrapper } from '../../common/wrapper';
 import { commonStyles, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
-// import ProfessionalDetails from './ProfessionalDetails';
 // import SubscriptionDetails from './SubscriptionDetails';
 
 const steps = [
@@ -109,11 +110,19 @@ const Application = () => {
         );
       case 2:
         return (
-          <Text>Professional Details Form (to be implemented)</Text>
+          <ProfessionalDetails
+            formData={formData.professionalDetails}
+            onFormDataChange={data => handleFormDataChange('professionalDetails', data)}
+            showValidation={showValidation}
+          />
         );
       case 3:
         return (
-          <Text>Subscription Details Form (to be implemented)</Text>
+          <SubscriptionDetails
+            formData={formData.subscriptionDetails}
+            onFormDataChange={data => handleFormDataChange('subscriptionDetails', data)}
+            showValidation={showValidation}
+          />
         );
       default:
         return null;
