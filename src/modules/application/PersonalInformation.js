@@ -36,7 +36,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
         <Text style={styles.label}>Surname *</Text>
         <InputField
           value={formData.surname}
-          checkValue={showValidation && !formData.surname}
+          checkValue={true}
           onChange={text => onFormDataChange({ ...formData, surname: text })}
           placeholder="Enter your surname"
         />

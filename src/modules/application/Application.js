@@ -7,7 +7,6 @@ import SubscriptionDetails from './SubscriptionDetails';
 import { Wrapper } from '../../common/wrapper';
 import { commonStyles, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
-// import SubscriptionDetails from './SubscriptionDetails';
 
 const steps = [
   { number: 1, title: 'Personal Information' },
