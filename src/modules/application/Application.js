@@ -51,7 +51,6 @@ const Application = () => {
       setShowValidation(false);
     }
   };
-
   const handlePrevious = () => {
     const prevStep = Math.max(currentStep - 1, 1);
     setCurrentStep(prevStep);

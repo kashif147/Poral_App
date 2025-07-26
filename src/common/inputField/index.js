@@ -51,7 +51,7 @@ export const InputField = ({
   ...props
 }) => {
   return (
-    <View style={[styles.textinputContainer, bgStyle]}>
+    <View style={[styles.textinputContainer, bgStyle, checkValue && { borderColor: Colors.red }]}>
       {sign && <Text style={styles.textStyle}> $ </Text>}
       {icon1 && <LocalSvg style={styles.svgStyle} asset={icon1} />}
       <TextInput
