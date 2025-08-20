@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, Switch, TouchableOpacity } from 'react-native';
 import { InputField } from '../../common/inputField';
-import { Picker } from '@react-native-picker/picker';
+import Picker from '../../common/picker';
 import { Colors, wp } from '../../utils/Styles';
 
 const membershipCategories = [
