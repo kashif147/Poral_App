@@ -1,4 +1,4 @@
-export const IMAGES = {
+export const SVG = {
     VIDEO: require('./video.svg'),
     CALL: require('./call.svg'),
     MASTERCARD: require('./mastercard.svg'),

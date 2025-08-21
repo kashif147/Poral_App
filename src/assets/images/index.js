@@ -10,4 +10,5 @@ export const IMAGES = {
     EVENT: require('./event.png'),
     CATEGORIE: require('./categories.png'),
     GALLERY: require('./gallery.png'),
+    LOGO: require('./logo.png'),
 }

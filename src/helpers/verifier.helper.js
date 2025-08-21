@@ -1,11 +1,27 @@
-export const setVerifier = verifier => {
-  localStorage.setItem('code_verifier', verifier);
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const VERIFIER_KEY = 'code_verifier';
+
+export const setVerifier = async (verifier) => {
+  try {
+    await AsyncStorage.setItem(VERIFIER_KEY, verifier);
+  } catch (e) {
+    // noop
+  }
 };
 
-export const getVerifier = () => {
-  return localStorage.getItem('code_verifier');
+export const getVerifier = async () => {
+  try {
+    return await AsyncStorage.getItem(VERIFIER_KEY);
+  } catch (e) {
+    return null;
+  }
 };
 
-export const deleteVerifier = () => {
-  localStorage.removeItem('code_verifier');
+export const deleteVerifier = async () => {
+  try {
+    await AsyncStorage.removeItem(VERIFIER_KEY);
+  } catch (e) {
+    // noop
+  }
 };

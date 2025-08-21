@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView, Dimensions } from 'react-native';
 import { Label } from '../../common/text/label';
 import { Wrapper } from '../../common/wrapper';
-import { IMAGES } from '../../assets/svg';
+import { SVG } from '../../assets/svg';
 import { DashboardCard } from '../../common/DashboardCard';
 import { useNavigation } from '@react-navigation/native';
 import { STACKS } from '../../enums/ScreenEnums';
@@ -18,7 +18,7 @@ const DashBoard = () => {
   const dashboardCards = [
     {
       key: 'application',
-      icon: IMAGES.PENCIL,
+      icon: SVG.PENCIL,
       title: 'Application',
       description: 'Start or continue your membership application',
       button: "Let's get started",
@@ -26,7 +26,7 @@ const DashBoard = () => {
     },
     {
       key: 'profile',
-      icon: IMAGES.USERS_GROUP,
+      icon: SVG.USERS_GROUP,
       title: 'My Profile',
       description: 'View and update your profile information',
       button: 'View My Profile',
@@ -34,7 +34,7 @@ const DashBoard = () => {
     },
     {
       key: 'events',
-      icon: IMAGES.CARD,
+      icon: SVG.CARD,
       title: 'Events',
       description: 'Browse and register for upcoming events',
       button: 'View Events',
@@ -42,7 +42,7 @@ const DashBoard = () => {
     },
     {
       key: 'payments',
-      icon: IMAGES.CARD,
+      icon: SVG.CARD,
       title: 'Payments',
       description: 'Manage your payments and subscriptions',
       button: 'View Payments',
