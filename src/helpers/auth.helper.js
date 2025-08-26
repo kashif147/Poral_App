@@ -1,27 +1,46 @@
-export const setHeaders = headers => {
-  localStorage.setItem('token', headers['accessToken']);
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
+
+export const setHeaders = async headers => {
+  try {
+    await AsyncStorage.setItem(TOKEN_KEY, headers['accessToken']);
+  } catch {}
 };
 
-export const getHeaders = () => {
-  return {
-    token: localStorage.getItem('token'),
-  };
+export const getHeaders = async () => {
+  try {
+    const token = await AsyncStorage.getItem(TOKEN_KEY);
+    return { token };
+  } catch {
+    return { token: null };
+  }
 };
 
-export const deleteHeaders = () => {
-  localStorage.removeItem('token');
+export const deleteHeaders = async () => {
+  try {
+    await AsyncStorage.removeItem(TOKEN_KEY);
+  } catch {}
 };
 
-export const saveUser = user => {
-  localStorage.setItem('user', JSON.stringify(user));
+export const saveUser = async user => {
+  try {
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch {}
 };
 
-export const getUser = () => {
-  return {
-    user: localStorage.getItem('user'),
-  };
+export const getUser = async () => {
+  try {
+    const user = await AsyncStorage.getItem(USER_KEY);
+    return { user };
+  } catch {
+    return { user: null };
+  }
 };
 
-export const deleteUser = () => {
-  localStorage.removeItem('user');
+export const deleteUser = async () => {
+  try {
+    await AsyncStorage.removeItem(USER_KEY);
+  } catch {}
 };

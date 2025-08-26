@@ -3,6 +3,7 @@ import { SafeAreaView, View, Text, Animated, StyleSheet, Image } from 'react-nat
 import { Button } from '../../common/button';
 import { Colors, wp } from '../../utils/Styles';
 import { microSoftUrlRedirect } from '../../helpers/B2C.helper';
+import { signInWithAzureB2C } from '../../helpers/appAuth.helper';
 import { IMAGES } from '../../assets/images';
 
 const LandingPage = ({ onLoginPress }) => {
@@ -44,8 +45,15 @@ const LandingPage = ({ onLoginPress }) => {
 
           <View style={{ alignItems: 'center' }}>
             <Button
-              title={'Register Now'}
-              onPress={onLoginPress || microSoftUrlRedirect}
+              title={'Start Now'}
+              onPress={
+                onLoginPress || (async () => {
+                  const signIn = await signInWithAzureB2C();
+                  if (!signIn.ok) {
+                    await microSoftUrlRedirect();
+                  }
+                })
+              }
               style={{ width: '100%', paddingHorizontal: wp(10) }}
             />
           </View>

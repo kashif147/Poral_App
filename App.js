@@ -15,8 +15,8 @@ function App() {
     const checkAuth = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
-        // setIsSignedIn(!!token);
-        setIsSignedIn(true);
+        setIsSignedIn(!!token);
+        // setIsSignedIn(true);
       } finally {
         setIsLoading(false);
       }
