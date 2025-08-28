@@ -11,6 +11,8 @@ const countries = ['Ireland', 'United Kingdom', 'United States', 'Other'];
 const preferredAddresses = ['Home', 'Work', 'Other'];
 const preferredEmails = ['Personal', 'Work'];
 
+const GOOGLE_PLACES_API_KEY = 'AIzaSyCJYpj8WV5Rzof7O3jGhW9XabD0J4Yqe1o';
+
 const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => {
   const ref = useRef();
   // Helper for dropdowns
@@ -98,12 +100,58 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
         />
       </View>
       <Text style={styles.label}>Search by address or Eircode</Text>
-      <InputField
-        value={formData.searchEircode}
-        checkValue={showValidation && !formData.searchEircode}
-        onChange={text => onFormDataChange({ ...formData, searchEircode: text })}
-        placeholder="Enter Eircode (e.g., D01X4X0)"
-      />
+      <View style={styles.autocompleteContainer}>
+        <GooglePlacesAutocomplete
+          placeholder="Enter Eircode or address"
+          fetchDetails
+          enablePoweredByContainer={false}
+          predefinedPlaces={[]}
+          textInputProps={{}}
+          onFail={error => {
+            // noop: avoid crashing UI; optionally log
+          }}
+          onPress={(data, details = null) => {
+            try {
+              const components = details?.address_components || [];
+              const getComponent = type => (components.find(c => c.types?.includes(type))?.long_name) || '';
+              const streetNumber = getComponent('street_number');
+              const route = getComponent('route');
+              const sublocality = getComponent('sublocality') || '';
+              const town = getComponent('locality') || getComponent('postal_town') || '';
+              const county = getComponent('administrative_area_level_1') || '';
+              const postalCode = getComponent('postal_code');
+
+              const address1 = `${streetNumber} ${route}`.trim();
+              const address2 = sublocality;
+              const address3 = town;
+              const address4 = `${county}`.trim();
+              const eircode = `${postalCode}`.trim();
+
+              onFormDataChange({
+                ...formData,
+                address1,
+                address2,
+                address3,
+                address4,
+                eircode,
+              });
+            } catch {}
+          }}
+          query={{
+            key: GOOGLE_PLACES_API_KEY,
+            language: 'en',
+          }}
+          styles={{
+            textInput: {
+              ...form.inputBG,
+              color: 'black',
+            },
+            listView: {
+              zIndex: 10,
+            },
+          }}
+        />
+      </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Preferred address *</Text>
         <View style={styles.pickerWrapper}>
