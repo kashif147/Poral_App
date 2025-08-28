@@ -6,7 +6,7 @@ const b2cDomain = 'projectshellAB2C.b2clogin.com';
 const policy = 'B2C_1_projectshell';
 
 const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309';
-const redirectScheme = 'portalapp';
+const redirectScheme = 'portal';
 const redirectUrl = `${redirectScheme}://auth`;
 
 const serviceConfiguration = {

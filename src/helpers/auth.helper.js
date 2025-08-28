@@ -18,6 +18,13 @@ export const getHeaders = async () => {
   }
 };
 
+export const setBearerToken = async bearerToken => {
+  try {
+    if (typeof bearerToken !== 'string') return;
+    await AsyncStorage.setItem(TOKEN_KEY, bearerToken);
+  } catch {}
+};
+
 export const deleteHeaders = async () => {
   try {
     await AsyncStorage.removeItem(TOKEN_KEY);

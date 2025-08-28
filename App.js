@@ -5,6 +5,7 @@ import { SafeAreaView, StatusBar } from 'react-native';
 import { Colors } from './src/utils/Styles';
 import LandingPage from './src/modules/landing/LandingPage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setBearerToken } from './src/helpers/auth.helper';
 import { microSoftUrlRedirect } from './src/helpers/B2C.helper';
 
 function App() {
@@ -26,7 +27,8 @@ function App() {
 
   const handleLogin = async () => {
     console.log('Hello world');
-    await microSoftUrlRedirect();
+    await setBearerToken('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjg4OGI1ZGM2MGM3OThiMDk3ZTg2YzkxIiwidXNlckVtYWlsIjoiZmF6YWxhemltMjM4QGdtYWlsLmNvbSIsInVzZXJGdWxsTmFtZSI6IkZhemFsIEF6aW0iLCJ1c2VyTWljcm9zb2Z0SWQiOiJhOWY3YzkzMS03MTA0LTQyMGItYTdiNS00MjAzMjc4YjliNGMiLCJ1c2VyTWVtYmVyTnVtYmVyIjpudWxsLCJ1c2VyTW9iaWxlUGhvbmUiOm51bGwsInVzZXJQb2xpY3kiOiJCMkNfMV9wcm9qZWN0c2hlbGwiLCJ1c2VySXNzdWVkQXQiOiIyMDI1LTA4LTIwVDE3OjAwOjM3LjAwMFoiLCJ1c2VyQXV0aFRpbWUiOiIyMDI1LTA4LTIwVDE3OjAwOjMwLjAwMFoiLCJ0b2tlblZlcnNpb24iOiJBenVyZSBBRCBCMkMgdjEiLCJ1c2VyVHlwZSI6IlBPUlRBTCJ9LCJpYXQiOjE3NTU3MDkyMzcsImV4cCI6MTc4NzI2NjgzN30.xcrjxBbgc_UB2cGeqRHXCnZD4TKbN80v3LxOJk8FLVw');
+    // await microSoftUrlRedirect();
   };
 
   if (isLoading) {
