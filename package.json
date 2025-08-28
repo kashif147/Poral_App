@@ -16,6 +16,7 @@
     "@react-navigation/bottom-tabs": "^7.4.2",
     "@react-navigation/native": "^7.1.14",
     "@reduxjs/toolkit": "^2.8.2",
+    "axios": "^1.11.0",
     "react": "19.1.0",
     "react-native": "0.80.1",
     "react-native-app-auth": "^8.0.3",

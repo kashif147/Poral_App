@@ -6,19 +6,19 @@ import { PORTAL_URL } from '../constants/api';
 const application_request = axios.create();
 
 application_request.interceptors.request.use(
-  config => {
-    const headers = getHeaders();
-    console.log('Headers======>',headers.token);
-    config.headers['Authorization'] = headers.token;
+  async config => {
+    try {
+      const { token } = await getHeaders();
+      if (token) {
+        // token may already include 'Bearer '
+        config.headers['Authorization'] = token;
+      }
+    } catch {}
     config.headers['Content-Type'] = 'application/json';
-
     config.baseURL = PORTAL_URL;
-
     return config;
   },
-  error => {
-    Promise.reject(error);
-  },
+  error => Promise.reject(error),
 );
 
 application_request.interceptors.response.use(

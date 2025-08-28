@@ -1,12 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Modal, StyleSheet, ScrollView, Alert, useWindowDimensions, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
 import { Wrapper } from '../../common/wrapper';
 import { commonStyles, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
+import {
+  fetchPersonalDetail,
+  fetchProfessionalDetail,
+  fetchSubscriptionDetail,
+  createPersonalDetailRequest,
+  updatePersonalDetailRequest,
+  createProfessionalDetailRequest,
+  updateProfessionalDetailRequest,
+  createSubscriptionDetailRequest,
+  updateSubscriptionDetailRequest,
+} from '../../api/application.api';
 
 const steps = [
   { number: 1, title: 'Personal Information' },
@@ -34,32 +44,47 @@ const Application = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [showValidation, setShowValidation] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [personalDetail, setPersonalDetail] = useState(null);
+  const [professionalDetail, setProfessionalDetail] = useState(null);
+  const [subscriptionDetail, setSubscriptionDetail] = useState(null);
 
-  // Save progress to AsyncStorage
-  const saveProgress = async (data, step) => {
-    await AsyncStorage.setItem('applicationFormData', JSON.stringify(data));
-    await AsyncStorage.setItem('applicationCurrentStep', step.toString());
-  };
+  // Removed local storage persistence; we will hydrate only from API
 
   const handleNext = () => {
     setShowValidation(true);
     if (validateCurrentStep()) {
-      const nextStep = Math.min(currentStep + 1, steps.length);
-      setCurrentStep(nextStep);
-      saveProgress(formData, nextStep);
+      if (currentStep === 1) {
+        if (!personalDetail) {
+          createPersonalDetail(formData.personalInfo);
+        } else {
+          updatePersonalDetail(formData.personalInfo);
+        }
+      } else if (currentStep === 2) {
+        if (!professionalDetail) {
+          createProfessionalDetail(formData.professionalDetails);
+        } else {
+          updateProfessionalDetail(formData.professionalDetails);
+        }
+      } else if (currentStep === 3) {
+        // For native, submit directly then show thank-you modal
+        if (!subscriptionDetail) {
+          createSubscriptionDetail(formData.subscriptionDetails);
+        } else {
+          updateSubscriptionDetail(formData.subscriptionDetails);
+        }
+      }
       setShowValidation(false);
     }
   };
   const handlePrevious = () => {
     const prevStep = Math.max(currentStep - 1, 1);
     setCurrentStep(prevStep);
-    saveProgress(formData, prevStep);
   };
 
   const handleFormDataChange = (stepName, data) => {
     const newData = { ...formData, [stepName]: data };
     setFormData(newData);
-    saveProgress(newData, currentStep);
   };
 
   const validateCurrentStep = () => {
@@ -142,18 +167,341 @@ const Application = () => {
     setIsModalVisible(false);
   };
 
-  // Load progress on mount
+  // Load from API on mount
   useEffect(() => {
-    const loadProgress = async () => {
-      const savedData = await AsyncStorage.getItem('applicationFormData');
-      const savedStep = await AsyncStorage.getItem('applicationCurrentStep');
-      if (savedData) {
-        setFormData(JSON.parse(savedData));
-        setCurrentStep(savedStep ? Number(savedStep) : 1);
-      }
+    const loadFromApi = async () => {
+      setLoading(true);
+      try {
+        const res = await fetchPersonalDetail();
+        if (res?.status === 200) {
+          setPersonalDetail(res?.data?.data);
+        }
+      } catch {}
+      setLoading(false);
     };
-    loadProgress();
+    loadFromApi();
   }, []);
+
+  // When we have ApplicationId, fetch other details
+  useEffect(() => {
+    const loadMore = async () => {
+      if (!personalDetail?.ApplicationId) return;
+      setLoading(true);
+      try {
+        const [profRes, subRes] = await Promise.all([
+          fetchProfessionalDetail(personalDetail.ApplicationId),
+          fetchSubscriptionDetail(personalDetail.ApplicationId),
+        ]);
+        if (profRes?.status === 200) setProfessionalDetail(profRes?.data?.data);
+        if (subRes?.status === 200) setSubscriptionDetail(subRes?.data?.data);
+      } catch {}
+      setLoading(false);
+    };
+    loadMore();
+  }, [personalDetail?.ApplicationId]);
+
+  // Hydrate form from fetched details
+  useEffect(() => {
+    if (personalDetail) {
+      setFormData(prev => ({
+        ...prev,
+        personalInfo: {
+          ...prev.personalInfo,
+          title: personalDetail?.personalInfo?.title || '',
+          surname: personalDetail?.personalInfo?.surname || '',
+          forename: personalDetail?.personalInfo?.forename || '',
+          gender: personalDetail?.personalInfo?.gender || '',
+          dob: personalDetail?.personalInfo?.dateOfBirth || '',
+          countryPrimaryQualification: personalDetail?.personalInfo?.countryPrimaryQualification || '',
+          personalEmail: personalDetail?.contactInfo?.personalEmail || '',
+          mobileNo: personalDetail?.contactInfo?.mobileNumber || '',
+          consent: personalDetail?.contactInfo?.consent ?? true,
+          address1: personalDetail?.contactInfo?.buildingOrHouse || '',
+          address2: personalDetail?.contactInfo?.streetOrRoad || '',
+          address3: personalDetail?.contactInfo?.areaOrTown || '',
+          address4: personalDetail?.contactInfo?.countyCityOrPostCode || '',
+          eircode: personalDetail?.contactInfo?.eircode || '',
+          preferredAddress: personalDetail?.contactInfo?.preferredAddress || '',
+          preferredEmail: personalDetail?.contactInfo?.preferredEmail || '',
+          homeWorkTelNo: personalDetail?.contactInfo?.telephoneNumber || '',
+          country: personalDetail?.contactInfo?.country || '',
+          workEmail: personalDetail?.contactInfo?.workEmail || '',
+        },
+      }));
+    }
+  }, [personalDetail]);
+
+  useEffect(() => {
+    if (professionalDetail) {
+      setFormData(prev => ({
+        ...prev,
+        professionalDetails: {
+          ...prev.professionalDetails,
+          membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
+          workLocation: professionalDetail?.professionalDetails?.workLocation,
+          otherWorkLocation: professionalDetail?.professionalDetails?.otherWorkLocation ?? '',
+          grade: professionalDetail?.professionalDetails?.grade,
+          otherGrade: professionalDetail?.professionalDetails?.otherGrade ?? '',
+          nmbiNo: professionalDetail?.professionalDetails?.nmbiNumber ?? '',
+          nurseType: professionalDetail?.professionalDetails?.nurseType ?? '',
+          nursingAdaptation: professionalDetail?.professionalDetails?.nursingAdaptationProgramme ? true : false,
+          region: professionalDetail?.professionalDetails?.region ?? '',
+          branch: professionalDetail?.professionalDetails?.branch ?? '',
+          pensionNo: professionalDetail?.professionalDetails?.pensionNo ?? '',
+          isRetired: professionalDetail?.professionalDetails?.isRetired ?? false,
+          retiredDate: professionalDetail?.professionalDetails?.retiredDate ?? '',
+          studyLocation: professionalDetail?.professionalDetails?.studyLocation ?? '',
+          graduationDate: professionalDetail?.professionalDetails?.graduationDate ?? '',
+        },
+      }));
+    }
+  }, [professionalDetail]);
+
+  useEffect(() => {
+    if (subscriptionDetail) {
+      setIsSubmitted(true);
+      setFormData(prev => ({
+        ...prev,
+        subscriptionDetails: {
+          ...prev.subscriptionDetails,
+          paymentType: subscriptionDetail?.subscriptionDetails?.paymentType,
+          payrollNo: subscriptionDetail?.subscriptionDetails?.payrollNo ?? '',
+          membershipStatus: subscriptionDetail?.subscriptionDetails?.membershipStatus ?? '',
+          irishTradeUnion: subscriptionDetail?.subscriptionDetails?.otherIrishTradeUnion ?? false,
+          otherScheme: subscriptionDetail?.subscriptionDetails?.otherScheme ?? false,
+          recuritedBy: subscriptionDetail?.subscriptionDetails?.recuritedBy ?? '',
+          recuritedByMembershipNo: subscriptionDetail?.subscriptionDetails?.recuritedByMembershipNo ?? '',
+          primarySection: subscriptionDetail?.subscriptionDetails?.primarySection,
+          otherPrimarySection: subscriptionDetail?.subscriptionDetails?.otherPrimarySection ?? '',
+          secondarySection: subscriptionDetail?.subscriptionDetails?.secondarySection,
+          otherSecondarySection: subscriptionDetail?.subscriptionDetails?.otherSecondarySection ?? '',
+          incomeProtectionScheme: subscriptionDetail?.subscriptionDetails?.incomeProtectionScheme ?? false,
+          inmoRewards: subscriptionDetail?.subscriptionDetails?.inmoRewards ?? false,
+          valueAddedServices: subscriptionDetail?.subscriptionDetails?.valueAddedServices ?? false,
+          termsAndConditions: subscriptionDetail?.subscriptionDetails?.termsAndConditions ?? false,
+          membershipCategory: subscriptionDetail?.subscriptionDetails?.membershipCategory,
+          dateJoined: subscriptionDetail?.subscriptionDetails?.dateJoined,
+          paymentFrequency: subscriptionDetail?.subscriptionDetails?.paymentFrequency,
+        },
+      }));
+    }
+  }, [subscriptionDetail]);
+
+  // API create/update helpers
+  const createPersonalDetail = data => {
+    const personalInfo = {};
+    const personalFields = {
+      title: data.title,
+      surname: data.surname,
+      forename: data.forename,
+      gender: data.gender,
+      dateOfBirth: data.dob,
+      countryPrimaryQualification: data.countryPrimaryQualification,
+    };
+    personalInfo.personalInfo = {};
+    Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.personalInfo[k] = v; });
+    const contactFields = {
+      preferredAddress: data.preferredAddress,
+      eircode: data.eircode,
+      buildingOrHouse: data.address1,
+      streetOrRoad: data.address2,
+      areaOrTown: data.address3,
+      countyCityOrPostCode: data.address4,
+      country: data.country,
+      mobileNumber: data.mobileNo,
+      telephoneNumber: data.homeWorkTelNo,
+      preferredEmail: data.preferredEmail,
+      personalEmail: data.personalEmail,
+      workEmail: data.workEmail,
+      consent: data.consent,
+    };
+    personalInfo.contactInfo = {};
+    Object.entries(contactFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.contactInfo[k] = v; });
+    createPersonalDetailRequest(personalInfo).then(res => {
+      if (res?.status === 200) {
+        setPersonalDetail(res?.data?.data);
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      } else {
+        Alert.alert('Error', res?.data?.message || 'Unable to add personal detail');
+      }
+    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+  };
+
+  const updatePersonalDetail = data => {
+    if (!personalDetail?.ApplicationId) return;
+    const personalInfo = {};
+    const personalFields = {
+      title: data.title,
+      surname: data.surname,
+      forename: data.forename,
+      gender: data.gender,
+      dateOfBirth: data.dob,
+      countryPrimaryQualification: data.countryPrimaryQualification,
+    };
+    personalInfo.personalInfo = {};
+    Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.personalInfo[k] = v; });
+    const contactFields = {
+      preferredAddress: data.preferredAddress,
+      eircode: data.eircode,
+      buildingOrHouse: data.address1,
+      streetOrRoad: data.address2,
+      areaOrTown: data.address3,
+      countyCityOrPostCode: data.address4,
+      country: data.country,
+      mobileNumber: data.mobileNo,
+      telephoneNumber: data.homeWorkTelNo,
+      preferredEmail: data.preferredEmail,
+      personalEmail: data.personalEmail,
+      workEmail: data.workEmail,
+      consent: data.consent,
+    };
+    personalInfo.contactInfo = {};
+    Object.entries(contactFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.contactInfo[k] = v; });
+    updatePersonalDetailRequest(personalDetail.ApplicationId, personalInfo).then(res => {
+      if (res?.status === 200) {
+        setPersonalDetail(res?.data?.data);
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      } else {
+        Alert.alert('Error', res?.data?.message || 'Unable to update personal detail');
+      }
+    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+  };
+
+  const createProfessionalDetail = data => {
+    if (!personalDetail?.ApplicationId) return;
+    const professionalFields = {
+      membershipCategory: data.membershipCategory,
+      workLocation: data.workLocation,
+      otherWorkLocation: data.otherWorkLocation,
+      grade: data.grade,
+      otherGrade: data.otherGrade,
+      nmbiNumber: data.nmbiNo,
+      nurseType: data.nurseType,
+      nursingAdaptationProgramme: data?.nursingAdaptation === true,
+      region: data.region,
+      branch: data.branch,
+      pensionNo: data.pensionNo,
+      isRetired: data?.membershipCategory === 'retired_associate',
+      retiredDate: data.retiredDate,
+      studyLocation: data.studyLocation,
+      graduationDate: data.graduationDate,
+    };
+    const professionalInfo = { professionalDetails: {} };
+    Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
+    createProfessionalDetailRequest(personalDetail.ApplicationId, professionalInfo).then(res => {
+      if (res?.status === 200) {
+        setProfessionalDetail(res?.data?.data);
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      } else {
+        Alert.alert('Error', res?.data?.message || 'Unable to add professional detail');
+      }
+    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+  };
+
+  const updateProfessionalDetail = data => {
+    if (!personalDetail?.ApplicationId) return;
+    const professionalFields = {
+      membershipCategory: data.membershipCategory,
+      workLocation: data.workLocation,
+      otherWorkLocation: data.otherWorkLocation,
+      grade: data.grade,
+      otherGrade: data.otherGrade,
+      nmbiNumber: data.nmbiNo,
+      nurseType: data.nurseType,
+      nursingAdaptationProgramme: data?.nursingAdaptation === true,
+      region: data.region,
+      branch: data.branch,
+      pensionNo: data.pensionNo,
+      isRetired: data?.membershipCategory === 'retired_associate',
+      retiredDate: data.retiredDate,
+      studyLocation: data.studyLocation,
+      graduationDate: data.graduationDate,
+    };
+    const professionalInfo = { professionalDetails: {} };
+    Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
+    updateProfessionalDetailRequest(personalDetail.ApplicationId, professionalInfo).then(res => {
+      if (res?.status === 200) {
+        setProfessionalDetail(res?.data?.data);
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+      } else {
+        Alert.alert('Error', res?.data?.message || 'Unable to update professional detail');
+      }
+    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+  };
+
+  const createSubscriptionDetail = data => {
+    if (!personalDetail?.ApplicationId) return;
+    const defaultFields = {
+      membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
+    };
+    const subscriptionFields = {
+      paymentType: data?.paymentType,
+      payrollNo: data?.payrollNo,
+      membershipStatus: data?.membershipStatus,
+      otherIrishTradeUnion: data?.irishTradeUnion === true,
+      otherScheme: data?.otherScheme === true,
+      recuritedBy: data?.recuritedBy,
+      recuritedByMembershipNo: data?.recuritedByMembershipNo,
+      primarySection: data?.primarySection,
+      otherPrimarySection: data?.otherPrimarySection,
+      secondarySection: data?.secondarySection,
+      otherSecondarySection: data?.otherSecondarySection,
+      incomeProtectionScheme: data?.incomeProtectionScheme === true,
+      inmoRewards: data?.inmoRewards === true,
+      valueAddedServices: data?.valueAddedServices === true,
+      termsAndConditions: data?.termsAndConditions === true,
+      ...defaultFields,
+    };
+    const subscriptionDetails = {};
+    Object.entries(subscriptionFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') subscriptionDetails[k] = v; });
+    const subscriptionInfo = { subscriptionDetails };
+    createSubscriptionDetailRequest(personalDetail.ApplicationId, subscriptionInfo).then(res => {
+      if (res?.status === 200) {
+        setSubscriptionDetail(res?.data?.data);
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+        setIsModalVisible(true);
+      } else {
+        Alert.alert('Error', res?.data?.message || 'Unable to add subscription detail');
+      }
+    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+  };
+
+  const updateSubscriptionDetail = data => {
+    if (!personalDetail?.ApplicationId) return;
+    const defaultFields = {
+      membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
+    };
+    const subscriptionFields = {
+      paymentType: data?.paymentType,
+      payrollNo: data?.payrollNo,
+      membershipStatus: data?.membershipStatus,
+      otherIrishTradeUnion: data?.irishTradeUnion === true,
+      otherScheme: data?.otherScheme === true,
+      recuritedBy: data?.recuritedBy,
+      recuritedByMembershipNo: data?.recuritedByMembershipNo,
+      primarySection: data?.primarySection,
+      otherPrimarySection: data?.otherPrimarySection,
+      secondarySection: data?.secondarySection,
+      otherSecondarySection: data?.otherSecondarySection,
+      incomeProtectionScheme: data?.incomeProtectionScheme === true,
+      inmoRewards: data?.inmoRewards === true,
+      valueAddedServices: data?.valueAddedServices === true,
+      termsAndConditions: data?.termsAndConditions === true,
+      ...defaultFields,
+    };
+    const subscriptionDetails = {};
+    Object.entries(subscriptionFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') subscriptionDetails[k] = v; });
+    const subscriptionInfo = { subscriptionDetails };
+    updateSubscriptionDetailRequest(personalDetail.ApplicationId, subscriptionInfo).then(res => {
+      if (res?.status === 200) {
+        setSubscriptionDetail(res?.data?.data);
+        setCurrentStep(prev => Math.min(prev + 1, steps.length));
+        setIsModalVisible(true);
+      } else {
+        Alert.alert('Error', res?.data?.message || 'Unable to update subscription detail');
+      }
+    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+  };
 
   const renderStepContent = () => {
     switch (currentStep) {
