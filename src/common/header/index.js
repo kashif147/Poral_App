@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    // paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.06)',
     alignSelf: 'stretch'
@@ -62,10 +62,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   title: {
-    fontSize: wp(4.2),
+    fontSize: wp(5.2),
     fontWeight: '700',
     color: Colors.black,
-    marginLeft: 10,
+    // marginLeft: 10,
   },
   backIcon: { width: wp(5), height: wp(5), tintColor: Colors.black },
   bellIcon: { width: wp(5.5), height: wp(5.5), tintColor: Colors.black },
