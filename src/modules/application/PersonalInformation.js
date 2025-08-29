@@ -4,6 +4,7 @@ import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import { Colors, form, wp } from '../../utils/Styles';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { DatePicker } from '../../common/DatePicker';
 
 const titles = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.'];
 const genders = ['Male', 'Female', 'Other'];
@@ -69,13 +70,13 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           </Picker>
         </View>
         <View style={styles.halfInput}>
-          <Text style={styles.label}>Date of Birth *</Text>
-          <InputField
+          <DatePicker
+            label="Date of Birth"
+            name="dob"
+            required
             value={formData.dob}
-            checkValue={showValidation && !formData.dob}
-            onChange={text => onFormDataChange({ ...formData, dob: text })}
-            placeholder="DD/MM/YYYY"
-            keyboardType="numeric"
+            showValidation={showValidation}
+            onChange={({ target }) => onFormDataChange({ ...formData, dob: target.value })}
           />
         </View>
       </View>
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between' },
   halfInput: { flex: 1, marginRight: 8 },
   pickerWrapper: {
-    borderRadius: wp(50),
+    borderRadius: wp(2.5),
     borderWidth: wp(0.3),
     borderColor: Colors.lightgray,
     marginBottom: 8, overflow: 'hidden'

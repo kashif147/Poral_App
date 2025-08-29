@@ -328,7 +328,7 @@ const TEXT_STYLE = StyleSheet.create({
 const form = StyleSheet.create({
   inputBG: {
     flexDirection: 'row',
-    borderRadius: wp(50),
+    borderRadius: wp(2.5),
     borderWidth: wp(0.3),
     borderColor: Colors.lightgray,
     justifyContent: 'center',
