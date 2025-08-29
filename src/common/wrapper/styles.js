@@ -7,6 +7,8 @@ export const getStyles = ({
     container: {
       flex: 1,
       backgroundColor: Colors.white,
+      width: '100%',
+      alignSelf: 'stretch',
       ...style,
     },
     safeAreaView: {

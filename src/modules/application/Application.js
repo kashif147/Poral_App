@@ -176,7 +176,7 @@ const Application = () => {
         if (res?.status === 200) {
           setPersonalDetail(res?.data?.data);
         }
-      } catch {}
+      } catch { }
       setLoading(false);
     };
     loadFromApi();
@@ -194,7 +194,7 @@ const Application = () => {
         ]);
         if (profRes?.status === 200) setProfessionalDetail(profRes?.data?.data);
         if (subRes?.status === 200) setSubscriptionDetail(subRes?.data?.data);
-      } catch {}
+      } catch { }
       setLoading(false);
     };
     loadMore();
@@ -535,8 +535,8 @@ const Application = () => {
   };
 
   return (
-    <Wrapper style={commonStyles.screenContainer}>
-      <Text style={[styles.title, { fontSize: Math.max(20, width * 0.06) }]}>Application</Text>
+    <Wrapper style={commonStyles.screenContainer} title={'Application'} showBack={false}>
+      {/* <Text style={[styles.title, { fontSize: Math.max(20, width * 0.06) }]}>Application</Text> */}
       {/* Stepper */}
       <View style={[styles.stepperRow, { width: '100%', marginBottom: width * 0.06 }]}>
         {steps.map((step, idx) => (
@@ -608,7 +608,7 @@ const Application = () => {
           </View>
         </Modal>
       </ScrollView>
-      <View style={[styles.buttonRow, { marginTop: width * 0.04 }]}>
+      <View style={[styles.buttonRow, { marginTop: width * 0.04, marginBottom: hp(2) }]}>
         <Button title="Previous" onPress={handlePrevious} disabled={currentStep === 1} style={{ flex: 1, marginRight: 8, height: hp(5) }} />
         <Button
           title={currentStep === steps.length ? 'Submit' : 'Next'}
@@ -628,6 +628,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
+    marginTop: hp(2),
     marginBottom: 24,
   },
   stepperItemContainer: {

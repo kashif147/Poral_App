@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   halfInput: { flex: 1, marginRight: 8 },
   pickerWrapper: {
-    borderRadius: wp(50),
+    borderRadius: wp(2.5),
     borderWidth: wp(0.3),
     borderColor: Colors.lightgray,
     marginBottom: 8, overflow: 'hidden'

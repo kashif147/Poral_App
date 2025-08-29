@@ -51,7 +51,7 @@ const DashBoard = () => {
   ];
 
   return (
-    <Wrapper style={commonStyles.screenContainer}>
+    <Wrapper style={commonStyles.screenContainer} title={'Dashboard'}>
       <ScrollView contentContainerStyle={{ padding: 1 }}>
         <Label style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 8 }}>
           Welcome to Members Portal
