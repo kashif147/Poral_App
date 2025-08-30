@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, ScrollView, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, ScrollView, Dimensions, StyleSheet } from 'react-native';
 import { Label } from '../../common/text/label';
 import { Wrapper } from '../../common/wrapper';
 import { SVG } from '../../assets/svg';
@@ -10,10 +10,25 @@ import { commonStyles } from '../../utils/Styles';
 
 const { width } = Dimensions.get('window');
 
-const CARD_WIDTH = width > 500 ? (width - 64) / 2 : '100%';
+// Calculate card width for 2 cards per row with proper spacing
+const CARD_WIDTH = (width - 56) / 2; // 56 = padding (32) + gap between cards (12)
 
 const DashBoard = () => {
   const navigation = useNavigation();
+  const [subscriptionData, setSubscriptionData] = useState({
+    current: {
+      status: 'Active',
+      plan: 'Professional Membership',
+      nextPayment: '2024-02-15',
+      amount: '€25.00',
+    },
+    pending: {
+      status: 'Pending',
+      plan: 'Professional Membership',
+      applicationDate: '2024-01-20',
+      amount: '€15.00',
+    },
+  });
 
   const dashboardCards = [
     {
@@ -50,38 +65,180 @@ const DashBoard = () => {
     },
   ];
 
+  const renderSubscriptionCard = (type, data) => (
+    <View style={[styles.subscriptionCard, { backgroundColor: type === 'current' ? '#e8f5e8' : '#fff3cd' }]}>
+      <View style={styles.subscriptionHeader}>
+        <Label style={[styles.subscriptionStatus, { color: type === 'current' ? '#28a745' : '#ffc107' }]}>
+          {data.status}
+        </Label>
+        <View style={[styles.statusIndicator, { backgroundColor: type === 'current' ? '#28a745' : '#ffc107' }]} />
+      </View>
+      <Label style={styles.subscriptionPlan} numberOfLines={2}>{data.plan}</Label>
+      <View style={styles.subscriptionDetails}>
+        <View style={styles.detailRow}>
+          <Label style={styles.detailLabel} numberOfLines={1}>
+            {type === 'current' ? 'Next Payment:' : 'Application Date:'}
+          </Label>
+          {/* <Label style={styles.detailValue} numberOfLines={1} adjustsFontSizeToFit={true}>
+            {type === 'current' ? '15 Feb' : '20 Jan'}
+          </Label> */}
+        </View>
+        <View style={styles.detailRow}>
+          <Label style={styles.detailLabel} numberOfLines={1}>Amount:</Label>
+          <Label style={styles.detailValue} numberOfLines={1}>{data.amount}</Label>
+        </View>
+      </View>
+    </View>
+  );
+
   return (
     <Wrapper style={commonStyles.screenContainer} title={'Dashboard'}>
-      <ScrollView contentContainerStyle={{ padding: 1 }}>
-        <Label style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 8 }}>
-          Welcome to Members Portal
+      <ScrollView contentContainerStyle={styles.container}>
+        <Label style={styles.welcomeTitle}>
+          Member Portal
         </Label>
-        <Label style={{ color: '#888', marginBottom: 20 }}>
+        <Label style={styles.welcomeSubtitle}>
           Access all your membership services in one place
         </Label>
-        <View
-          style={{
-            flexDirection: width > 500 ? 'row' : 'column',
-            flexWrap: 'wrap',
-            justifyContent: width > 500 ? 'space-between' : 'flex-start',
-            alignItems: 'stretch',
-          }}
-        >
-          {dashboardCards.map((card, idx) => (
-            <DashboardCard
-              key={card.key}
-              icon={card.icon}
-              title={card.title}
-              description={card.description}
-              button={card.button}
-              onPress={card.onPress}
-              style={{ width: CARD_WIDTH }}
-            />
-          ))}
+
+        {/* Subscription Details Section */}
+        <View style={styles.subscriptionSection}>
+          <Label style={styles.sectionTitle}>Subscription Details</Label>
+          <View style={styles.subscriptionContainer}>
+            {renderSubscriptionCard('current', subscriptionData.current)}
+            {renderSubscriptionCard('current', subscriptionData.pending)}
+          </View>
+        </View>
+
+        {/* Dashboard Cards Section */}
+        <View style={styles.cardsSection}>
+          <Label style={styles.sectionTitle}>Quick Actions</Label>
+          <View style={styles.cardsContainer}>
+            {dashboardCards.map((card, idx) => (
+              <View key={card.key} style={styles.cardWrapper}>
+                <DashboardCard
+                  icon={card.icon}
+                  title={card.title}
+                  description={card.description}
+                  button={card.button}
+                  onPress={card.onPress}
+                  style={styles.dashboardCard}
+                />
+              </View>
+            ))}
+          </View>
         </View>
       </ScrollView>
     </Wrapper>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 0,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  welcomeSubtitle: {
+    color: '#888',
+    marginBottom: 24,
+    fontSize: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    color: '#333',
+  },
+  subscriptionSection: {
+    marginBottom: 32,
+  },
+  subscriptionContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 16,
+  },
+  subscriptionCard: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    minHeight: 120,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  subscriptionStatus: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  statusIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  subscriptionPlan: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+    flexWrap: 'wrap',
+  },
+  subscriptionDetails: {
+    gap: 6,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: '#666',
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'right',
+    flex: 1,
+    minWidth: 0,
+  },
+  cardsSection: {
+    marginBottom: 16,
+  },
+  cardsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 16,
+  },
+  cardWrapper: {
+    width: CARD_WIDTH,
+    marginBottom: 12,
+    flex: 0,
+  },
+  dashboardCard: {
+    height: 'auto',
+    minHeight: 160,
+  },
+});
 
 export default DashBoard;
