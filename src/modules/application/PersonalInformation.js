@@ -101,56 +101,134 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
         />
       </View>
       <Text style={styles.label}>Search by address or Eircode</Text>
-      <View style={styles.autocompleteContainer}>
+      <View style={[styles.autocompleteContainer, { zIndex: 9999, elevation: 10 }]}>
         <GooglePlacesAutocomplete
           placeholder="Enter Eircode or address"
           fetchDetails
-          enablePoweredByContainer={false}
-          predefinedPlaces={[]}
-          textInputProps={{}}
+          predefinedPlaces={[
+            {
+              description: 'Dublin, Ireland',
+              geometry: { location: { lat: 53.3498, lng: -6.2603 } },
+              place_id: 'test_dublin',
+            },
+            {
+              description: 'Cork, Ireland',
+              geometry: { location: { lat: 51.8969, lng: -8.4863 } },
+              place_id: 'test_cork',
+            },
+          ]}
+          textInputProps={{
+            autoFocus: false,
+            clearButtonMode: 'while-editing',
+          }}
           onFail={error => {
-            // noop: avoid crashing UI; optionally log
+            console.log('GooglePlacesAutocomplete error:', error);
+          }}
+          onNotFound={() => {
+            console.log('No results found');
+          }}
+          onTextInput={text => {
+            console.log('Text input:', text);
+          }}
+          onTimeout={() => {
+            console.log('Request timeout');
           }}
           onPress={(data, details = null) => {
+            console.log('Selected place:', data);
+            console.log('Place details:', details);
             try {
+              // React Native equivalent of React JS handlePlacesChanged function
+              // This extracts address components from Google Places API response
               const components = details?.address_components || [];
-              const getComponent = type => (components.find(c => c.types?.includes(type))?.long_name) || '';
+              console.log('components=========>', components);
+
+              const getComponent = type =>
+                components.find(c => c.types?.includes(type))?.long_name || '';
+
               const streetNumber = getComponent('street_number');
               const route = getComponent('route');
               const sublocality = getComponent('sublocality') || '';
-              const town = getComponent('locality') || getComponent('postal_town') || '';
+              const town =
+                getComponent('locality') || getComponent('postal_town') || '';
               const county = getComponent('administrative_area_level_1') || '';
               const postalCode = getComponent('postal_code');
 
-              const address1 = `${streetNumber} ${route}`.trim();
-              const address2 = sublocality;
-              const address3 = town;
-              const address4 = `${county}`.trim();
+              const addressLine1 = `${streetNumber} ${route}`.trim();
+              const addressLine2 = sublocality;
+              const addressLine3 = town;
+              const addressLine4 = `${county}`.trim();
               const eircode = `${postalCode}`.trim();
+
+              console.log('Parsed address:', { addressLine1, addressLine2, addressLine3, addressLine4, eircode });
 
               onFormDataChange({
                 ...formData,
-                address1,
-                address2,
-                address3,
-                address4,
+                addressLine1,
+                addressLine2,
+                addressLine3,
+                addressLine4,
                 eircode,
               });
-            } catch {}
+            } catch (error) {
+              console.log('Error parsing address:', error);
+            }
           }}
           query={{
             key: GOOGLE_PLACES_API_KEY,
             language: 'en',
+            types: ['geocode'],
+            components: 'country:ie',
           }}
           styles={{
             textInput: {
               ...form.inputBG,
               color: 'black',
+              height: 48,
+              fontSize: 16,
             },
             listView: {
-              zIndex: 10,
+              zIndex: 9999,
+              position: 'absolute',
+              top: 48,
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              borderRadius: 8,
+              elevation: 10,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+              maxHeight: 200,
+            },
+            row: {
+              padding: 15,
+              borderBottomWidth: 1,
+              borderBottomColor: '#f0f0f0',
+              backgroundColor: 'white',
+            },
+            description: {
+              fontSize: 15,
+              color: '#333',
+            },
+            separator: {
+              height: 1,
+              backgroundColor: '#f0f0f0',
             },
           }}
+          minLength={2}
+          listViewDisplayed="auto"
+          returnKeyType="search"
+          keyboardType="default"
+          autoCapitalize="none"
+          autoCorrect={false}
+          enableHighAccuracyLocation={false}
+          timeout={15000}
+          nearbyPlacesAPI="GooglePlacesSearch"
+          filterReverseGeocodingByTypes={['locality', 'administrative_area_level_3']}
+          debounce={200}
+          listUnderlayColor="#f0f0f0"
+          keyboardShouldPersistTaps="always"
         />
       </View>
       <View style={styles.halfInput}>
@@ -168,40 +246,37 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       </View>
       <Text style={styles.label}>Address line 1 (Building or House) *</Text>
       <InputField
-        value={formData.address1}
-        checkValue={showValidation && !formData.address1}
-        onChange={text => onFormDataChange({ ...formData, address1: text })}
+        value={formData.addressLine1}
+        checkValue={showValidation && !formData.addressLine1}
+        onChange={text => onFormDataChange({ ...formData, addressLine1: text })}
         placeholder="Building or House"
       />
       <Text style={styles.label}>Address line 2 (Street or Road)</Text>
       <InputField
-        value={formData.address2}
-        checkValue={formData.address2}
-        onChange={text => onFormDataChange({ ...formData, address2: text })}
+        value={formData.addressLine2}
+        onChange={text => onFormDataChange({ ...formData, addressLine2: text })}
         placeholder="Street or Road"
       />
       <View style={styles.halfInput}>
         <Text style={styles.label}>Address line 3 (Area or Town)</Text>
         <InputField
-          value={formData.address3}
-          checkValue={formData.address3}
-          onChange={text => onFormDataChange({ ...formData, address3: text })}
+          value={formData.addressLine3}
+          onChange={text => onFormDataChange({ ...formData, addressLine3: text })}
           placeholder="Area or Town"
         />
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Address line 4 (County, City or Postcode) *</Text>
         <InputField
-          value={formData.address4}
-          checkValue={showValidation && !formData.address4}
-          onChange={text => onFormDataChange({ ...formData, address4: text })}
+          value={formData.addressLine4}
+          checkValue={showValidation && !formData.addressLine4}
+          onChange={text => onFormDataChange({ ...formData, addressLine4: text })}
           placeholder="County, City or Postcode"
         />
       </View>
       <Text style={styles.label}>Eircode</Text>
       <InputField
         value={formData.eircode}
-        checkValue={formData.eircode}
         onChange={text => onFormDataChange({ ...formData, eircode: text })}
         placeholder="Eircode"
       />
@@ -307,6 +382,12 @@ const styles = StyleSheet.create({
     marginBottom: 8, overflow: 'hidden'
   },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, flex: 1 },
+  autocompleteContainer: {
+    position: 'relative',
+    zIndex: 9999,
+    marginBottom: 16,
+    elevation: 10,
+  },
 });
 
 export default PersonalInformation; 

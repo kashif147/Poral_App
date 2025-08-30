@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, StyleSheet, ScrollView, Alert, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, Modal, StyleSheet, FlatList, Alert, useWindowDimensions, Platform } from 'react-native';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
@@ -98,8 +98,8 @@ const Application = () => {
           dob,
           personalEmail,
           mobileNo,
-          address1,
-          address4,
+          addressLine1,
+          addressLine4,
           preferredAddress,
         } = formData.personalInfo || {};
         if (
@@ -110,8 +110,8 @@ const Application = () => {
           !dob ||
           !personalEmail ||
           !mobileNo ||
-          !address1 ||
-          !address4 ||
+          !addressLine1 ||
+          !addressLine4 ||
           !preferredAddress
         ) {
           return false;
@@ -216,10 +216,10 @@ const Application = () => {
           personalEmail: personalDetail?.contactInfo?.personalEmail || '',
           mobileNo: personalDetail?.contactInfo?.mobileNumber || '',
           consent: personalDetail?.contactInfo?.consent ?? true,
-          address1: personalDetail?.contactInfo?.buildingOrHouse || '',
-          address2: personalDetail?.contactInfo?.streetOrRoad || '',
-          address3: personalDetail?.contactInfo?.areaOrTown || '',
-          address4: personalDetail?.contactInfo?.countyCityOrPostCode || '',
+          addressLine1: personalDetail?.contactInfo?.buildingOrHouse || '',
+          addressLine2: personalDetail?.contactInfo?.streetOrRoad || '',
+          addressLine3: personalDetail?.contactInfo?.areaOrTown || '',
+          addressLine4: personalDetail?.contactInfo?.countyCityOrPostCode || '',
           eircode: personalDetail?.contactInfo?.eircode || '',
           preferredAddress: personalDetail?.contactInfo?.preferredAddress || '',
           preferredEmail: personalDetail?.contactInfo?.preferredEmail || '',
@@ -303,10 +303,10 @@ const Application = () => {
     const contactFields = {
       preferredAddress: data.preferredAddress,
       eircode: data.eircode,
-      buildingOrHouse: data.address1,
-      streetOrRoad: data.address2,
-      areaOrTown: data.address3,
-      countyCityOrPostCode: data.address4,
+      buildingOrHouse: data.addressLine1,
+      streetOrRoad: data.addressLine2,
+      areaOrTown: data.addressLine3,
+      countyCityOrPostCode: data.addressLine4,
       country: data.country,
       mobileNumber: data.mobileNo,
       telephoneNumber: data.homeWorkTelNo,
@@ -343,10 +343,10 @@ const Application = () => {
     const contactFields = {
       preferredAddress: data.preferredAddress,
       eircode: data.eircode,
-      buildingOrHouse: data.address1,
-      streetOrRoad: data.address2,
-      areaOrTown: data.address3,
-      countyCityOrPostCode: data.address4,
+      buildingOrHouse: data.addressLine1,
+      streetOrRoad: data.addressLine2,
+      areaOrTown: data.addressLine3,
+      countyCityOrPostCode: data.addressLine4,
       country: data.country,
       mobileNumber: data.mobileNo,
       telephoneNumber: data.homeWorkTelNo,
@@ -592,22 +592,29 @@ const Application = () => {
           </React.Fragment>
         ))}
       </View>
-      <ScrollView contentContainerStyle={[styles.container]}
+      <FlatList
+        data={[{ key: 'content' }]}
+        renderItem={() => (
+          <>
+            {/* Step Content */}
+            <View style={[styles.card, { borderRadius: width * 0.02 }]}> {renderStepContent()} </View>
+            {/* Navigation Buttons */}
+            {/* Modal */}
+            <Modal visible={isModalVisible} transparent animationType="slide">
+              <View style={styles.modalContainer}>
+                <View style={[styles.modalContent, { padding: width * 0.06, borderRadius: width * 0.03, width: width * 0.8 }]}>
+                  <Text style={{ fontSize: Math.max(16, width * 0.045), marginBottom: 16 }}>Thank you for your submission!</Text>
+                  <Button title="Close" onPress={handleModalClose} style={{ minWidth: 100, marginTop: 12 }} />
+                </View>
+              </View>
+            </Modal>
+          </>
+        )}
+        keyExtractor={(item) => item.key}
+        contentContainerStyle={[styles.container]}
         keyboardShouldPersistTaps="handled"
-      >
-        {/* Step Content */}
-        <View style={[styles.card, { borderRadius: width * 0.02 }]}> {renderStepContent()} </View>
-        {/* Navigation Buttons */}
-        {/* Modal */}
-        <Modal visible={isModalVisible} transparent animationType="slide">
-          <View style={styles.modalContainer}>
-            <View style={[styles.modalContent, { padding: width * 0.06, borderRadius: width * 0.03, width: width * 0.8 }]}>
-              <Text style={{ fontSize: Math.max(16, width * 0.045), marginBottom: 16 }}>Thank you for your submission!</Text>
-              <Button title="Close" onPress={handleModalClose} style={{ minWidth: 100, marginTop: 12 }} />
-            </View>
-          </View>
-        </Modal>
-      </ScrollView>
+        showsVerticalScrollIndicator={false}
+      />
       <View style={[styles.buttonRow, { marginTop: width * 0.04, marginBottom: hp(2) }]}>
         <Button title="Previous" onPress={handlePrevious} disabled={currentStep === 1} style={{ flex: 1, marginRight: 8, height: hp(5) }} />
         <Button
