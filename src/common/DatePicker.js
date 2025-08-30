@@ -20,6 +20,21 @@ const formatDdMmYyyy = (date) => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
+const parseISODate = (isoString) => {
+  if (!isoString) return null;
+  try {
+    const date = new Date(isoString);
+    return Number.isNaN(date.getTime()) ? null : date;
+  } catch (error) {
+    return null;
+  }
+};
+
+const formatToISO = (date) => {
+  if (!date) return '';
+  return date.toISOString();
+};
+
 const getAge = (date) => {
   if (!date) return 0;
   const today = new Date();
@@ -49,14 +64,22 @@ export const DatePicker = ({
 
   useEffect(() => {
     if (value) {
-      // accept "DD/MM/YYYY" or ISO "YYYY-MM-DD"
       let date = null;
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+      
+      // Handle ISO date strings (e.g., "1998-08-12T19:00:00.000Z")
+      if (typeof value === 'string' && value.includes('T')) {
+        date = parseISODate(value);
+      }
+      // Handle "DD/MM/YYYY" format
+      else if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
         date = parseDdMmYyyy(value);
-      } else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      }
+      // Handle "YYYY-MM-DD" format
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
         const [y, m, d] = value.split('-').map(x => parseInt(x, 10));
         date = new Date(y, m - 1, d);
       }
+      
       setDisplayValue(date ? formatDdMmYyyy(date) : '');
     } else {
       setDisplayValue('');
@@ -69,15 +92,19 @@ export const DatePicker = ({
       onChange && onChange({ target: { name, value: '' } });
       return;
     }
-    const iso = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    
+    // Save in ISO format for API compatibility
+    const isoValue = formatToISO(dateObj);
     const ddmmyyyy = formatDdMmYyyy(dateObj);
+    
     if (!disableAgeValidation && getAge(dateObj) < 16) {
       setError('You must be 16 years or older to proceed');
     } else {
       setError('');
     }
+    
     setDisplayValue(ddmmyyyy);
-    onChange && onChange({ target: { name, value: ddmmyyyy, iso } });
+    onChange && onChange({ target: { name, value: isoValue, displayValue: ddmmyyyy } });
   };
 
   const handleChangeText = (text) => {
@@ -98,7 +125,10 @@ export const DatePicker = ({
       }
     } else {
       setError('');
-      onChange && onChange({ target: { name, value: '' } });
+      // Only clear the value if we have no digits or if we're clearing the field
+      if (digits.length === 0) {
+        onChange && onChange({ target: { name, value: '' } });
+      }
     }
   };
 
