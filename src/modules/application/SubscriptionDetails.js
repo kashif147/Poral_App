@@ -15,7 +15,7 @@ const membershipStatuses = [
 const sections = ['Select..', 'Section 1', 'Section 2', 'Section 3'];
 
 const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => {
-  const pickerStyle = Platform.OS === 'ios' ? { height: 44 } : {};
+
   return (
     <View>
       <Text style={styles.sectionTitle}>Subscription Details</Text>
@@ -23,18 +23,18 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
       {/* <View style={styles.row}> */}
       <View style={styles.halfInput}>
         <Text style={styles.label}>Payment Type *</Text>
-        <View style={styles.pickerWrapper}>
+        <View style={styles.pickerField}>
           <Picker
             selectedValue={formData.paymentType || paymentTypes[0]}
-            style={pickerStyle}
             onValueChange={val => onFormDataChange({ ...formData, paymentType: val })}
           >
             {paymentTypes.map(t => <Picker.Item key={t} label={t} value={t} />)}
           </Picker>
         </View>
-        {/* </View> */}
-        <View style={styles.halfInput}>
-          <Text style={styles.label}>Payroll No</Text>
+      </View>
+      <View style={styles.halfInput}>
+        <Text style={styles.label}>Payroll No</Text>
+        <View style={styles.inputField}>
           <InputField
             value={formData.payrollNo}
             onChange={text => onFormDataChange({ ...formData, payrollNo: text })}
@@ -71,12 +71,14 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
           <Text style={styles.radioLabel}>No</Text>
         </TouchableOpacity>
         {formData.otherTradeUnion === true && (
-          <InputField
-            value={formData.otherTradeUnionName}
-            onChange={text => onFormDataChange({ ...formData, otherTradeUnionName: text })}
-            placeholder="Enter union name"
-            style={{ marginLeft: 8, flex: 1 }}
-          />
+          <View style={styles.inputField}>
+            <InputField
+              value={formData.otherTradeUnionName}
+              onChange={text => onFormDataChange({ ...formData, otherTradeUnionName: text })}
+              placeholder="Enter union name"
+              style={{ marginLeft: 8, flex: 1 }}
+            />
+          </View>
         )}
       </View>
       {/* Member of another Irish Trade Union */}
@@ -99,29 +101,32 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
       {/* <View style={styles.row}> */}
       <View style={styles.halfInput}>
         <Text style={styles.label}>Recruited By</Text>
-        <InputField
-          value={formData.recruitedBy}
-          onChange={text => onFormDataChange({ ...formData, recruitedBy: text })}
-          placeholder="Enter the name of the person who recruited you"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.recruitedBy}
+            onChange={text => onFormDataChange({ ...formData, recruitedBy: text })}
+            placeholder="Enter the name of the person who recruited you"
+          />
+        </View>
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Recruited By (Membership No)</Text>
-        <InputField
-          value={formData.recruitedByMembershipNo}
-          onChange={text => onFormDataChange({ ...formData, recruitedByMembershipNo: text })}
-          placeholder="Enter the membership number of the recruiter"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.recruitedByMembershipNo}
+            onChange={text => onFormDataChange({ ...formData, recruitedByMembershipNo: text })}
+            placeholder="Enter the membership number of the recruiter"
+          />
+        </View>
       </View>
       {/* </View> */}
       {/* Primary/Other Primary Section */}
       {/* <View style={styles.row}> */}
       <View style={styles.halfInput}>
         <Text style={styles.label}>Primary Section</Text>
-        <View style={styles.pickerWrapper}>
+        <View style={styles.pickerField}>
           <Picker
             selectedValue={formData.primarySection || sections[0]}
-            style={pickerStyle}
             onValueChange={val => onFormDataChange({ ...formData, primarySection: val })}
           >
             {sections.map(s => <Picker.Item key={s} label={s} value={s} />)}
@@ -130,21 +135,22 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Other Primary Section</Text>
-        <InputField
-          value={formData.otherPrimarySection}
-          onChange={text => onFormDataChange({ ...formData, otherPrimarySection: text })}
-          placeholder="Enter your other primary section"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.otherPrimarySection}
+            onChange={text => onFormDataChange({ ...formData, otherPrimarySection: text })}
+            placeholder="Enter your other primary section"
+          />
+        </View>
       </View>
       {/* </View> */}
       {/* Secondary/Other Secondary Section */}
       {/* <View style={styles.row}> */}
       <View style={styles.halfInput}>
         <Text style={styles.label}>Secondary Section</Text>
-        <View style={styles.pickerWrapper}>
+        <View style={styles.pickerField}>
           <Picker
             selectedValue={formData.secondarySection || sections[0]}
-            style={pickerStyle}
             onValueChange={val => onFormDataChange({ ...formData, secondarySection: val })}
           >
             {sections.map(s => <Picker.Item key={s} label={s} value={s} />)}
@@ -153,11 +159,13 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Other Secondary Section</Text>
-        <InputField
-          value={formData.otherSecondarySection}
-          onChange={text => onFormDataChange({ ...formData, otherSecondarySection: text })}
-          placeholder="Enter your other secondary section"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.otherSecondarySection}
+            onChange={text => onFormDataChange({ ...formData, otherSecondarySection: text })}
+            placeholder="Enter your other secondary section"
+          />
+        </View>
       </View>
       {/* </View> */}
       {/* Checkboxes */}
@@ -205,26 +213,78 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontWeight: 'bold', fontSize: 16, marginTop: 16, marginBottom: 8 },
-  label: { fontWeight: 'bold', marginTop: 12, marginBottom: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  halfInput: { flex: 1, marginRight: 8 },
-  pickerWrapper: {
-    borderRadius: wp(2.5),
-    borderWidth: wp(0.3),
-    borderColor: Colors.lightgray,
-    marginBottom: 8, overflow: 'hidden'
+  sectionTitle: { 
+    fontWeight: 'bold', 
+    fontSize: 16, 
+    marginTop: 8, 
+    marginBottom: 8 
   },
-  radioRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  radioGroup: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-  radioButton: { padding: 8, borderWidth: 1, borderColor: '#ccc', borderRadius: 16, marginRight: 8, marginBottom: 8 },
-  radioSelected: { backgroundColor: '#007bff', borderColor: '#007bff' },
-  radioLabel: { color: '#333' },
-  checkboxRow: { flexDirection: 'row', marginTop: 16 },
-  checkboxCol: { flex: 1 },
-  checkboxItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  checkboxLabel: { marginLeft: 8, flex: 1 },
-  link: { color: '#007bff', textDecorationLine: 'underline' },
+  label: { 
+    fontWeight: 'bold', 
+    marginTop: 8, 
+    marginBottom: 4 
+  },
+  row: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center' 
+  },
+  halfInput: { 
+    flex: 1, 
+    marginRight: 8,
+    marginBottom: 8
+  },
+  inputField: {
+    marginBottom: 8
+  },
+  pickerField: {
+    marginBottom: 8
+  },
+  radioRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 8 
+  },
+  radioGroup: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    marginBottom: 8 
+  },
+  radioButton: { 
+    padding: 8, 
+    borderWidth: 1, 
+    borderColor: '#ccc', 
+    borderRadius: 16, 
+    marginRight: 8, 
+    marginBottom: 6 
+  },
+  radioSelected: { 
+    backgroundColor: '#007bff', 
+    borderColor: '#007bff' 
+  },
+  radioLabel: { 
+    color: '#333' 
+  },
+  checkboxRow: { 
+    flexDirection: 'row', 
+    marginTop: 8 
+  },
+  checkboxCol: { 
+    flex: 1 
+  },
+  checkboxItem: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: 6 
+  },
+  checkboxLabel: { 
+    marginLeft: 8, 
+    flex: 1 
+  },
+  link: { 
+    color: '#007bff', 
+    textDecorationLine: 'underline' 
+  },
 });
 
 export default SubscriptionDetails; 

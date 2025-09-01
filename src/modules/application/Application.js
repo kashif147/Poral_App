@@ -611,16 +611,32 @@ const Application = () => {
           </>
         )}
         keyExtractor={(item) => item.key}
-        contentContainerStyle={[styles.container]}
+        contentContainerStyle={[styles.container, { paddingBottom: hp(12) }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       />
-      <View style={[styles.buttonRow, { marginTop: width * 0.04, marginBottom: hp(2) }]}>
-        <Button title="Previous" onPress={handlePrevious} disabled={currentStep === 1} style={{ flex: 1, marginRight: 8, height: hp(5) }} />
+      <View style={[styles.buttonRow, {
+        position: 'absolute',
+        bottom: hp(2),
+        left: 16,
+        right: 16,
+        zIndex: 1000,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      }]}>
         <Button
-          title={currentStep === steps.length ? 'Submit' : 'Next'}
+          title="← Previous"
+          onPress={handlePrevious}
+          disabled={currentStep === 1}
+          outlined={currentStep === 1}
+          textStyle={{ fontSize: hp(2) }}
+          style={{ flex: 1, marginRight: 12 }}
+        />
+        <Button
+          title={currentStep === steps.length ? 'Submit' : 'Continue →'}
           onPress={currentStep === steps.length ? handleSubmit : handleNext}
-          style={{ flex: 1, marginLeft: 8, height: hp(5) }}
+          primary
+          textStyle={{ fontSize: hp(2) }}
+          style={{ flex: 1, marginLeft: 12 }}
         />
       </View>
     </Wrapper>
@@ -656,7 +672,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 2,
   },
   card: { marginBottom: 16 },
-  buttonRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalContent: { backgroundColor: '#fff', alignItems: 'center' },
 });

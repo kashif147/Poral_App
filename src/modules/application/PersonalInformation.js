@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
-import { View, Text, Switch, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
+import CustomSwitch from '../../common/switch';
 import { Colors, form, wp } from '../../utils/Styles';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { DatePicker } from '../../common/DatePicker';
@@ -16,21 +17,15 @@ const GOOGLE_PLACES_API_KEY = 'AIzaSyCJYpj8WV5Rzof7O3jGhW9XabD0J4Yqe1o';
 
 const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => {
   const ref = useRef();
-  // Helper for dropdowns
-  const pickerStyle = Platform.OS === 'ios' ? { height: 44 } : {
-    ...form.inputBG,
-    width: '100%',
-    color: 'black'
-  };
+
   return (
     <View>
       <Text style={styles.sectionTitle}>Personal Information</Text>
       {/* Title */}
       <Text style={styles.label}>Title *</Text>
-      <View style={styles.pickerWrapper}>
+      <View style={styles.pickerField}>
         <Picker
           selectedValue={formData.title}
-          style={pickerStyle}
           onValueChange={val => {
             onFormDataChange({ ...formData, title: val });
           }}
@@ -41,51 +36,53 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       {/* Surname & Forename */}
       <View style={styles.halfInput}>
         <Text style={styles.label}>Surname *</Text>
-        <InputField
-          value={formData.surname}
-          checkValue={showValidation && !formData.surname}
-          onChange={text => onFormDataChange({ ...formData, surname: text })}
-          placeholder="Enter your surname"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.surname}
+            checkValue={showValidation && !formData.surname}
+            onChange={text => onFormDataChange({ ...formData, surname: text })}
+            placeholder="Enter your surname"
+          />
+        </View>
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Forename *</Text>
-        <InputField
-          value={formData.forename}
-          checkValue={showValidation && !formData.forename}
-          onChange={text => onFormDataChange({ ...formData, forename: text })}
-          placeholder="Enter your forename"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.forename}
+            checkValue={showValidation && !formData.forename}
+            onChange={text => onFormDataChange({ ...formData, forename: text })}
+            placeholder="Enter your forename"
+          />
+        </View>
       </View>
       {/* Gender & Date of Birth */}
       <View style={styles.halfInput}>
         <Text style={styles.label}>Gender *</Text>
-        <View style={styles.pickerWrapper}>
+        <View style={styles.pickerField}>
           <Picker
             selectedValue={formData.gender || genders[0]}
-            style={pickerStyle}
             onValueChange={val => onFormDataChange({ ...formData, gender: val })}
           >
             {genders.map(g => <Picker.Item key={g} label={g} value={g} />)}
           </Picker>
         </View>
-        <View style={styles.halfInput}>
-          <DatePicker
-            label="Date of Birth"
-            name="dob"
-            required
-            value={formData.dob}
-            showValidation={showValidation}
-            onChange={({ target }) => onFormDataChange({ ...formData, dob: target.value })}
-          />
-        </View>
+      </View>
+      <View style={styles.halfInput}>
+        <DatePicker
+          label="Date of Birth"
+          name="dob"
+          required
+          value={formData.dob}
+          showValidation={showValidation}
+          onChange={({ target }) => onFormDataChange({ ...formData, dob: target.value })}
+        />
       </View>
       {/* Country of Primary Qualification */}
       <Text style={styles.label}>Country of Primary Qualification</Text>
-      <View style={styles.pickerWrapper}>
+      <View style={styles.pickerField}>
         <Picker
           selectedValue={formData.primaryCountry || countries[0]}
-          style={pickerStyle}
           onValueChange={val => onFormDataChange({ ...formData, primaryCountry: val })}
         >
           {countries.map(c => <Picker.Item key={c} label={c} value={c} />)}
@@ -95,7 +92,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       <Text style={styles.sectionTitle}>Correspondence Details</Text>
       <View style={styles.switchRow}>
         <Text style={styles.label}>Consent to receive Correspondence from INMO</Text>
-        <Switch
+        <CustomSwitch
           value={formData.consent}
           onValueChange={val => onFormDataChange({ ...formData, consent: val })}
         />
@@ -233,58 +230,66 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Preferred address *</Text>
-        <View style={styles.pickerWrapper}>
+        <View style={styles.pickerField}>
           <Picker
             selectedValue={formData.preferredAddress || preferredAddresses[0]}
-            style={pickerStyle}
             onValueChange={val => onFormDataChange({ ...formData, preferredAddress: val })}
           >
             {preferredAddresses.map(a => <Picker.Item key={a} label={a} value={a} />)}
           </Picker>
         </View>
-        <View style={styles.halfInput} />
       </View>
+      <View style={styles.halfInput} />
       <Text style={styles.label}>Address line 1 (Building or House) *</Text>
-      <InputField
-        value={formData.addressLine1}
-        checkValue={showValidation && !formData.addressLine1}
-        onChange={text => onFormDataChange({ ...formData, addressLine1: text })}
-        placeholder="Building or House"
-      />
+      <View style={styles.inputField}>
+        <InputField
+          value={formData.addressLine1}
+          checkValue={showValidation && !formData.addressLine1}
+          onChange={text => onFormDataChange({ ...formData, addressLine1: text })}
+          placeholder="Building or House"
+        />
+      </View>
       <Text style={styles.label}>Address line 2 (Street or Road)</Text>
-      <InputField
-        value={formData.addressLine2}
-        onChange={text => onFormDataChange({ ...formData, addressLine2: text })}
-        placeholder="Street or Road"
-      />
+      <View style={styles.inputField}>
+        <InputField
+          value={formData.addressLine2}
+          onChange={text => onFormDataChange({ ...formData, addressLine2: text })}
+          placeholder="Street or Road"
+        />
+      </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Address line 3 (Area or Town)</Text>
-        <InputField
-          value={formData.addressLine3}
-          onChange={text => onFormDataChange({ ...formData, addressLine3: text })}
-          placeholder="Area or Town"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.addressLine3}
+            onChange={text => onFormDataChange({ ...formData, addressLine3: text })}
+            placeholder="Area or Town"
+          />
+        </View>
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Address line 4 (County, City or Postcode) *</Text>
-        <InputField
-          value={formData.addressLine4}
-          checkValue={showValidation && !formData.addressLine4}
-          onChange={text => onFormDataChange({ ...formData, addressLine4: text })}
-          placeholder="County, City or Postcode"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.addressLine4}
+            checkValue={showValidation && !formData.addressLine4}
+            onChange={text => onFormDataChange({ ...formData, addressLine4: text })}
+            placeholder="County, City or Postcode"
+          />
+        </View>
       </View>
       <Text style={styles.label}>Eircode</Text>
-      <InputField
-        value={formData.eircode}
-        onChange={text => onFormDataChange({ ...formData, eircode: text })}
-        placeholder="Eircode"
-      />
+      <View style={styles.inputField}>
+        <InputField
+          value={formData.eircode}
+          onChange={text => onFormDataChange({ ...formData, eircode: text })}
+          placeholder="Eircode"
+        />
+      </View>
       <Text style={styles.label}>Country</Text>
-      <View style={styles.pickerWrapper}>
+      <View style={styles.pickerField}>
         <Picker
           selectedValue={formData.correspondenceCountry || countries[0]}
-          style={pickerStyle}
           onValueChange={val => onFormDataChange({ ...formData, correspondenceCountry: val })}
         >
           {countries.map(c => <Picker.Item key={c} label={c} value={c} />)}
@@ -292,13 +297,15 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Mobile No *</Text>
-        <InputField
-          value={formData.mobileNo}
-          checkValue={showValidation && !formData.mobileNo}
-          onChange={text => onFormDataChange({ ...formData, mobileNo: text })}
-          placeholder="Enter your mobile number"
-          keyboardType="phone-pad"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.mobileNo}
+            checkValue={showValidation && !formData.mobileNo}
+            onChange={text => onFormDataChange({ ...formData, mobileNo: text })}
+            placeholder="Enter your mobile number"
+            keyboardType="phone-pad"
+          />
+        </View>
       </View>
       {/* <View style={styles.switchRow}>
         <Text style={styles.label}>Consent to receive SMS Alerts</Text>
@@ -309,83 +316,111 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       </View> */}
       <View style={styles.halfInput}>
         <Text style={styles.label}>Home / Work Tel Number</Text>
-        <InputField
-          value={formData.workTel}
-          checkValue={formData.workTel}
-          onChange={text => onFormDataChange({ ...formData, workTel: text })}
-          placeholder="Enter your work number"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.workTel}
+            checkValue={formData.workTel}
+            onChange={text => onFormDataChange({ ...formData, workTel: text })}
+            placeholder="Enter your work number"
+          />
+        </View>
       </View>
       <View style={styles.halfInput} />
       <View style={styles.halfInput}>
         <Text style={styles.label}>Preferred Email</Text>
-        <View style={styles.pickerWrapper}>
+        <View style={styles.pickerField}>
           <Picker
             selectedValue={formData.preferredEmail || preferredEmails[0]}
-            style={pickerStyle}
             onValueChange={val => onFormDataChange({ ...formData, preferredEmail: val })}
           >
             {preferredEmails.map(e => <Picker.Item key={e} label={e} value={e} />)}
           </Picker>
         </View>
-        {/* <View style={styles.switchRow}>
-          <Text style={styles.label}>Consent to receive Email Alerts</Text>
-          <Switch
-            value={formData.emailConsent}
-            onValueChange={val => onFormDataChange({ ...formData, emailConsent: val })}
-          />
-        </View> */}
       </View>
+      {/* <View style={styles.switchRow}>
+        <Text style={styles.label}>Consent to receive Email Alerts</Text>
+        <Switch
+          value={formData.emailConsent}
+          onValueChange={val => onFormDataChange({ ...formData, emailConsent: val })}
+        />
+      </View> */}
       <View style={styles.halfInput}>
         <Text style={styles.label}>Personal Email</Text>
-        <InputField
-          value={formData.personalEmail}
-          checkValue={
-            showValidation &&
-            formData.preferredEmail === 'Personal' &&
-            !formData.personalEmail
-          }
-          onChange={text => onFormDataChange({ ...formData, personalEmail: text })}
-          placeholder="Enter your personal email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.personalEmail}
+            checkValue={
+              showValidation &&
+              formData.preferredEmail === 'Personal' &&
+              !formData.personalEmail
+            }
+            onChange={text => onFormDataChange({ ...formData, personalEmail: text })}
+            placeholder="Enter your personal email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
       </View>
       <View style={styles.halfInput}>
         <Text style={styles.label}>Work Email</Text>
-        <InputField
-          value={formData.workEmail}
-          checkValue={
-            showValidation &&
-            formData.preferredEmail === 'Work' &&
-            !formData.workEmail
-          }
-          onChange={text => onFormDataChange({ ...formData, workEmail: text })}
-          placeholder="Enter your work email"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.workEmail}
+            checkValue={
+              showValidation &&
+              formData.preferredEmail === 'Work' &&
+              !formData.workEmail
+            }
+            onChange={text => onFormDataChange({ ...formData, workEmail: text })}
+            placeholder="Enter your work email"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: { fontWeight: 'bold', fontSize: 16, marginTop: 16, marginBottom: 8 },
-  label: { fontWeight: 'bold', marginTop: 12, marginBottom: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
-  halfInput: { flex: 1, marginRight: 8 },
-  pickerWrapper: {
-    borderRadius: wp(2.5),
-    borderWidth: wp(0.3),
-    borderColor: Colors.lightgray,
-    marginBottom: 8, overflow: 'hidden'
+  sectionTitle: { 
+    fontWeight: 'bold', 
+    fontSize: 16, 
+    marginTop: 8, 
+    marginBottom: 8 
   },
-  switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, flex: 1 },
+  label: { 
+    fontWeight: 'bold', 
+    marginTop: 8, 
+    marginBottom: 4 
+  },
+  row: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between' 
+  },
+  halfInput: { 
+    flex: 1, 
+    marginRight: 8,
+    marginBottom: 8
+  },
+  inputField: {
+    marginBottom: 8
+  },
+  pickerField: {
+    marginBottom: 8
+  },
+  switchRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    marginTop: 6, 
+    marginBottom: 8,
+    flex: 1 
+  },
   autocompleteContainer: {
     position: 'relative',
     zIndex: 9999,
-    marginBottom: 16,
+    marginBottom: 8,
     elevation: 10,
   },
 });

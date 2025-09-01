@@ -21,6 +21,7 @@ export const Button = ({
   isloading,
   outlined,
   type,
+  primary,
   ...props
 }) => {
   const styles = getStyles({
@@ -28,6 +29,7 @@ export const Button = ({
     outlined,
     isloading,
     type,
+    primary,
   });
   return (
     <Touchable
