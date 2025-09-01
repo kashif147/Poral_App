@@ -11,4 +11,5 @@ export const IMAGES = {
     CATEGORIE: require('./categories.png'),
     GALLERY: require('./gallery.png'),
     LOGO: require('./logo.png'),
+    PAYMENT: require('./setting.png'), // Using setting icon as payment icon for now
 }

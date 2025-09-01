@@ -1,16 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Colors, wp, hp } from '../../utils/Styles';
 import { Wrapper } from '../../common/wrapper';
-import { commonStyles, Colors, wp, hp } from '../../utils/Styles';
+import { commonStyles } from '../../utils/Styles';
 
-
-const Courses = () => {
-
+const Profile = () => {
   return (
-    <Wrapper style={commonStyles.screenContainer} title={'Courses'} showBack={false}>
+    <Wrapper style={commonStyles.screenContainer} title={'Profile'} showBack={false}>
       <View style={styles.container}>
-        <Text style={styles.title}>Courses</Text>
-        <Text style={styles.subtitle}>Courses functionality will be implemented here</Text>
+        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.subtitle}>User profile information will be displayed here</Text>
       </View>
     </Wrapper>
   );
@@ -37,4 +36,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Courses;
+export default Profile;

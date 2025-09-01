@@ -18,15 +18,15 @@ const DashBoard = () => {
   const [subscriptionData, setSubscriptionData] = useState({
     current: {
       status: 'Active',
-      plan: 'Professional Membership',
+      plan: 'Short-term/ Relief (under 15 hrs/wk average',
       nextPayment: '2024-02-15',
       amount: '€25.00',
     },
     pending: {
       status: 'Pending',
-      plan: 'Professional Membership',
+      plan: 'Short-term/ Relief (under 15 hrs/wk average',
       applicationDate: '2024-01-20',
-      amount: '€15.00',
+      amount: '€25.00',
     },
   });
 
@@ -94,12 +94,12 @@ const DashBoard = () => {
   return (
     <Wrapper style={commonStyles.screenContainer} title={'Dashboard'}>
       <ScrollView contentContainerStyle={styles.container}>
-        <Label style={styles.welcomeTitle}>
+        {/* <Label style={styles.welcomeTitle}>
           Member Portal
-        </Label>
-        <Label style={styles.welcomeSubtitle}>
+        </Label> */}
+        {/* <Label style={styles.welcomeSubtitle}>
           Access all your membership services in one place
-        </Label>
+        </Label> */}
 
         {/* Subscription Details Section */}
         <View style={styles.subscriptionSection}>
@@ -156,6 +156,7 @@ const styles = StyleSheet.create({
   },
   subscriptionSection: {
     marginBottom: 32,
+    marginTop: 16
   },
   subscriptionContainer: {
     flexDirection: 'row',
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   cardWrapper: {
-    width: CARD_WIDTH,
+    width: '100%',
     marginBottom: 12,
     flex: 0,
   },
