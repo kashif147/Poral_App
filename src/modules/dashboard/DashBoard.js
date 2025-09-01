@@ -8,11 +8,6 @@ import { useNavigation } from '@react-navigation/native';
 import { STACKS } from '../../enums/ScreenEnums';
 import { commonStyles } from '../../utils/Styles';
 
-const { width } = Dimensions.get('window');
-
-// Calculate card width for 2 cards per row with proper spacing
-const CARD_WIDTH = (width - 56) / 2; // 56 = padding (32) + gap between cards (12)
-
 const DashBoard = () => {
   const navigation = useNavigation();
   const [subscriptionData, setSubscriptionData] = useState({
@@ -39,30 +34,6 @@ const DashBoard = () => {
       button: "Let's get started",
       onPress: () => navigation.navigate(STACKS.APPLICATION_STACK),
     },
-    {
-      key: 'profile',
-      icon: SVG.USERS_GROUP,
-      title: 'My Profile',
-      description: 'View and update your profile information',
-      button: 'View My Profile',
-      onPress: () => { },
-    },
-    {
-      key: 'events',
-      icon: SVG.CARD,
-      title: 'Events',
-      description: 'Browse and register for upcoming events',
-      button: 'View Events',
-      onPress: () => navigation.navigate(STACKS.EVENTS_STACK),
-    },
-    {
-      key: 'payments',
-      icon: SVG.CARD,
-      title: 'Payments',
-      description: 'Manage your payments and subscriptions',
-      button: 'View Payments',
-      onPress: () => { },
-    },
   ];
 
   const renderSubscriptionCard = (type, data) => (
@@ -79,9 +50,6 @@ const DashBoard = () => {
           <Label style={styles.detailLabel} numberOfLines={1}>
             {type === 'current' ? 'Next Payment:' : 'Application Date:'}
           </Label>
-          {/* <Label style={styles.detailValue} numberOfLines={1} adjustsFontSizeToFit={true}>
-            {type === 'current' ? '15 Feb' : '20 Jan'}
-          </Label> */}
         </View>
         <View style={styles.detailRow}>
           <Label style={styles.detailLabel} numberOfLines={1}>Amount:</Label>
@@ -94,14 +62,6 @@ const DashBoard = () => {
   return (
     <Wrapper style={commonStyles.screenContainer} title={'Dashboard'}>
       <ScrollView contentContainerStyle={styles.container}>
-        {/* <Label style={styles.welcomeTitle}>
-          Member Portal
-        </Label> */}
-        {/* <Label style={styles.welcomeSubtitle}>
-          Access all your membership services in one place
-        </Label> */}
-
-        {/* Subscription Details Section */}
         <View style={styles.subscriptionSection}>
           <Label style={styles.sectionTitle}>Subscription Details</Label>
           <View style={styles.subscriptionContainer}>
