@@ -26,14 +26,29 @@ const steps = [
 
 const initialFormData = {
   personalInfo: {
+    title: '',
     forename: '',
     surname: '',
+    gender: '',
+    dob: '',
     personalEmail: '',
     mobileNo: '',
     country: 'Ireland',
     consent: true,
+    addressLine1: '',
+    addressLine2: '',
+    addressLine3: '',
+    addressLine4: '',
+    eircode: '',
+    workTel: '',
+    preferredEmail: '',
+    workEmail: '',
   },
-  professionalDetails: {},
+  professionalDetails: {
+    retired: false,
+    retiredDate: '',
+    pensionNo: '',
+  },
   subscriptionDetails: {},
 };
 
@@ -83,7 +98,12 @@ const Application = () => {
   };
 
   const handleFormDataChange = (stepName, data) => {
-    const newData = { ...formData, [stepName]: data };
+    // Ensure data is properly structured
+    const sanitizedData = data || {};
+    const newData = { 
+      ...formData, 
+      [stepName]: { ...initialFormData[stepName], ...sanitizedData }
+    };
     setFormData(newData);
   };
 
@@ -504,33 +524,42 @@ const Application = () => {
   };
 
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <PersonalInformation
-            formData={formData.personalInfo}
-            onFormDataChange={data => handleFormDataChange('personalInfo', data)}
-            showValidation={showValidation}
-          />
-        );
-      case 2:
-        return (
-          <ProfessionalDetails
-            formData={formData.professionalDetails}
-            onFormDataChange={data => handleFormDataChange('professionalDetails', data)}
-            showValidation={showValidation}
-          />
-        );
-      case 3:
-        return (
-          <SubscriptionDetails
-            formData={formData.subscriptionDetails}
-            onFormDataChange={data => handleFormDataChange('subscriptionDetails', data)}
-            showValidation={showValidation}
-          />
-        );
-      default:
-        return null;
+    try {
+      switch (currentStep) {
+        case 1:
+          return (
+            <PersonalInformation
+              formData={formData.personalInfo}
+              onFormDataChange={data => handleFormDataChange('personalInfo', data)}
+              showValidation={showValidation}
+            />
+          );
+        case 2:
+          return (
+            <ProfessionalDetails
+              formData={formData.professionalDetails}
+              onFormDataChange={data => handleFormDataChange('professionalDetails', data)}
+              showValidation={showValidation}
+            />
+          );
+        case 3:
+          return (
+            <SubscriptionDetails
+              formData={formData.subscriptionDetails}
+              onFormDataChange={data => handleFormDataChange('subscriptionDetails', data)}
+              showValidation={showValidation}
+            />
+          );
+        default:
+          return null;
+      }
+    } catch (error) {
+      console.error('Error rendering step content:', error);
+      return (
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <Text style={{ color: 'red', fontSize: 16 }}>Error loading form step</Text>
+        </View>
+      );
     }
   };
 
@@ -567,11 +596,15 @@ const Application = () => {
                   fontWeight: 'bold',
                   fontSize: Math.max(14, width * 0.038),
                 }}>
-                  {isSubmitted && step.number === 3
-                    ? '✓'
-                    : currentStep > step.number
-                      ? '✓'
-                      : step.number}
+                  {(() => {
+                    if (isSubmitted && step.number === 3) {
+                      return '✓';
+                    } else if (currentStep > step.number) {
+                      return '✓';
+                    } else {
+                      return String(step.number);
+                    }
+                  })()}
                 </Text>
               </View>
               <Text style={{
@@ -581,7 +614,9 @@ const Application = () => {
                 marginTop: 8,
                 textAlign: 'center',
                 width: Math.max(60, width * 0.18),
-              }}>{step.title}</Text>
+              }}>
+                {String(step.title)}
+              </Text>
             </View>
             {idx < steps.length - 1 && (
               <View style={[

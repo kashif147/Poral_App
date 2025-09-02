@@ -163,7 +163,7 @@ export const DatePicker = ({
           onPress={() => !disabled && setOpen(true)}
           style={{ position: 'absolute', right: 10, top: 10, padding: 8 }}
         >
-          <Text>📅</Text>
+          <Text style={{ fontSize: 16 }}>📅</Text>
         </Pressable>
       </View>
       {!!error && <Text style={{ color: 'red', marginTop: 4 }}>{error}</Text>}
