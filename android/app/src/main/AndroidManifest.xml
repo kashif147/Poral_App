@@ -25,7 +25,23 @@
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.DEFAULT" />
             <category android:name="android.intent.category.BROWSABLE" />
-            <data android:scheme="portalapp" android:host="auth" />
+            <data android:scheme="com.portal" />
+            <data android:pathPrefix="/android/callback"
+            android:host="com.portal"
+             android:scheme="com.portal"/>
+        </intent-filter>
+      </activity>
+      <activity
+        android:name="net.openid.appauth.RedirectUriReceiverAcitivity"
+        android:exported="true">
+        <intent-filter android:label="auth">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="com.portal" />
+            <data android:pathPrefix="/android/callback"
+            android:host="com.portal"
+             android:scheme="com.portal"/>
         </intent-filter>
       </activity>
     </application>

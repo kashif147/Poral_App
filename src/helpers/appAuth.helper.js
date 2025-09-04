@@ -1,16 +1,35 @@
 import { Platform } from 'react-native';
 import { setHeaders, saveUser } from './auth.helper';
+import { authorize, refresh, revoke, prefetchConfiguration } from 'react-native-app-auth'
 
 const tenant = 'projectshellAB2C.onmicrosoft.com';
 const b2cDomain = 'projectshellAB2C.b2clogin.com';
+const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309'
+
+// const configs = {
+//   identityserver: {
+//     issuer: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
+//     clientId: clientId,
+//     redirectUrl: Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback',
+//     additionalParameters: {},
+//     scopes: ['openid', 'profile', 'email', 'phone', 'address', 'openid profile offline_access']
+//   },
+//   auth0: {
+//     issuer: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
+//     clientId: clientId,
+//     redirectUrl: Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback',
+//     additionalParameters: {},
+//     scopes: ['openid', 'profile', 'email', 'phone', 'address', 'openid ', 'profile ', 'offline_access']
+//   }
+// }
+
 const policy = 'B2C_1_projectshell';
 
-const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309';
 const redirectScheme = 'portal';
-const redirectUrl = `${redirectScheme}://auth`;
+const redirectUrl = Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback';
 
 const serviceConfiguration = {
-  authorizationEndpoint: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize?p=${policy}`,
+  authorizationEndpoint: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
   tokenEndpoint: `https://${b2cDomain}/${tenant}/oauth2/v2.0/token?p=${policy}`,
 };
 
@@ -28,10 +47,6 @@ const decodeJwt = (token) => {
 
 export const signInWithAzureB2C = async () => {
   try {
-    // Dynamic require avoids bundling issues if dependency isn't installed yet
-    // eslint-disable-next-line global-require
-    const { authorize } = require('react-native-app-auth');
-
     const config = {
       clientId,
       redirectUrl,
@@ -45,8 +60,25 @@ export const signInWithAzureB2C = async () => {
       },
       iosPrefersEphemeralSession: false,
     };
+    // const configs = {
+    //   identityserver: {
+    //     issuer: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
+    //     clientId: clientId,
+    //     redirectUrl: Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback',
+    //     additionalParameters: {},
+    //     scopes: ['openid', 'profile', 'email', 'phone', 'address', 'openid profile offline_access']
+    //   },
+    //   auth0: {
+    //     issuer: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
+    //     clientId: clientId,
+    //     redirectUrl: Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback',
+    //     additionalParameters: {},
+    //     scopes: ['openid', 'profile', 'email', 'phone', 'address', 'openid ', 'profile ', 'offline_access']
+    //   }
+    // }
 
-    const result = await authorize(config);
+    const result = await authorize({ ...config, connectionTimeoutSeconds: 5, iosPrefersEphemeralSession: true });
+    console.log('Result=============>', result);
     const { accessToken, refreshToken, idToken } = result || {};
 
     if (accessToken) {
