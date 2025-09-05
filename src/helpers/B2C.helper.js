@@ -1,6 +1,5 @@
 import { generatePKCE } from "./crypt.helper";
 import { setVerifier } from "./verifier.helper";
-import { getAppAuthRedirectUrl } from './appAuth.helper';
 import { Linking } from 'react-native';
 
 export const microSoftUrlRedirect = async () => {
