@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Button } from '../../../common/button';
@@ -26,18 +26,103 @@ const SubscriptionPaymentModal = ({
   );
   const [email, setEmail] = useState(formData?.personalInfo?.personalEmail || '');
 
+  // Membership prices and helpers (ported from web)
+  const membershipPrices = {
+    general: { full: 299.0, monthly: 74.75 },
+    postgraduate_student: { full: 299.0, monthly: 74.75 },
+    short_term_relief: { full: 228.0, monthly: 57.0 },
+    private_nursing_home: { full: 288.0, monthly: 72.0 },
+    affiliate_members: { full: 116.0, monthly: 29.0 },
+    lecturing: { full: 116.0, monthly: 29.0 },
+    associate: { full: 75.0, monthly: 18.75 },
+    retired_associate: { full: 25.0, monthly: 25.0 },
+    undergraduate_student: { full: 0.0, monthly: 0.0 },
+  };
+
+  // Map common labels to keys
+  const categoryLabelToKey = {
+    'General (all grades)': 'general',
+    'Postgraduate Student': 'postgraduate_student',
+    'Short-term/ Relief (under 15 hrs/wk average)': 'short_term_relief',
+    'Private nursing home': 'private_nursing_home',
+    'Affiliate members (non-practicing)': 'affiliate_members',
+    'Lecturing (employed in universities and IT institutes)': 'lecturing',
+    'Associate (not currently employed as a nurse/midwife)': 'associate',
+    'Retired Associate': 'retired_associate',
+    'Undergraduate Student': 'undergraduate_student',
+  };
+
+  const normalizedCategoryKey = useMemo(() => {
+    if (!membershipCategory) return undefined;
+    // If already a key, use it; otherwise map by label
+    if (membershipPrices[membershipCategory]) return membershipCategory;
+    return categoryLabelToKey[membershipCategory];
+  }, [membershipCategory]);
+
+  const priceInfo = normalizedCategoryKey ? membershipPrices[normalizedCategoryKey] : { full: 0, monthly: 0 };
+
+  const paymentType = formData?.subscriptionDetails?.paymentType;
+  const isCardPayment = paymentType === 'Card Payment' || paymentType === 'Credit Card';
+  const isPayrollDeduction = paymentType === 'Payroll Deduction' || paymentType === 'Deduction at Source';
+
+  useEffect(() => {
+    // Set method based on upstream payment type
+    if (isPayrollDeduction) {
+      setMethod('bank');
+    } else {
+      setMethod('card');
+    }
+  }, [isPayrollDeduction, isCardPayment, visible]);
+
+  // When opening, initialise customPrice from pricing logic
+  useEffect(() => {
+    if (!visible) return;
+    const base = isCardPayment ? priceInfo.full : priceInfo.monthly;
+    const baseStr = Number(base || 0).toFixed(2);
+    setCustomPrice(baseStr);
+  }, [visible, priceInfo.full, priceInfo.monthly, isCardPayment]);
+
   const amountDescription = useMemo(() => {
     return membershipCategory ? `Membership: ${membershipCategory}` : 'Membership';
   }, [membershipCategory]);
 
+  const minAllowed = priceInfo.full > 0 ? priceInfo.full / 12 : 0;
+  const maxAllowed = priceInfo.full || 0;
+
+  const parsedCustom = useMemo(() => {
+    const n = parseFloat(customPrice);
+    return isFinite(n) ? n : NaN;
+  }, [customPrice]);
+
+  const isCustomValid = useMemo(() => {
+    if (Number.isNaN(parsedCustom)) return false;
+    if (parsedCustom <= 0) return false;
+    if (maxAllowed === 0) return false; // students etc. not payable
+    return parsedCustom >= minAllowed && parsedCustom <= maxAllowed;
+  }, [parsedCustom, minAllowed, maxAllowed]);
+
   const totalAmountDisplay = useMemo(() => {
-    const parsed = parseFloat(customPrice);
-    if (!isFinite(parsed) || parsed <= 0) return price ? `€${Number(price).toFixed(2)}` : '€0.00';
-    return `€${parsed.toFixed(2)}`;
-  }, [customPrice, price]);
+    if (!isCustomValid) {
+      const fallback = isCardPayment ? priceInfo.full : priceInfo.monthly;
+      return `€${Number(fallback || 0).toFixed(2)}`;
+    }
+    return `€${parsedCustom.toFixed(2)}`;
+  }, [isCustomValid, parsedCustom, isCardPayment, priceInfo.full, priceInfo.monthly]);
+
+  const priceNote = useMemo(() => {
+    return isCardPayment ? 'Billed once via card' : 'Billed three month via payroll deduction';
+  }, [isCardPayment]);
 
   const handlePay = async () => {
-    if (!cardComplete || method !== 'card') return;
+    if (method !== 'card') {
+      onFailure?.('Bank transfer is not supported in the app. Please use card.');
+      return;
+    }
+    if (!cardComplete) return;
+    if (!isCustomValid) {
+      onFailure?.(`Custom price must be between €${minAllowed.toFixed(2)} and €${maxAllowed.toFixed(2)}`);
+      return;
+    }
     setIsLoading(true);
     try {
       const payload = {
@@ -46,11 +131,7 @@ const SubscriptionPaymentModal = ({
         name: cardholderName,
         description: amountDescription,
         // Optional amount override in cents for backend
-        customAmount: (() => {
-          const num = parseFloat(customPrice);
-          if (!isFinite(num) || num <= 0) return undefined;
-          return Math.round(num * 100);
-        })(),
+        customAmount: Math.round(parsedCustom * 100),
       };
       const intentRes = await createPaymentIntentRequest(payload);
       const clientSecret = intentRes?.data?.clientSecret || intentRes?.data?.data?.clientSecret;
@@ -66,7 +147,7 @@ const SubscriptionPaymentModal = ({
       if (error) {
         onFailure?.(error.message || 'Payment failed');
       } else if (paymentIntent && paymentIntent.status === 'Succeeded') {
-        onSuccess?.(paymentIntent);
+        onSuccess?.({ paymentMethod: 'card', total: parsedCustom, customPrice: parsedCustom, paymentIntent });
       } else {
         onFailure?.('Payment not completed');
       }
@@ -108,16 +189,17 @@ const SubscriptionPaymentModal = ({
               <Text style={styles.smallLabel}>Membership Category</Text>
               <Text style={styles.categoryText}>{amountDescription}</Text>
             </View>
-            {!!price && (
-              <Text style={styles.priceText}>{`€${Number(price).toFixed(2)}`}</Text>
-            )}
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 12, color: '#64748b' }}>Price</Text>
+              <Text style={styles.priceText}>{`€${(isCardPayment ? priceInfo.full : priceInfo.monthly).toFixed(2)}`}</Text>
+            </View>
           </View>
 
           {/* Payment method */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Payment Method</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-              <TouchableOpacity style={styles.radioRow} onPress={() => setMethod('card')}>
+              <TouchableOpacity style={[styles.radioRow, (isPayrollDeduction) && { opacity: 0.5 }]} onPress={() => !isPayrollDeduction && setMethod('card')}>
                 <View style={[styles.radio, method === 'card' && styles.radioChecked]} />
                 <Text style={styles.radioText}>Credit/Debit Card</Text>
               </TouchableOpacity>
@@ -134,11 +216,17 @@ const SubscriptionPaymentModal = ({
             <TextInput
               keyboardType="decimal-pad"
               value={customPrice}
-              onChangeText={setCustomPrice}
+              onChangeText={(txt) => {
+                const cleaned = (txt || '').replace(/[^0-9.]/g, '');
+                setCustomPrice(cleaned);
+              }}
               placeholder={price ? String(Number(price).toFixed(2)) : '€0.00'}
               placeholderTextColor="#94A3B8"
               style={styles.input}
             />
+            {!isCustomValid && (
+              <Text style={{ color: 'red', marginTop: 4, fontSize: 12 }}>{`Enter between €${minAllowed.toFixed(2)} and €${maxAllowed.toFixed(2)}`}</Text>
+            )}
           </View>
 
           {/* Name + Email */}
@@ -183,11 +271,12 @@ const SubscriptionPaymentModal = ({
           {/* Total + Actions */}
           <View style={{ marginTop: 14 }}>
             <Text style={{ fontWeight: '600' }}>{`Total Amount: ${totalAmountDisplay}`}</Text>
+            <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>{priceNote}</Text>
           </View>
 
           <View style={{ flexDirection: 'row', marginTop: 16 }}>
             <Button title="Cancel" onPress={onClose} outlined style={{ flex: 1, marginRight: 8 }} textStyle={{ fontSize: 14, fontWeight: '600' }} />
-            <Button title={isLoading ? 'Processing…' : 'Pay Now'} onPress={handlePay} disabled={!cardComplete || isLoading || method !== 'card'} primary style={{ flex: 1, marginLeft: 8 }} textStyle={{ fontSize: 14, fontWeight: '700' }} />
+            <Button title={isLoading ? 'Processing…' : 'Pay Now'} onPress={handlePay} disabled={!cardComplete || isLoading || method !== 'card' || !isCustomValid} primary style={{ flex: 1, marginLeft: 8 }} textStyle={{ fontSize: 14, fontWeight: '700' }} />
           </View>
           {isLoading && (
             <View style={{ marginTop: 12, alignItems: 'center' }}>
