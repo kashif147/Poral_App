@@ -1834,6 +1834,11 @@
   resolved "https://registry.yarnpkg.com/@standard-schema/utils/-/utils-0.3.0.tgz#3d5e608f16c2390c10528e98e59aef6bf73cae7b"
   integrity sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==
 
+"@stripe/stripe-react-native@^0.51.0":
+  version "0.51.0"
+  resolved "https://registry.yarnpkg.com/@stripe/stripe-react-native/-/stripe-react-native-0.51.0.tgz#a418a98e18d71b4ac98883bb9a71708fcb0a6471"
+  integrity sha512-MT4+ZUW3kZtY5hzE05N/NXXpKzQdVFz3G3a2mUWlY2osCFuXvTPEYjwDhdvtRDTD3jB43Es5kM0vXRQAb37T0g==
+
 "@types/babel__core@^7.1.14":
   version "7.20.5"
   resolved "https://registry.yarnpkg.com/@types/babel__core/-/babel__core-7.20.5.tgz#3df15f27ba85319caa07ba08d0721889bb39c017"

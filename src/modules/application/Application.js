@@ -6,6 +6,7 @@ import SubscriptionDetails from './SubscriptionDetails';
 import { Wrapper } from '../../common/wrapper';
 import { commonStyles, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
+import SubscriptionPaymentModal from './components/SubscriptionPaymentModal';
 import {
   fetchPersonalDetail,
   fetchProfessionalDetail,
@@ -82,11 +83,16 @@ const Application = () => {
           updateProfessionalDetail(formData.professionalDetails);
         }
       } else if (currentStep === 3) {
-        // For native, submit directly then show thank-you modal
-        if (!subscriptionDetail) {
-          createSubscriptionDetail(formData.subscriptionDetails);
+        // If not undergraduate_student, open payment modal first
+        const memberCat = professionalDetail?.professionalDetails?.membershipCategory || formData?.professionalDetails?.membershipCategory;
+        if (memberCat && memberCat !== 'undergraduate_student') {
+          setIsModalVisible(true);
         } else {
-          updateSubscriptionDetail(formData.subscriptionDetails);
+          if (!subscriptionDetail) {
+            createSubscriptionDetail(formData.subscriptionDetails);
+          } else {
+            updateSubscriptionDetail(formData.subscriptionDetails);
+          }
         }
       }
       setShowValidation(false);
@@ -179,12 +185,26 @@ const Application = () => {
       setIsSubmitted(true);
       setIsModalVisible(true);
       // Submit formData to backend here
-      Alert.alert('Form submitted!', JSON.stringify(formData, null, 2));
+      // Alert.alert('Form submitted!', JSON.stringify(formData, null, 2));
     }
   };
 
   const handleModalClose = () => {
     setIsModalVisible(false);
+  };
+
+  const handlePaymentSuccess = () => {
+    if (!subscriptionDetail) {
+      createSubscriptionDetail(formData.subscriptionDetails);
+    } else {
+      updateSubscriptionDetail(formData.subscriptionDetails);
+    }
+    setIsModalVisible(false);
+  };
+
+  const handlePaymentFailure = (message) => {
+    setIsModalVisible(false);
+    Alert.alert('Payment Failed', message || 'Please try again.');
   };
 
   // Load from API on mount
@@ -634,15 +654,15 @@ const Application = () => {
             {/* Step Content */}
             <View style={[styles.card, { borderRadius: width * 0.02 }]}> {renderStepContent()} </View>
             {/* Navigation Buttons */}
-            {/* Modal */}
-            <Modal visible={isModalVisible} transparent animationType="slide">
-              <View style={styles.modalContainer}>
-                <View style={[styles.modalContent, { padding: width * 0.06, borderRadius: width * 0.03, width: width * 0.8 }]}>
-                  <Text style={{ fontSize: Math.max(16, width * 0.045), marginBottom: 16 }}>Thank you for your submission!</Text>
-                  <Button title="Close" onPress={handleModalClose} style={{ minWidth: 100, marginTop: 12 }} />
-                </View>
-              </View>
-            </Modal>
+            {/* Payment Modal (Stripe) */}
+            <SubscriptionPaymentModal
+              visible={isModalVisible}
+              onClose={handleModalClose}
+              onSuccess={handlePaymentSuccess}
+              onFailure={handlePaymentFailure}
+              formData={formData}
+              membershipCategory={professionalDetail?.professionalDetails?.membershipCategory || formData?.professionalDetails?.membershipCategory}
+            />
           </>
         )}
         keyExtractor={(item) => item.key}

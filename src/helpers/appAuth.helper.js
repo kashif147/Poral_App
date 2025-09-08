@@ -12,7 +12,7 @@ const redirectUrl = Platform.OS === 'android' ? 'com.portal://com.portal/android
 
 const serviceConfiguration = {
   authorizationEndpoint: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
-  tokenEndpoint: `https://${b2cDomain}/${tenant}/oauth2/v2.0/token?p=${policy}`,
+  tokenEndpoint: `https://${b2cDomain}/${tenant}/oauth2/v2.0/token`,
 };
 
 const decodeJwt = (token) => {
@@ -27,39 +27,24 @@ const decodeJwt = (token) => {
   }
 };
 
+// Single default configuration for Azure AD B2C
+const defaultConfig = {
+  clientId,
+  redirectUrl,
+  scopes: ['openid', 'profile', 'offline_access'],
+  skipCodeExchange: false,
+  usePKCE: true,
+  serviceConfiguration,
+  additionalParameters: {
+    p: policy,
+    nonce: 'defaultNonce',
+  },
+  iosPrefersEphemeralSession: false,
+};
+
 export const signInWithAzureB2C = async () => {
   try {
-    const config = {
-      clientId,
-      redirectUrl,
-      scopes: ['openid', 'profile', 'offline_access'],
-      skipCodeExchange: false,
-      usePKCE: true,
-      serviceConfiguration,
-      additionalParameters: {
-        p: policy,
-        nonce: 'defaultNonce',
-      },
-      iosPrefersEphemeralSession: false,
-    };
-    // const configs = {
-    //   identityserver: {
-    //     issuer: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
-    //     clientId: clientId,
-    //     redirectUrl: Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback',
-    //     additionalParameters: {},
-    //     scopes: ['openid', 'profile', 'email', 'phone', 'address', 'openid profile offline_access']
-    //   },
-    //   auth0: {
-    //     issuer: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
-    //     clientId: clientId,
-    //     redirectUrl: Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback',
-    //     additionalParameters: {},
-    //     scopes: ['openid', 'profile', 'email', 'phone', 'address', 'openid ', 'profile ', 'offline_access']
-    //   }
-    // }
-
-    const result = await authorize({ ...config, connectionTimeoutSeconds: 5, iosPrefersEphemeralSession: true });
+    const result = await authorize({ ...defaultConfig, connectionTimeoutSeconds: 5, iosPrefersEphemeralSession: true });
     console.log('Result=============>', result);
     const { accessToken, refreshToken, idToken } = result || {};
 
