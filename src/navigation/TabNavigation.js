@@ -80,9 +80,14 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         style={{
           height: 70,
           flexDirection: 'row',
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.surface,
           alignItems: 'center',
           justifyContent: 'space-between',
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: -2 },
+          elevation: 10,
         }}
       >
         {state.routes.map((route, index) => {
@@ -130,12 +135,12 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               }}>
                 {tab.name === 'menu' ? (
                   <HamburgerIcon
-                    color={isFocused ? Colors.primary : Colors.iconColor}
+                    color={isFocused ? Colors.primary : '#93A1A1'}
                     size={wp(5)}
                   />
                 ) : tab.name === STACKS.PAYMENT_STACK ? (
                   <PaymentIcon
-                    color={isFocused ? Colors.primary : Colors.iconColor}
+                    color={isFocused ? Colors.primary : '#93A1A1'}
                     size={wp(5)}
                   />
                 ) : (
@@ -144,13 +149,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                     resizeMode="contain"
                     style={{
                       ...styles.image,
-                      tintColor: isFocused ? Colors.primary : Colors.iconColor,
+                      tintColor: isFocused ? Colors.primary : '#93A1A1',
                     }}
                   />
                 )}
               </View>
               <Text style={{
-                color: isFocused ? Colors.primary : Colors.iconColor,
+                color: isFocused ? Colors.primary : '#93A1A1',
                 fontSize: 12,
                 fontWeight: isFocused ? '700' : '500',
                 marginTop: 2,
@@ -171,7 +176,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 const TabNavigator = () => {
   const { StatusBarManager } = NativeModules;
   const backgroundStyle = {
-    backgroundColor: Colors.black,
+    backgroundColor: Colors.background,
     flex: 1,
   };
   return (
@@ -189,6 +194,7 @@ const TabNavigator = () => {
         screenOptions={{
           headerShown: false,
           tabBarStyle: { display: 'none' },
+          sceneStyle: { backgroundColor: Colors.background },
         }}
       >
         <Tab.Screen name={STACKS.DASHBOARD_STACK} component={DashBoard} />

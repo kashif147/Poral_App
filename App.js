@@ -5,6 +5,7 @@ import TabNavigator from './src/navigation/TabNavigation';
 import { SafeAreaView, StatusBar } from 'react-native';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { Colors } from './src/utils/Styles';
+import { ApplicationProvider } from './src/contexts/applicationContext';
 import LandingPage from './src/modules/landing/LandingPage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setBearerToken } from './src/helpers/auth.helper';
@@ -47,9 +48,11 @@ function App() {
       />
       <StripeProvider publishableKey={'pk_test_51Rut8HQeJh5X1hcfNrG7yUZjkR9F3jURKHAiz5UCpJiOjaHjfx43ZimY7nJvLT3EvgrUtIMq1nrgwMgo5js7TOL1006raA9kpv'}>
         {isSignedIn ? (
-          <NavigationContainer>
-            <TabNavigator />
-          </NavigationContainer>
+          <ApplicationProvider>
+            <NavigationContainer>
+              <TabNavigator />
+            </NavigationContainer>
+          </ApplicationProvider>
         ) : (
           <LandingPage onLoginPress={handleLogin} />)
         }

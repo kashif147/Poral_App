@@ -28,16 +28,16 @@ export const getStyles = ({
       borderRadius: hp(2.5),
       backgroundColor:
         disabled || isloading
-          ? Colors.gray
+          ? '#5A6B6B'
           : outlined
-            ? Colors.white
+            ? Colors.surface
             : primary
               ? Colors.primary
               : Colors.primary,
       ...(outlined && { 
         borderWidth: 2, 
         borderColor: Colors.primary,
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.surface,
       }),
       ...(!outlined && !disabled && !isloading && {
         backgroundColor: primary ? Colors.primary : Colors.primary,

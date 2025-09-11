@@ -147,7 +147,7 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
   const isRetired = !!formData?.isRetired || formData?.membershipCategory === 'Retired Associate';
 
   return (
-    <View>
+    <View style={{ backgroundColor: Colors.surface }}>
       <Text style={styles.sectionTitle}>Professional Details</Text>
       {/* Membership Category */}
       <Text style={styles.label}>Membership Category *</Text>
@@ -322,12 +322,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold', 
     fontSize: 16, 
     marginTop: 8, 
-    marginBottom: 8 
+    marginBottom: 8,
+    color: '#E5F9F4' 
   },
   label: { 
     fontWeight: 'bold', 
     marginTop: 8, 
-    marginBottom: 4 
+    marginBottom: 4,
+    color: '#E5F9F4'
   },
   row: { 
     flexDirection: 'row', 
@@ -366,17 +368,18 @@ const styles = StyleSheet.create({
   radioButton: { 
     padding: 8, 
     borderWidth: 1, 
-    borderColor: '#ccc', 
+    borderColor: '#2A2F33', 
+    backgroundColor: '#1A1E21',
     borderRadius: 16, 
     marginRight: 8, 
     marginBottom: 6 
   },
   radioSelected: { 
-    backgroundColor: '#007bff', 
-    borderColor: '#007bff' 
+    backgroundColor: Colors.primary, 
+    borderColor: Colors.primary 
   },
   radioLabel: { 
-    color: '#333' 
+    color: '#E5F9F4' 
   },
 });
 

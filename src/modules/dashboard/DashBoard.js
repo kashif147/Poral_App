@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Dimensions, StyleSheet } from 'react-native';
+import { View, ScrollView, Dimensions, StyleSheet, TouchableOpacity, Image, Text } from 'react-native';
 import { Label } from '../../common/text/label';
 import { Wrapper } from '../../common/wrapper';
 import { SVG } from '../../assets/svg';
 import { DashboardCard } from '../../common/DashboardCard';
 import { useNavigation } from '@react-navigation/native';
 import { STACKS } from '../../enums/ScreenEnums';
-import { commonStyles } from '../../utils/Styles';
+import { Colors, commonStyles, wp } from '../../utils/Styles';
+import { IMAGES } from '../../assets/images';
 
 const DashBoard = () => {
   const navigation = useNavigation();
@@ -61,7 +62,7 @@ const DashBoard = () => {
 
   return (
     <Wrapper style={commonStyles.screenContainer} title={'Dashboard'}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 100 }]}>
         <View style={styles.subscriptionSection}>
           <Label style={styles.sectionTitle}>Subscription Details</Label>
           <View style={styles.subscriptionContainer}>
@@ -70,25 +71,32 @@ const DashBoard = () => {
           </View>
         </View>
 
-        {/* Dashboard Cards Section */}
-        <View style={styles.cardsSection}>
-          <Label style={styles.sectionTitle}>Quick Actions</Label>
-          <View style={styles.cardsContainer}>
-            {dashboardCards.map((card, idx) => (
-              <View key={card.key} style={styles.cardWrapper}>
-                <DashboardCard
-                  icon={card.icon}
-                  title={card.title}
-                  description={card.description}
-                  button={card.button}
-                  onPress={card.onPress}
-                  style={styles.dashboardCard}
-                />
-              </View>
-            ))}
-          </View>
-        </View>
+        {/* Quick Actions removed as per design - using floating action button instead */}
       </ScrollView>
+      <TouchableOpacity
+        onPress={() => navigation.navigate(STACKS.APPLICATION_STACK)}
+        activeOpacity={0.9}
+        style={{
+          position: 'absolute',
+          right: wp(2),
+          bottom: wp(8),
+          backgroundColor: Colors.primary,
+          borderRadius: 22,
+          height: 44,
+          paddingHorizontal: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+          shadowColor: '#000',
+          shadowOpacity: 0.2,
+          shadowRadius: 6,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 10,
+        }}
+      >
+        <Image source={IMAGES.PEN} resizeMode="contain" style={{ height: 18, width: 18, tintColor: Colors.white, marginRight: 8 }} />
+        <Text style={{ color: Colors.white, fontWeight: '700' }}>Add application</Text>
+      </TouchableOpacity>
     </Wrapper>
   );
 };
@@ -112,7 +120,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#333',
+    color: Colors.white,
   },
   subscriptionSection: {
     marginBottom: 32,

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
+import { Colors } from '../utils/Styles';
 
 const parseDdMmYyyy = (value) => {
   if (!value) return null;
@@ -65,7 +66,7 @@ export const DatePicker = ({
   useEffect(() => {
     if (value) {
       let date = null;
-      
+
       // Handle ISO date strings (e.g., "1998-08-12T19:00:00.000Z")
       if (typeof value === 'string' && value.includes('T')) {
         date = parseISODate(value);
@@ -79,7 +80,7 @@ export const DatePicker = ({
         const [y, m, d] = value.split('-').map(x => parseInt(x, 10));
         date = new Date(y, m - 1, d);
       }
-      
+
       setDisplayValue(date ? formatDdMmYyyy(date) : '');
     } else {
       setDisplayValue('');
@@ -92,17 +93,17 @@ export const DatePicker = ({
       onChange && onChange({ target: { name, value: '' } });
       return;
     }
-    
+
     // Save in ISO format for API compatibility
     const isoValue = formatToISO(dateObj);
     const ddmmyyyy = formatDdMmYyyy(dateObj);
-    
+
     if (!disableAgeValidation && getAge(dateObj) < 16) {
       setError('You must be 16 years or older to proceed');
     } else {
       setError('');
     }
-    
+
     setDisplayValue(ddmmyyyy);
     onChange && onChange({ target: { name, value: isoValue, displayValue: ddmmyyyy } });
   };
@@ -137,7 +138,7 @@ export const DatePicker = ({
   return (
     <View style={{ marginBottom: 8 }}>
       {label ? (
-        <Text style={{ fontWeight: 'bold', marginBottom: 4, color: isEmpty ? 'red' : '#111' }}>
+        <Text style={{ fontWeight: 'bold', marginBottom: 4, color: isEmpty ? 'red' : Colors.white }}>
           {label} {required ? '*' : ''} {isEmpty ? '(Required)' : ''}
         </Text>
       ) : null}
@@ -156,8 +157,10 @@ export const DatePicker = ({
             paddingVertical: 10,
             paddingHorizontal: 12,
             color: '#111',
+            backgroundColor: '#FFFFFF',
             height: 48,
           }}
+          placeholderTextColor="#94A3B8"
         />
         <Pressable
           onPress={() => !disabled && setOpen(true)}

@@ -4,9 +4,10 @@ import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
 import { Wrapper } from '../../common/wrapper';
-import { commonStyles, hp } from '../../utils/Styles';
+import { Colors, commonStyles, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
 import SubscriptionPaymentModal from './components/SubscriptionPaymentModal';
+import { useApplication } from '../../contexts/applicationContext';
 import {
   fetchPersonalDetail,
   fetchProfessionalDetail,
@@ -629,7 +630,7 @@ const Application = () => {
               </View>
               <Text style={{
                 fontSize: Math.max(10, width * 0.025),
-                color: currentStep === step.number ? '#007bff' : '#888',
+                color: currentStep === step.number ? Colors.white : '#888',
                 fontWeight: currentStep === step.number ? 'bold' : 'normal',
                 marginTop: 8,
                 textAlign: 'center',
@@ -652,7 +653,7 @@ const Application = () => {
         renderItem={() => (
           <>
             {/* Step Content */}
-            <View style={[styles.card, { borderRadius: width * 0.02 }]}> {renderStepContent()} </View>
+            <View style={[styles.card, { borderRadius: width * 0.02, backgroundColor: Colors.surface }]}> {renderStepContent()} </View>
             {/* Navigation Buttons */}
             {/* Payment Modal (Stripe) */}
             <SubscriptionPaymentModal
@@ -676,7 +677,7 @@ const Application = () => {
         left: 16,
         right: 16,
         zIndex: 1000,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+      
       }]}>
         <Button
           title="← Previous"

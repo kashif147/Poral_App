@@ -17,9 +17,9 @@ const wp = percentage =>
 const hp = percentage =>
   hpOriginal(percentage);
 
-const statusBarColor = '#218FB1';
-const primaryColor = '#000000';
-const secondryColor = '#FFFFFF';
+const statusBarColor = '#0F1214';
+const primaryColor = '#21C7A8';
+const secondryColor = '#1A1E21';
 const tertiaryColor = '#99999B';
 const btnBG = '#565658';
 const textColor = '#FFFFFF';
@@ -42,7 +42,11 @@ const boldTextFont = { fontFamily: boldFont };
 const styleTextFont = { fontFamily: styleFont };
 
 const Colors = {
-  primary: '#0A84FF',
+  primary: '#21C7A8',
+  background: '#0F1214',
+  surface: '#1A1E21',
+  primaryDark: '#17A58B',
+  primaryLight: '#123338',
   white: '#FFFFFF',
   grey70: '#48484A',
   gray: '#929292',
@@ -396,7 +400,7 @@ const commonStyles = StyleSheet.create({
   flexRow: { flexDirection: 'row' },
   screenContainer: {
     flex: 1,
-    paddingHorizontal: wp(3.5),
+    paddingHorizontal: wp(2),
   },
   horizontalView: {
     alignItems: 'center',

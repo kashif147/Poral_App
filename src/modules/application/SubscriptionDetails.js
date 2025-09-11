@@ -17,7 +17,7 @@ const sections = ['Section 1', 'Section 2', 'Section 3', 'Section 4', 'Section 5
 const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => {
 
   return (
-    <View>
+    <View style={{ backgroundColor: Colors.surface }}>
       <Text style={styles.sectionTitle}>Subscription Details</Text>
       {/* Payment Type & Payroll No */}
       {/* <View style={styles.row}> */}
@@ -198,7 +198,7 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
           <View style={[styles.checkboxBox, formData?.inmoRewards && styles.checkboxBoxChecked]}>
             {formData?.inmoRewards ? <Text style={styles.checkboxTick}>✓</Text> : null}
           </View>
-          <Text style={styles.checkboxLabel}>Tick here to join Rewards for INMO members</Text>
+            <Text style={styles.checkboxLabel}>Tick here to join Rewards for INMO members</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -227,6 +227,7 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
 
 const styles = StyleSheet.create({
   sectionTitle: { 
+    color:Colors.white,
     fontWeight: 'bold', 
     fontSize: 16, 
     marginTop: 8, 
@@ -235,7 +236,8 @@ const styles = StyleSheet.create({
   label: { 
     fontWeight: 'bold', 
     marginTop: 8, 
-    marginBottom: 4 
+    marginBottom: 4,
+    color: '#E5F9F4'
   },
   row: { 
     flexDirection: 'row', 
@@ -266,17 +268,18 @@ const styles = StyleSheet.create({
   radioButton: { 
     padding: 8, 
     borderWidth: 1, 
-    borderColor: '#ccc', 
+    borderColor: '#2A2F33', 
+    backgroundColor: '#1A1E21',
     borderRadius: 16, 
     marginRight: 8, 
     marginBottom: 6 
   },
   radioSelected: { 
-    backgroundColor: '#007bff', 
-    borderColor: '#007bff' 
+    backgroundColor: Colors.primary, 
+    borderColor: Colors.primary 
   },
   radioLabel: { 
-    color: '#333' 
+    color: '#E5F9F4' 
   },
   checkboxRow: { 
     flexDirection: 'column', 
@@ -295,7 +298,8 @@ const styles = StyleSheet.create({
     marginLeft: 8, 
     flex: 1,
     textAlign: 'left',
-    lineHeight: 18
+    lineHeight: 18,
+    color: '#E5F9F4'
   },
   checkboxBox: {
     width: 18,

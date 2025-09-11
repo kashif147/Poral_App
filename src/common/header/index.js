@@ -42,13 +42,12 @@ export const Header = ({ title, showBack = false, onBellPress, onProfilePress })
 const styles = StyleSheet.create({
   container: {
     height: hp(6.5),
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     // paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
+    borderBottomWidth: 0,
     alignSelf: 'stretch'
   },
   leftContainer: {
@@ -64,11 +63,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: wp(5.2),
     fontWeight: '700',
-    color: Colors.black,
+    color: Colors.white,
     // marginLeft: 10,
   },
-  backIcon: { width: wp(5), height: wp(5), tintColor: Colors.black },
-  bellIcon: { width: wp(5.5), height: wp(5.5), tintColor: Colors.black },
+  backIcon: { width: wp(5), height: wp(5), tintColor: '#93A1A1' },
+  bellIcon: { width: wp(5.5), height: wp(5.5), tintColor: '#93A1A1' },
   iconBtn: { padding: 6, borderRadius: 16, },
   avatarBtn: { marginLeft: 8 },
   avatar: { width: hp(4), height: hp(4), borderRadius: hp(2) },

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Button } from '../../../common/button';
-import { hp } from '../../../utils/Styles';
+import { hp, Colors } from '../../../utils/Styles';
 import { createPaymentIntentRequest } from '../../../api/payment.api';
 
 const SubscriptionPaymentModal = ({
@@ -166,22 +166,22 @@ const SubscriptionPaymentModal = ({
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
         >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          bounces={false}
-        >
+          <ScrollView
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: 120 }]}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
         <View style={styles.container}>
           {/* Header */}
-          <View style={styles.headerRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Membership Subscription</Text>
-              <Text style={styles.caption}>Review your membership and complete payment</Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+              <View style={styles.headerRow}>
+                <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Membership Subscription</Text>
+          <Text style={styles.caption}>Review your membership and complete payment</Text>
+                </View>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
 
           {/* Membership category card */}
           <View style={styles.categoryCard}>
@@ -189,17 +189,17 @@ const SubscriptionPaymentModal = ({
               <Text style={styles.smallLabel}>Membership Category</Text>
               <Text style={styles.categoryText}>{amountDescription}</Text>
             </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: 12, color: '#64748b' }}>Price</Text>
-              <Text style={styles.priceText}>{`€${(isCardPayment ? priceInfo.full : priceInfo.monthly).toFixed(2)}`}</Text>
-            </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 12, color: '#93A1A1' }}>Price</Text>
+                  <Text style={styles.priceText}>{`€${(isCardPayment ? priceInfo.full : priceInfo.monthly).toFixed(2)}`}</Text>
+                </View>
           </View>
 
           {/* Payment method */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Payment Method</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-              <TouchableOpacity style={[styles.radioRow, (isPayrollDeduction) && { opacity: 0.5 }]} onPress={() => !isPayrollDeduction && setMethod('card')}>
+                  <TouchableOpacity style={[styles.radioRow, (isPayrollDeduction) && { opacity: 0.5 }]} onPress={() => !isPayrollDeduction && setMethod('card')}>
                 <View style={[styles.radio, method === 'card' && styles.radioChecked]} />
                 <Text style={styles.radioText}>Credit/Debit Card</Text>
               </TouchableOpacity>
@@ -216,28 +216,28 @@ const SubscriptionPaymentModal = ({
             <TextInput
               keyboardType="decimal-pad"
               value={customPrice}
-              onChangeText={(txt) => {
-                const cleaned = (txt || '').replace(/[^0-9.]/g, '');
-                setCustomPrice(cleaned);
-              }}
+                  onChangeText={(txt) => {
+                    const cleaned = (txt || '').replace(/[^0-9.]/g, '');
+                    setCustomPrice(cleaned);
+                  }}
               placeholder={price ? String(Number(price).toFixed(2)) : '€0.00'}
-              placeholderTextColor="#94A3B8"
+                  placeholderTextColor="#94A3B8"
               style={styles.input}
             />
-            {!isCustomValid && (
-              <Text style={{ color: 'red', marginTop: 4, fontSize: 12 }}>{`Enter between €${minAllowed.toFixed(2)} and €${maxAllowed.toFixed(2)}`}</Text>
-            )}
+                {!isCustomValid && (
+                  <Text style={{ color: '#FF6B6B', marginTop: 4, fontSize: 12 }}>{`Enter between €${minAllowed.toFixed(2)} and €${maxAllowed.toFixed(2)}`}</Text>
+                )}
           </View>
 
           {/* Name + Email */}
           <View style={[styles.row, { marginTop: 8 }]}> 
             <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={styles.requiredLabel}>Name on Card</Text>
-              <TextInput value={cardholderName} onChangeText={setCardholderName} placeholder="Full name" placeholderTextColor="#94A3B8" style={styles.input} />
+                  <TextInput value={cardholderName} onChangeText={setCardholderName} placeholder="Full name" placeholderTextColor="#94A3B8" style={styles.input} />
             </View>
             <View style={{ flex: 1, marginLeft: 8 }}>
               <Text style={styles.requiredLabel}>Email</Text>
-              <TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor="#94A3B8" keyboardType="email-address" style={styles.input} />
+                  <TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor="#94A3B8" keyboardType="email-address" style={styles.input} />
             </View>
           </View>
           <TouchableOpacity onPress={() => {
@@ -250,80 +250,83 @@ const SubscriptionPaymentModal = ({
           {/* Card details */}
           <View style={{ marginTop: 8 }}>
             <Text style={styles.requiredLabel}>Card Details</Text>
-            <View style={styles.cardFieldWrapper}>
-              <CardField
-                postalCodeEnabled={false}
-                placeholders={{ number: '4242 4242 4242 4242', cvc: 'CVC', expiration: 'MM/YY' }}
-                cardStyle={{
-                  backgroundColor: '#00000000',
-                  textColor: '#000000',
-                  placeholderColor: '#94A3B8',
-                  borderWidth: 0,
-                  borderColor: '#00000000',
-                  borderRadius: 10,
-                }}
-                style={{ width: '100%', height: 52 }}
-                onCardChange={details => setCardComplete(details?.complete)}
-              />
-            </View>
+                <View style={styles.cardFieldWrapper}>
+            <CardField
+              postalCodeEnabled={false}
+                    placeholders={{ number: '4242 4242 4242 4242', cvc: 'CVC', expiration: 'MM/YY' }}
+                    cardStyle={{
+                      backgroundColor: '#00000000',
+                      textColor: '#000000',
+                      placeholderColor: '#94A3B8',
+                      borderWidth: 0,
+                      borderColor: '#00000000',
+                      borderRadius: 10,
+                    }}
+                    style={{ width: '100%', height: 52 }}
+              onCardChange={details => setCardComplete(details?.complete)}
+            />
+                </View>
           </View>
 
           {/* Total + Actions */}
           <View style={{ marginTop: 14 }}>
-            <Text style={{ fontWeight: '600' }}>{`Total Amount: ${totalAmountDisplay}`}</Text>
-            <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>{priceNote}</Text>
+                <Text style={{ fontWeight: '600', color: Colors.white }}>{`Total Amount: ${totalAmountDisplay}`}</Text>
+                <Text style={{ color: '#93A1A1', fontSize: 12, marginTop: 2 }}>{priceNote}</Text>
+              </View>
           </View>
-
-          <View style={{ flexDirection: 'row', marginTop: 16 }}>
-            <Button title="Cancel" onPress={onClose} outlined style={{ flex: 1, marginRight: 8 }} textStyle={{ fontSize: 14, fontWeight: '600' }} />
-            <Button title={isLoading ? 'Processing…' : 'Pay Now'} onPress={handlePay} disabled={!cardComplete || isLoading || method !== 'card' || !isCustomValid} primary style={{ flex: 1, marginLeft: 8 }} textStyle={{ fontSize: 14, fontWeight: '700' }} />
+            {/* Sticky footer actions */}
+            {/* <View style={styles.footerBar}> */}
+            <View style={{ flexDirection: 'row' ,marginTop: 12}}>
+              <Button title="Cancel" onPress={onClose} outlined style={{ flex: 1, marginRight: 8 }} textStyle={{ fontSize: 14, fontWeight: '600' }} />
+              <Button title={isLoading ? 'Processing…' : 'Pay Now'} onPress={handlePay} disabled={!cardComplete || isLoading || method !== 'card' || !isCustomValid} primary style={{ flex: 1, marginLeft: 8 }} textStyle={{ fontSize: 14, fontWeight: '700' }} />
           </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
           {isLoading && (
-            <View style={{ marginTop: 12, alignItems: 'center' }}>
+          <View style={{ marginTop: 10, alignItems: 'center' }}>
               <ActivityIndicator />
             </View>
           )}
         </View>
-        </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
+      {/* </View> */}
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: '#ffffff' },
-  container: { flex: 1, backgroundColor: '#fff', width: '100%', borderTopLeftRadius: 18, borderTopRightRadius: 18, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: 16, paddingTop: 18 },
-  title: { fontWeight: 'bold', fontSize: hp(2.4), color: '#0f172a' },
-  caption: { marginTop: 2, color: '#64748b', fontSize: 12 },
-  smallLabel: { fontWeight: '600', color: '#555', fontSize: 12 },
-  requiredLabel: { fontWeight: '600', color: '#555' },
-  label: { fontWeight: '600', color: '#555' },
+  overlay: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.surface, width: '100%', borderRadius: 0, padding: 16, paddingTop: 18, alignSelf: 'stretch' },
+  title: { fontWeight: 'bold', fontSize: hp(2.4), color: Colors.white },
+  caption: { marginTop: 2, color: '#93A1A1', fontSize: 12 },
+  smallLabel: { fontWeight: '600', color: '#E5F9F4', fontSize: 12 },
+  requiredLabel: { fontWeight: '600', color: Colors.white },
+  label: { fontWeight: '600', color: Colors.white },
   section: { marginTop: 12 },
-  sectionTitle: { fontWeight: '700', color: '#0f172a' },
+  sectionTitle: { fontWeight: '700', color: Colors.white },
   categoryCard: {
     marginTop: 12,
     flexDirection: 'row',
     alignItems: 'center',
     padding: 14,
-    borderRadius: 14,
-    backgroundColor: '#F7F8FA',
+    borderRadius: 12,
+    backgroundColor: '#1A1E21',
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    elevation: 6,
   },
-  categoryText: { fontWeight: '600', color: '#111', marginTop: 4 },
-  priceText: { fontWeight: '700', color: '#1e90ff' },
+  categoryText: { fontWeight: '600', color: Colors.white, marginTop: 4 },
+  priceText: { fontWeight: '700', color: Colors.white },
   input: {
     height: 46,
-    borderWidth: 0,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#2A2F33',
     borderRadius: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#1A1E21',
     marginTop: 6,
+    color: Colors.white,
   },
   row: { flexDirection: 'row', alignItems: 'center' },
   radioRow: { flexDirection: 'row', alignItems: 'center' },
@@ -332,11 +335,11 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#888',
+    borderColor: '#4B5563',
     marginRight: 8,
   },
-  radioChecked: { backgroundColor: '#1e90ff', borderColor: '#1e90ff' },
-  radioText: { color: '#333' },
+  radioChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  radioText: { color: Colors.white },
   autofillLink: { alignSelf: 'flex-end', marginTop: 6 },
   headerRow: {
     flexDirection: 'row',
@@ -349,9 +352,9 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#2A2F33',
   },
-  closeButtonText: { fontSize: 16, color: '#334155', fontWeight: '700' },
+  closeButtonText: { fontSize: 16, color: Colors.white, fontWeight: '700' },
   cardFieldWrapper: {
     marginTop: 8,
     borderWidth: 0,
@@ -359,7 +362,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#1A1E21',
+  },
+  footerBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: Colors.surface,
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#2A2F33',
   },
 });
 

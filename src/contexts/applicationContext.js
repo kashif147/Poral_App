@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { toast } from 'react-toastify';
+import { Alert } from 'react-native';
 import {
   fetchPersonalDetail,
   fetchProfessionalDetail,
@@ -29,12 +29,12 @@ export const ApplicationProvider = ({ children }) => {
           setLoading(false);
         } else {
           setLoading(false);
-          toast.error(res.data.message ?? 'Unable to get personal detail');
+          Alert.alert('Error', res.data.message ?? 'Unable to get personal detail');
         }
       })
       .catch(() => {
         setLoading(false);
-        toast.error('Something went wrong');
+        Alert.alert('Error', 'Something went wrong');
       });
   };
 
@@ -48,12 +48,12 @@ export const ApplicationProvider = ({ children }) => {
           setLoading(false);
         } else {
           setLoading(false);
-          toast.error(res.data.message ?? 'Unable to get professional detail');
+          Alert.alert('Error', res.data.message ?? 'Unable to get professional detail');
         }
       })
       .catch(() => {
         setLoading(false);
-        toast.error('Something went wrong');
+        Alert.alert('Error', 'Something went wrong');
       });
   };
 
@@ -67,12 +67,12 @@ export const ApplicationProvider = ({ children }) => {
           setLoading(false);
         } else {
           setLoading(false);
-          toast.error(res.data.message ?? 'Unable to get subscription detail');
+          Alert.alert('Error', res.data.message ?? 'Unable to get subscription detail');
         }
       })
       .catch(() => {
         setLoading(false);
-        toast.error('Something went wrong');
+        Alert.alert('Error', 'Something went wrong');
       });
   };
 

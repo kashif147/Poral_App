@@ -19,8 +19,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
   const ref = useRef();
 
   return (
-    <View>
-      <Text style={styles.sectionTitle}>Personal Information</Text>
+    <View style={{ backgroundColor: Colors.surface }}>
       {/* Title */}
       <Text style={styles.label}>Title *</Text>
       <View style={styles.pickerField}>
@@ -384,12 +383,14 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
 
 const styles = StyleSheet.create({
   sectionTitle: { 
+    color:Colors.white,
     fontWeight: 'bold', 
     fontSize: 16, 
     marginTop: 8, 
     marginBottom: 8 
   },
   label: { 
+    color:Colors.white,
     fontWeight: 'bold', 
     marginTop: 8, 
     marginBottom: 4 
