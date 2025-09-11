@@ -22,7 +22,7 @@ const PopupMenu = ({ visible, onClose, onNavigate }) => {
     },
     {
       id: 'category',
-      label: 'Category',
+      label: 'Transper of Request',
       icon: '📂',
       route: 'Category',
     },
@@ -34,7 +34,7 @@ const PopupMenu = ({ visible, onClose, onNavigate }) => {
     },
     {
       id: 'membership',
-      label: 'Membership',
+      label: 'Change of Category',
       icon: '👑',
       route: 'Membership',
     },
