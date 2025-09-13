@@ -89,7 +89,7 @@ export const InputField = ({
         }
         onChangeText={txt => onChange && onChange(txt, index, field)}
         onSubmitEditing={() => onSubmit && onSubmit()}
-        editable={!editable}
+        editable={editable !== false}
         maxLength={maxLength}
         numberOfLines={numberOfLines}
         {...(Platform.OS === 'ios' &&

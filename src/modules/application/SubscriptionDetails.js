@@ -218,7 +218,10 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
           <View style={[styles.checkboxBox, formData?.termsAndConditions && styles.checkboxBoxChecked]}>
             {formData?.termsAndConditions ? <Text style={styles.checkboxTick}>✓</Text> : null}
           </View>
-          <Text style={[styles.checkboxLabel, { flex: 1 }]}>I have read and agree to the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/DataProtection')}>Data Protection Statement</Text>, the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/PrivacyStatement')}>Privacy Statement</Text> and the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/ConditionsOfMembership')}>Conditions of Membership</Text> {showValidation && !formData?.termsAndConditions ? <Text style={{ color: 'red' }}>(Required)</Text> : null}</Text>
+          <Text style={[styles.checkboxLabel, { flex: 1 }]}>
+            I have read and agree to the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/DataProtection')}>Data Protection Statement</Text>, the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/PrivacyStatement')}>Privacy Statement</Text> and the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/ConditionsOfMembership')}>Conditions of Membership</Text>
+            {showValidation && !formData?.termsAndConditions && <Text style={{ color: 'red' }}> (Required)</Text>}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -227,7 +230,7 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
 
 const styles = StyleSheet.create({
   sectionTitle: { 
-    color:Colors.white,
+    color: Colors.white,
     fontWeight: 'bold', 
     fontSize: 16, 
     marginTop: 8, 
@@ -313,8 +316,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   checkboxBoxChecked: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   checkboxTick: {
     color: '#fff',
@@ -322,7 +325,7 @@ const styles = StyleSheet.create({
     lineHeight: 12,
   },
   link: { 
-    color: '#007bff', 
+    color: Colors.primary, 
     textDecorationLine: 'underline' 
   },
 });

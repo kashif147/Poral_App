@@ -233,7 +233,7 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
       <View style={styles.inputField}>
         <InputField
           value={formData.nmbiNo}
-          editable={!adaptationYes ? true : false}
+          editable={!adaptationYes}
           holderTextColor={'#94A3B8'}
           onChange={text => onFormDataChange({ ...formData, nmbiNo: text })}
           placeholder="12344"
@@ -285,7 +285,7 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
         <View style={styles.inputField}>
           <InputField
             value={formData.retiredDate}
-            editable={isRetired || formData.membershipCategory === 'Retired Associate' ? false : true}
+            editable={!(isRetired || formData.membershipCategory === 'Retired Associate')}
             holderTextColor={'#94A3B8'}
             onChange={text => onFormDataChange({ ...formData, retiredDate: text })}
             placeholder="DD/MM/YYYY"
@@ -305,7 +305,7 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
         <View style={styles.inputField}>
           <InputField
             value={formData.pensionNo}
-            editable={isRetired || formData.membershipCategory === 'Retired Associate' ? false : true}
+            editable={!(isRetired || formData.membershipCategory === 'Retired Associate')}
             holderTextColor={'#94A3B8'}
             onChange={text => onFormDataChange({ ...formData, pensionNo: text })}
             placeholder="Enter your pension number"

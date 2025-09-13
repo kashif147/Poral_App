@@ -383,14 +383,14 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
 
 const styles = StyleSheet.create({
   sectionTitle: { 
-    color:Colors.white,
+    color: Colors.white,
     fontWeight: 'bold', 
     fontSize: 16, 
     marginTop: 8, 
     marginBottom: 8 
   },
   label: { 
-    color:Colors.white,
+    color: Colors.white,
     fontWeight: 'bold', 
     marginTop: 8, 
     marginBottom: 4 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, StyleSheet, FlatList, Alert, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, Modal, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
@@ -65,8 +65,22 @@ const Application = () => {
   const [personalDetail, setPersonalDetail] = useState(null);
   const [professionalDetail, setProfessionalDetail] = useState(null);
   const [subscriptionDetail, setSubscriptionDetail] = useState(null);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
-  // Removed local storage persistence; we will hydrate only from API
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const handleNext = () => {
     setShowValidation(true);
@@ -586,121 +600,137 @@ const Application = () => {
 
   return (
     <Wrapper style={commonStyles.screenContainer} title={'Application'} showBack={false}>
-      {/* <Text style={[styles.title, { fontSize: Math.max(20, width * 0.06) }]}>Application</Text> */}
-      {/* Stepper */}
-      <View style={[styles.stepperRow, { width: '100%', marginBottom: width * 0.06 }]}>
-        {steps.map((step, idx) => (
-          <React.Fragment key={step.number}>
-            <View style={styles.stepperItemContainer}>
-              <View
-                style={[
-                  styles.stepCircle,
-                  {
-                    width: Math.max(36, width * 0.09), height: Math.max(36, width * 0.09), borderRadius: Math.max(18, width * 0.045),
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 4,
-                    elevation: 4,
-                    borderWidth: currentStep === step.number ? 3 : 1,
-                    borderColor: currentStep === step.number ? '#007bff' : '#e0e0e0',
-                    backgroundColor: currentStep === step.number
-                      ? '#fff'
-                      : currentStep > step.number
-                        ? '#28a745'
-                        : '#e0e0e0',
-                  },
-                ]}
-              >
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {/* Stepper */}
+        <View style={[styles.stepperRow, { width: '100%', marginBottom: width * 0.06 }]}>
+          {steps.map((step, idx) => (
+            <React.Fragment key={step.number}>
+              <View style={styles.stepperItemContainer}>
+                <View
+                  style={[
+                    styles.stepCircle,
+                    {
+                      width: Math.max(36, width * 0.09), height: Math.max(36, width * 0.09), borderRadius: Math.max(18, width * 0.045),
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 4,
+                      elevation: 4,
+                      borderWidth: currentStep === step.number ? 3 : 1,
+                      borderColor: currentStep === step.number ? '#007bff' : '#e0e0e0',
+                      backgroundColor: currentStep === step.number
+                        ? '#fff'
+                        : currentStep > step.number
+                          ? '#28a745'
+                          : '#e0e0e0',
+                    },
+                  ]}
+                >
+                  <Text style={{
+                    color: currentStep === step.number ? '#007bff' : '#fff',
+                    fontWeight: 'bold',
+                    fontSize: Math.max(14, width * 0.038),
+                  }}>
+                    {(() => {
+                      if (isSubmitted && step.number === 3) {
+                        return '✓';
+                      } else if (currentStep > step.number) {
+                        return '✓';
+                      } else {
+                        return String(step.number);
+                      }
+                    })()}
+                  </Text>
+                </View>
                 <Text style={{
-                  color: currentStep === step.number ? '#007bff' : '#fff',
-                  fontWeight: 'bold',
-                  fontSize: Math.max(14, width * 0.038),
+                  fontSize: Math.max(10, width * 0.025),
+                  color: currentStep === step.number ? Colors.white : '#888',
+                  fontWeight: currentStep === step.number ? 'bold' : 'normal',
+                  marginTop: 8,
+                  textAlign: 'center',
+                  width: Math.max(60, width * 0.18),
                 }}>
-                  {(() => {
-                    if (isSubmitted && step.number === 3) {
-                      return '✓';
-                    } else if (currentStep > step.number) {
-                      return '✓';
-                    } else {
-                      return String(step.number);
-                    }
-                  })()}
+                  {String(step.title)}
                 </Text>
               </View>
-              <Text style={{
-                fontSize: Math.max(10, width * 0.025),
-                color: currentStep === step.number ? Colors.white : '#888',
-                fontWeight: currentStep === step.number ? 'bold' : 'normal',
-                marginTop: 8,
-                textAlign: 'center',
-                width: Math.max(60, width * 0.18),
-              }}>
-                {String(step.title)}
-              </Text>
-            </View>
-            {idx < steps.length - 1 && (
-              <View style={[
-                styles.stepConnector,
-                { backgroundColor: currentStep > step.number ? '#28a745' : '#e0e0e0', width: Math.max(30, width * 0.13) }
-              ]} />
+              {idx < steps.length - 1 && (
+                <View style={[
+                  styles.stepConnector,
+                  { backgroundColor: currentStep > step.number ? '#28a745' : '#e0e0e0', width: Math.max(30, width * 0.13) }
+                ]} />
+              )}
+            </React.Fragment>
+          ))}
+        </View>
+        
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={[{ key: 'content' }]}
+            renderItem={() => (
+              <>
+                {/* Step Content */}
+                <View style={[styles.card, { borderRadius: width * 0.02, backgroundColor: Colors.surface }]}> {renderStepContent()} </View>
+                {/* Payment Modal (Stripe) */}
+                <SubscriptionPaymentModal
+                  visible={isModalVisible}
+                  onClose={handleModalClose}
+                  onSuccess={handlePaymentSuccess}
+                  onFailure={handlePaymentFailure}
+                  formData={formData}
+                  membershipCategory={professionalDetail?.professionalDetails?.membershipCategory || formData?.professionalDetails?.membershipCategory}
+                />
+              </>
             )}
-          </React.Fragment>
-        ))}
-      </View>
-      <FlatList
-        data={[{ key: 'content' }]}
-        renderItem={() => (
-          <>
-            {/* Step Content */}
-            <View style={[styles.card, { borderRadius: width * 0.02, backgroundColor: Colors.surface }]}> {renderStepContent()} </View>
-            {/* Navigation Buttons */}
-            {/* Payment Modal (Stripe) */}
-            <SubscriptionPaymentModal
-              visible={isModalVisible}
-              onClose={handleModalClose}
-              onSuccess={handlePaymentSuccess}
-              onFailure={handlePaymentFailure}
-              formData={formData}
-              membershipCategory={professionalDetail?.professionalDetails?.membershipCategory || formData?.professionalDetails?.membershipCategory}
+            keyExtractor={(item) => item.key}
+            contentContainerStyle={[styles.container, { 
+              paddingBottom: isKeyboardVisible ? hp(20) : hp(12),
+              backgroundColor: Colors.surface
+            }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
+        
+        {/* Navigation Buttons - Hide when keyboard is visible */}
+        {!isKeyboardVisible && (
+          <View style={[styles.buttonRow, {
+            position: 'absolute',
+            bottom: hp(2),
+            left: 16,
+            right: 16,
+            zIndex: 1000,
+            backgroundColor: 'transparent',
+            paddingVertical: hp(1),
+            paddingHorizontal: 16,
+          }]}>
+            <Button
+              title="← Previous"
+              onPress={handlePrevious}
+              disabled={currentStep === 1}
+              outlined={currentStep === 1}
+              textStyle={{ fontSize: hp(2) }}
+              style={{ flex: 1, marginRight: 12 }}
             />
-          </>
+            <Button
+              title={currentStep === steps.length ? 'Submit' : 'Continue →'}
+              onPress={currentStep === steps.length ? handleSubmit : handleNext}
+              primary
+              textStyle={{ fontSize: hp(2) }}
+              style={{ flex: 1, marginLeft: 12 }}
+            />
+          </View>
         )}
-        keyExtractor={(item) => item.key}
-        contentContainerStyle={[styles.container, { paddingBottom: hp(12) }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      />
-      <View style={[styles.buttonRow, {
-        position: 'absolute',
-        bottom: hp(2),
-        left: 16,
-        right: 16,
-        zIndex: 1000,
-      
-      }]}>
-        <Button
-          title="← Previous"
-          onPress={handlePrevious}
-          disabled={currentStep === 1}
-          outlined={currentStep === 1}
-          textStyle={{ fontSize: hp(2) }}
-          style={{ flex: 1, marginRight: 12 }}
-        />
-        <Button
-          title={currentStep === steps.length ? 'Submit' : 'Continue →'}
-          onPress={currentStep === steps.length ? handleSubmit : handleNext}
-          primary
-          textStyle={{ fontSize: hp(2) }}
-          style={{ flex: 1, marginLeft: 12 }}
-        />
-      </View>
+      </KeyboardAvoidingView>
     </Wrapper>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#fff', flexGrow: 1 },
+  container: { backgroundColor: Colors.background, flexGrow: 1 },
   title: { fontWeight: 'bold', marginBottom: 16 },
   stepperRow: {
     flexDirection: 'row',

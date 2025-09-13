@@ -157,7 +157,7 @@ export const DatePicker = ({
             paddingVertical: 10,
             paddingHorizontal: 12,
             color: '#111',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: Colors.grey300,
             height: 48,
           }}
           placeholderTextColor="#94A3B8"

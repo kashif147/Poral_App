@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Image, NativeModules, Platform, StyleSheet, Text, View, Dimensions, TouchableOpacity } from 'react-native';
+import { Image, NativeModules, Platform, StyleSheet, Text, View, Dimensions, TouchableOpacity, Keyboard } from 'react-native';
 import { Colors, wp } from '../utils/Styles';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Application from '../modules/application/Application';
@@ -45,7 +45,22 @@ const TAB_ICONS = [
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const [popupVisible, setPopupVisible] = useState(false);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const { width } = Dimensions.get('window');
+
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
 
   const handleMenuPress = () => {
     setPopupVisible(true);
@@ -73,6 +88,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       navigation.navigate(targetRoute);
     }
   };
+
+  // Hide tab bar when keyboard is visible
+  if (isKeyboardVisible) {
+    return null;
+  }
 
   return (
     <>

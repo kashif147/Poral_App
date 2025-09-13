@@ -338,7 +338,7 @@ const form = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: wp(3),
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.grey300,
     height: wp(12),
   },
   inputText: {
@@ -377,7 +377,7 @@ const container = StyleSheet.create({
 const Popupmenu = StyleSheet.create({
   Options: {
     ...TEXT_STYLE.h14M,
-    color: Colors.primaryColour,
+    color: Colors.primary,
     textAlign: 'center',
 
     fontWeight: '700',
