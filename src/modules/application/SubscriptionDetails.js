@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
     alignItems: 'center' 
   },
   halfInput: { 
-    flex: 1, 
+    flex: 1,
     marginRight: 8,
     marginBottom: 8
   },

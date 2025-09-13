@@ -704,7 +704,6 @@ const Application = () => {
             right: 16,
             zIndex: 1000,
             backgroundColor: 'transparent',
-            paddingVertical: hp(1),
             paddingHorizontal: 16,
           }]}>
             <Button

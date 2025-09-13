@@ -33,26 +33,28 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
         </Picker>
       </View>
       {/* Surname & Forename */}
-      <View style={styles.halfInput}>
-        <Text style={styles.label}>Surname *</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.surname}
-            checkValue={showValidation && !formData.surname}
-            onChange={text => onFormDataChange({ ...formData, surname: text })}
-            placeholder="Enter your surname"
-          />
+      <View style={styles.row}>
+        <View style={styles.halfInput}>
+          <Text style={styles.label}>Surname *</Text>
+          <View style={styles.inputField}>
+            <InputField
+              value={formData.surname}
+              checkValue={showValidation && !formData.surname}
+              onChange={text => onFormDataChange({ ...formData, surname: text })}
+              placeholder="Enter your surname"
+            />
+          </View>
         </View>
-      </View>
-      <View style={styles.halfInput}>
-        <Text style={styles.label}>Forename *</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.forename}
-            checkValue={showValidation && !formData.forename}
-            onChange={text => onFormDataChange({ ...formData, forename: text })}
-            placeholder="Enter your forename"
-          />
+        <View style={styles.halfInput}>
+          <Text style={styles.label}>Forename *</Text>
+          <View style={styles.inputField}>
+            <InputField
+              value={formData.forename}
+              checkValue={showValidation && !formData.forename}
+              onChange={text => onFormDataChange({ ...formData, forename: text })}
+              placeholder="Enter your forename"
+            />
+          </View>
         </View>
       </View>
       {/* Gender & Date of Birth */}
@@ -382,25 +384,25 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: { 
+  sectionTitle: {
     color: Colors.white,
-    fontWeight: 'bold', 
-    fontSize: 16, 
-    marginTop: 8, 
-    marginBottom: 8 
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginTop: 8,
+    marginBottom: 8
   },
-  label: { 
+  label: {
     color: Colors.white,
-    fontWeight: 'bold', 
-    marginTop: 8, 
-    marginBottom: 4 
+    fontWeight: 'bold',
+    marginTop: 8,
+    marginBottom: 4
   },
-  row: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between' 
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
   },
-  halfInput: { 
-    flex: 1, 
+  halfInput: {
+    flex: 1,
     marginRight: 8,
     marginBottom: 8
   },
@@ -410,13 +412,13 @@ const styles = StyleSheet.create({
   pickerField: {
     marginBottom: 8
   },
-  switchRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    marginTop: 6, 
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 6,
     marginBottom: 8,
-    flex: 1 
+    flex: 1
   },
   autocompleteContainer: {
     position: 'relative',
