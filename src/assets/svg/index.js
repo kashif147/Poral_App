@@ -94,6 +94,7 @@ export const SVG = {
     SPLASH_LOGO_NEW: require('./networkSplashLogo.svg'),
     LOCK_BLACK: require('./lock_black.svg'),
     ENTER: require('./enter.svg'),
+    BACK_ICON: require('./back_icon.svg'),
 
 
 

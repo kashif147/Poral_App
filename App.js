@@ -59,7 +59,7 @@ function App() {
     <SafeAreaView style={{ flex: 1 }}>
       <StatusBar
         backgroundColor={Colors.black}
-        barStyle={'dark-content'}
+        barStyle={'light-content'}
       />
       <StripeProvider publishableKey={'pk_test_51Rut8HQeJh5X1hcfNrG7yUZjkR9F3jURKHAiz5UCpJiOjaHjfx43ZimY7nJvLT3EvgrUtIMq1nrgwMgo5js7TOL1006raA9kpv'}>
         {isSignedIn ? (

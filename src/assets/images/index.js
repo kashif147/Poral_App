@@ -8,7 +8,8 @@ export const IMAGES = {
     USER: require('./user.png'),
     EXCEL_ICON: require('./excel_icon.png'),
     EVENT: require('./event.png'),
-    CATEGORIE: require('./categories.png'),
+    CATEGORIES: require('./categories.png'),
+    COURSES: require('./about.png'),
     GALLERY: require('./gallery.png'),
     LOGO: require('./logo.png'),
     PAYMENT: require('./setting.png'), // Using setting icon as payment icon for now

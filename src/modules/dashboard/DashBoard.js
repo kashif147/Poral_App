@@ -37,6 +37,16 @@ const DashBoard = () => {
     },
   ];
 
+  // Quick access menu items
+  // Quick access excluding the three main tabs
+  const quickActions = [
+    { key: 'events', title: 'Events', icon: IMAGES.EVENT, onPress: () => navigation.navigate(STACKS.EVENTS_STACK) },
+    { key: 'categories', title: 'Categories', icon: IMAGES.CATEGORIES, onPress: () => navigation.navigate(STACKS.CATEGORIES_STACK) },
+    { key: 'courses', title: 'Courses', icon: IMAGES.COURSES, onPress: () => navigation.navigate(STACKS.COURSES_STACK) },
+    { key: 'membership', title: 'Membership', icon: IMAGES.SETTING, onPress: () => navigation.navigate(STACKS.MEMBERSHIP_STACK) },
+    { key: 'profile', title: 'Profile', icon: IMAGES.USER, onPress: () => navigation.navigate('Profile') },
+  ];
+
   // Mock data for charts
   const monthlySpend = [120, 80, 140, 100, 160, 110, 90, 130, 150, 170, 155, 180];
   const recentPayments = [
@@ -83,7 +93,7 @@ const DashBoard = () => {
 
   return (
     <Wrapper style={commonStyles.screenContainer} title={'Dashboard'}>
-      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: 120 }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.container, { paddingBottom: 120 }]}>
         {/* Overview graph */}
         <View style={styles.card}>
           <Label style={styles.sectionTitle}>Payments Overview</Label>
@@ -94,12 +104,83 @@ const DashBoard = () => {
           </View>
         </View>
 
+        {/* Quick Access horizontal buttons */}
+        <View style={{ marginTop: 16 }}>
+          <Label style={styles.sectionTitle}>Quick Access</Label>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickContainer}
+          >
+            {quickActions.map(item => (
+              <TouchableOpacity
+                key={item.key}
+                activeOpacity={0.9}
+                onPress={item.onPress}
+                style={styles.quickButton}
+              >
+                <Image source={item.icon} resizeMode="contain" style={styles.quickIcon} />
+                <Text style={styles.quickLabel}>{item.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         <View style={styles.subscriptionSection}>
           <Label style={styles.sectionTitle}>Subscription Details</Label>
-          <View style={styles.subscriptionContainer}>
-            {renderSubscriptionCard('current', subscriptionData.current)}
-            {renderSubscriptionCard('current', subscriptionData.pending)}
+          {/* Single attractive card */}
+          <View style={styles.subscriptionCardEnhanced}>
+            {/* Top: status + amount */}
+            <View style={styles.subscriptionHeader}>
+              <View style={[styles.statusPill, { borderColor: Colors.primary, backgroundColor: '#0b2a2620' }]}>
+                <Text style={{ color: Colors.primary, fontWeight: '700', fontSize: 12 }}>{subscriptionData.current.status}</Text>
+              </View>
+              <Text style={styles.amountText}>{subscriptionData.current.amount}</Text>
+            </View>
+
+            {/* Plan */}
+            <Text style={styles.planText} numberOfLines={2}>{subscriptionData.current.plan}</Text>
+
+            {/* Info row */}
+            <View style={styles.subscriptionDetailsRow}>
+              <View style={styles.detailCol}>
+                <Text style={styles.detailLabel}>Next Payment</Text>
+                <Text style={styles.detailValue}>{subscriptionData.current.nextPayment}</Text>
+              </View>
+              <View style={styles.detailDivider} />
+              <View style={[styles.detailCol, { paddingLeft: 12 }]}>
+                <Text style={styles.detailLabel}>Status</Text>
+                <Text style={styles.detailValue}>{subscriptionData.current.status}</Text>
+              </View>
+            </View>
+
+            {/* CTA */}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={styles.primaryBtn}
+                onPress={() => navigation.navigate(STACKS.PAYMENT_STACK)}
+              >
+                <Text style={styles.primaryBtnText}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Pending change, if any */}
+            {subscriptionData?.pending ? (
+              <View style={styles.pendingBox}>
+                <Text style={styles.pendingTitle}>Pending Change</Text>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={[styles.detailLabel, { color: '#93A1A1' }]}>Application Date</Text>
+                  <Text style={styles.detailValue}>{subscriptionData.pending.applicationDate}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                  <Text style={[styles.detailLabel, { color: '#93A1A1' }]}>Amount</Text>
+                  <Text style={styles.detailValue}>{subscriptionData.pending.amount}</Text>
+                </View>
+              </View>
+            ) : null}
           </View>
+
           <View style={[styles.card, { marginTop: 12 }]}>
             <Text style={{ color: Colors.white, fontWeight: '700', marginBottom: 8 }}>Recent Payments</Text>
             {recentPayments.map((p, idx) => (
@@ -157,7 +238,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
-    marginHorizontal: 16,
   },
   welcomeTitle: {
     fontSize: 24,
@@ -200,6 +280,96 @@ const styles = StyleSheet.create({
     elevation: 8,
     minHeight: 120,
   },
+  subscriptionCardEnhanced: {
+    backgroundColor: '#1A1F23',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2A2F33',
+    padding: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  subscriptionDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1F23',
+    borderWidth: 1,
+    borderColor: '#22292E',
+    padding: 12,
+    borderRadius: 12,
+  },
+  pendingBox: {
+    marginTop: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2A2F33',
+    backgroundColor: '#161C20',
+    padding: 12,
+  },
+  pendingTitle: {
+    color: Colors.white,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  primaryBtn: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  primaryBtnText: {
+    color: Colors.white,
+    fontWeight: '700',
+  },
+  quickContainer: {
+    gap: 12,
+  },
+  quickButton: {
+    height: 120,
+    width: 140,
+    borderRadius: 16,
+    backgroundColor: '#1A1F23',
+    borderWidth: 1,
+    borderColor: '#2A2F33',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  quickIcon: {
+    height: 28,
+    width: 28,
+    tintColor: Colors.white,
+    marginBottom: 8,
+  },
+  quickLabel: {
+    color: Colors.white,
+    fontWeight: '700',
+  },
   subscriptionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -222,6 +392,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#93A1A1',
     flexWrap: 'wrap',
+  },
+  amountText: {
+    color: Colors.white,
+    fontWeight: '800',
+    fontSize: 18,
+  },
+  planText: {
+    color: '#B7C3C6',
+    fontWeight: '700',
+    fontSize: 14,
+    marginBottom: 12,
+    marginTop: 2,
   },
   subscriptionDetails: {
     gap: 6,
@@ -262,6 +444,15 @@ const styles = StyleSheet.create({
   dashboardCard: {
     height: 'auto',
     minHeight: 160,
+  },
+  detailCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  detailDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: '#232a2f',
   },
 });
 

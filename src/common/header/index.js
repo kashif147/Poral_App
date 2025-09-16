@@ -18,12 +18,10 @@ export const Header = ({ title, showBack = false, onBellPress, onProfilePress })
   return (
     <View style={styles.container}>
       <View style={styles.leftContainer}>
-        {/* {showBack ? (
-          <TouchableOpacity onPress={handleBack} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <Image source={IMAGES.MESSAGE} style={styles.backIcon} />
+        {/* {!showBack && (
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <LocalSvg width={26} height={26} asset={SVG.BACK_ICON} />
           </TouchableOpacity>
-        ) : (
-          <View style={{ width: wp(6) }} />
         )} */}
         <Text numberOfLines={1} style={styles.title}>{title || 'Portal'}</Text>
       </View>
@@ -66,6 +64,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
     // marginLeft: 10,
   },
+  backBtn: { paddingRight: 8 },
   backIcon: { width: wp(5), height: wp(5), tintColor: '#93A1A1' },
   bellIcon: { width: wp(5.5), height: wp(5.5), tintColor: '#93A1A1' },
   iconBtn: { padding: 6, borderRadius: 16, },

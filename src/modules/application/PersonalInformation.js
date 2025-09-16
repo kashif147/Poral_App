@@ -32,27 +32,29 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           {titles.map(t => <Picker.Item key={t} label={t} value={t} />)}
         </Picker>
       </View>
-      {/* Surname & Forename - full width stacked */}
-      <View style={styles.halfInput}>
-        <Text style={styles.label}>Surname *</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.surname}
-            checkValue={showValidation && !formData.surname}
-            onChange={text => onFormDataChange({ ...formData, surname: text })}
-            placeholder="Enter your surname"
-          />
+      {/* Surname & Forename - two columns */}
+      <View style={styles.row}>
+        <View style={styles.halfCol}>
+          <Text style={styles.label}>Surname *</Text>
+          <View style={styles.inputField}>
+            <InputField
+              value={formData.surname}
+              checkValue={showValidation && !formData.surname}
+              onChange={text => onFormDataChange({ ...formData, surname: text })}
+              placeholder="Enter your surname"
+            />
+          </View>
         </View>
-      </View>
-      <View style={styles.halfInput}>
-        <Text style={styles.label}>Forename *</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.forename}
-            checkValue={showValidation && !formData.forename}
-            onChange={text => onFormDataChange({ ...formData, forename: text })}
-            placeholder="Enter your forename"
-          />
+        <View style={[styles.halfCol, { marginRight: 0 }]}>
+          <Text style={styles.label}>Forename *</Text>
+          <View style={styles.inputField}>
+            <InputField
+              value={formData.forename}
+              checkValue={showValidation && !formData.forename}
+              onChange={text => onFormDataChange({ ...formData, forename: text })}
+              placeholder="Enter your forename"
+            />
+          </View>
         </View>
       </View>
       {/* Gender & Date of Birth */}
@@ -398,6 +400,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between'
+  },
+  halfCol: {
+    width: '48%',
+    marginRight: 8,
+    marginBottom: 8
   },
   halfInput: {
     width: '100%',
