@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Platform, TouchableOpacity, Linking } from 'rea
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import { Colors, wp } from '../../utils/Styles';
+import { useEffect, useMemo } from 'react';
+import { useLookup } from '../../contexts/lookupContext';
 
 const paymentTypes = ['Deduction at Source', 'Credit Card'];
 const membershipStatuses = [
@@ -12,9 +14,29 @@ const membershipStatuses = [
   { value: 'careerBreak', label: 'You are returning from a career break' },
   { value: 'nursingAbroad', label: 'You are returning from nursing abroad' },
 ];
-const sections = ['Section 1', 'Section 2', 'Section 3', 'Section 4', 'Section 5', 'Other'];
+// Sections will be populated dynamically from lookup context
 
 const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => {
+  const { primarySectionLookups, secondarySectionLookups, fetchLookups } = useLookup();
+
+  useEffect(() => {
+    const needPrimary = !primarySectionLookups || primarySectionLookups.length === 0;
+    const needSecondary = !secondarySectionLookups || secondarySectionLookups.length === 0;
+    if (needPrimary || needSecondary) {
+      fetchLookups?.();
+    }
+  }, [primarySectionLookups, secondarySectionLookups, fetchLookups]);
+
+  const primaryNames = useMemo(() => (
+    (primarySectionLookups || [])
+      .map(s => s?.DisplayName || s?.lookupname)
+      .filter(Boolean)
+  ), [primarySectionLookups]);
+  const secondaryNames = useMemo(() => (
+    (secondarySectionLookups || [])
+      .map(s => s?.DisplayName || s?.lookupname)
+      .filter(Boolean)
+  ), [secondarySectionLookups]);
 
   return (
     <View style={{ backgroundColor: Colors.surface }}>
@@ -133,10 +155,10 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
         <Text style={styles.label}>Primary Section</Text>
         <View style={styles.pickerField}>
           <Picker
-            selectedValue={formData.primarySection || sections[0]}
+            selectedValue={formData.primarySection || ((primaryNames[0] || 'Other'))}
             onValueChange={val => onFormDataChange({ ...formData, primarySection: val, ...(val !== 'Other' ? { otherPrimarySection: '' } : {}) })}
           >
-            {sections.map(s => <Picker.Item key={s} label={s} value={s} />)}
+            {[...primaryNames, 'Other'].map(s => <Picker.Item key={s} label={s} value={s} />)}
           </Picker>
         </View>
       </View>
@@ -159,10 +181,10 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
         <Text style={styles.label}>Secondary Section</Text>
         <View style={styles.pickerField}>
           <Picker
-            selectedValue={formData.secondarySection || sections[0]}
+            selectedValue={formData.secondarySection || ((secondaryNames[0] || 'Other'))}
             onValueChange={val => onFormDataChange({ ...formData, secondarySection: val, ...(val !== 'Other' ? { otherSecondarySection: '' } : {}) })}
           >
-            {sections.map(s => <Picker.Item key={s} label={s} value={s} />)}
+            {[...secondaryNames, 'Other'].map(s => <Picker.Item key={s} label={s} value={s} />)}
           </Picker>
         </View>
       </View>

@@ -31,7 +31,7 @@
              android:scheme="com.portal"/>
         </intent-filter>
       </activity>
-      <activity
+      <!-- <activity
         android:name="net.openid.appauth.RedirectUriReceiverAcitivity"
         android:exported="true">
         <intent-filter android:label="auth">
@@ -43,6 +43,14 @@
             android:host="com.portal"
              android:scheme="com.portal"/>
         </intent-filter>
-      </activity>
+      </activity> -->
+      <activity android:name="com.reactnativeappauth.RedirectUriReceiverActivity">
+  <intent-filter android:label="oauth2redirect">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="com.portal" android:host="com.portal" android:path="/android/callback" />
+  </intent-filter>
+</activity>
     </application>
 </manifest>

@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   primaryBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: '#1A1F23',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,

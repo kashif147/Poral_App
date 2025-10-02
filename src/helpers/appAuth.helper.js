@@ -11,8 +11,8 @@ const policy = 'B2C_1_projectshell';
 const redirectUrl = Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback';
 
 const serviceConfiguration = {
-  authorizationEndpoint: `https://${b2cDomain}/${tenant}/oauth2/v2.0/authorize`,
-  tokenEndpoint: `https://${b2cDomain}/${tenant}/oauth2/v2.0/token`,
+  authorizationEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/authorize`,
+  tokenEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`,
 };
 
 const decodeJwt = (token) => {
@@ -35,10 +35,6 @@ const defaultConfig = {
   skipCodeExchange: false,
   usePKCE: true,
   serviceConfiguration,
-  additionalParameters: {
-    p: policy,
-    nonce: 'defaultNonce',
-  },
   iosPrefersEphemeralSession: false,
 };
 
@@ -63,6 +59,14 @@ export const signInWithAzureB2C = async () => {
     return { ok: true, result };
   } catch (error) {
     return { ok: false, error };
+  }
+};
+
+export const prefetchB2CConfiguration = async () => {
+  try {
+    await prefetchConfiguration(defaultConfig);
+  } catch (e) {
+    // no-op; prefetch is opportunistic
   }
 };
 

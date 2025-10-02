@@ -334,7 +334,7 @@ const form = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: wp(2.5),
     borderWidth: wp(0.3),
-    borderColor: Colors.lightgray,
+    borderColor: '#2A2F33',
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: wp(3),

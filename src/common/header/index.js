@@ -18,16 +18,16 @@ export const Header = ({ title, showBack = false, onBellPress, onProfilePress })
   return (
     <View style={styles.container}>
       <View style={styles.leftContainer}>
-        {/* {!showBack && (
+        {!showBack && (
           <TouchableOpacity onPress={handleBack} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-            <LocalSvg width={26} height={26} asset={SVG.BACK_ICON} />
+            <LocalSvg width={26} height={26} asset={SVG.BACK_ICON} fill={Colors.white} />
           </TouchableOpacity>
-        )} */}
+        )}
         <Text numberOfLines={1} style={styles.title}>{title || 'Portal'}</Text>
       </View>
       <View style={styles.rightContainer}>
         <TouchableOpacity onPress={onBellPress} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <LocalSvg width={26} height={26} asset={SVG.NOTIFICATION} />
+          <LocalSvg width={26} height={26} asset={SVG.NOTIFICATION} fill={Colors.white} />
         </TouchableOpacity>
         <TouchableOpacity onPress={onProfilePress} style={styles.avatarBtn}>
           <Image source={IMAGES.AVATAR} style={styles.avatar} />

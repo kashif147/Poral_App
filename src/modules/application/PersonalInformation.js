@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
@@ -6,10 +6,8 @@ import CustomSwitch from '../../common/switch';
 import { Colors, form, wp } from '../../utils/Styles';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { DatePicker } from '../../common/DatePicker';
+import { useLookup } from '../../contexts/lookupContext';
 
-const titles = ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.'];
-const genders = ['Male', 'Female', 'Other'];
-const countries = ['Ireland', 'United Kingdom', 'United States', 'Other'];
 const preferredAddresses = ['Home', 'Work', 'Other'];
 const preferredEmails = ['Personal', 'Work'];
 
@@ -17,6 +15,23 @@ const GOOGLE_PLACES_API_KEY = 'AIzaSyCJYpj8WV5Rzof7O3jGhW9XabD0J4Yqe1o';
 
 const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => {
   const ref = useRef();
+  const { genderLookups, titleLookups, countryLookups, fetchCountryLookups } = useLookup();
+
+  useEffect(() => {
+    if (!countryLookups || countryLookups.length === 0) {
+      fetchCountryLookups?.();
+    }
+  }, [countryLookups, fetchCountryLookups]);
+
+  const titleOptions = (titleLookups || [])
+    .map(i => i?.lookupname)
+    .filter(Boolean);
+  const genderOptions = (genderLookups || [])
+    .map(i => i?.lookupname)
+    .filter(Boolean);
+  const countryOptions = (countryLookups || [])
+    .map(c => c?.displayname || c?.name || c?.code)
+    .filter(Boolean);
 
   return (
     <View style={{ backgroundColor: Colors.surface }}>
@@ -29,7 +44,9 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
             onFormDataChange({ ...formData, title: val });
           }}
         >
-          {titles.map(t => <Picker.Item key={t} label={t} value={t} />)}
+          {(titleOptions.length ? titleOptions : ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.']).map(t => (
+            <Picker.Item key={t} label={t} value={t} />
+          ))}
         </Picker>
       </View>
       {/* Surname & Forename - two columns */}
@@ -62,10 +79,12 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
         <Text style={styles.label}>Gender *</Text>
         <View style={styles.pickerField}>
           <Picker
-            selectedValue={formData.gender || genders[0]}
+            selectedValue={formData.gender || (genderOptions[0] || 'Male')}
             onValueChange={val => onFormDataChange({ ...formData, gender: val })}
           >
-            {genders.map(g => <Picker.Item key={g} label={g} value={g} />)}
+            {(genderOptions.length ? genderOptions : ['Male', 'Female', 'Other']).map(g => (
+              <Picker.Item key={g} label={g} value={g} />
+            ))}
           </Picker>
         </View>
       </View>
@@ -83,10 +102,12 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       <Text style={styles.label}>Country of Primary Qualification</Text>
       <View style={styles.pickerField}>
         <Picker
-          selectedValue={formData.primaryCountry || countries[0]}
+          selectedValue={formData.primaryCountry || (countryOptions[0] || 'Ireland')}
           onValueChange={val => onFormDataChange({ ...formData, primaryCountry: val })}
         >
-          {countries.map(c => <Picker.Item key={c} label={c} value={c} />)}
+          {(countryOptions.length ? countryOptions : ['Ireland', 'United Kingdom', 'United States', 'Other']).map(c => (
+            <Picker.Item key={c} label={c} value={c} />
+          ))}
         </Picker>
       </View>
       {/* Correspondence Details Section */}
@@ -290,10 +311,12 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       <Text style={styles.label}>Country</Text>
       <View style={styles.pickerField}>
         <Picker
-          selectedValue={formData.correspondenceCountry || countries[0]}
+          selectedValue={formData.correspondenceCountry || (countryOptions[0] || 'Ireland')}
           onValueChange={val => onFormDataChange({ ...formData, correspondenceCountry: val })}
         >
-          {countries.map(c => <Picker.Item key={c} label={c} value={c} />)}
+          {(countryOptions.length ? countryOptions : ['Ireland', 'United Kingdom', 'United States', 'Other']).map(c => (
+            <Picker.Item key={c} label={c} value={c} />
+          ))}
         </Picker>
       </View>
       <View style={styles.halfInput}>
