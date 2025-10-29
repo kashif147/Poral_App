@@ -1,7 +1,5 @@
-import application_request from './application_request';
+import payment_request from './payment_request';
 
-export const createPaymentIntentRequest = payload => {
-  return application_request.post('/payments/create-intent', payload);
+export const createPaymentIntentRequest = data => {
+  return payment_request.post('/api/payments/intents', data);
 };
-
-

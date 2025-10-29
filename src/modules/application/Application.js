@@ -59,6 +59,7 @@ const Application = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [shouldShowModal, setShouldShowModal] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [showValidation, setShowValidation] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -82,35 +83,54 @@ const Application = () => {
     };
   }, []);
 
+  // Show modal after subscription detail is created/updated (matching web version)
+  useEffect(() => {
+    if (shouldShowModal) {
+      console.log('🎫 Triggering payment modal...');
+      setIsModalVisible(true);
+      setShouldShowModal(false);
+    }
+  }, [shouldShowModal]);
+
   const handleNext = () => {
+    console.log('🔄 handleNext called, currentStep:', currentStep);
     setShowValidation(true);
-    if (validateCurrentStep()) {
+    
+    const isValid = validateCurrentStep();
+    console.log('✓ Validation result:', isValid);
+    
+    if (isValid) {
       if (currentStep === 1) {
+        console.log('📝 Processing step 1...');
         if (!personalDetail) {
           createPersonalDetail(formData.personalInfo);
         } else {
           updatePersonalDetail(formData.personalInfo);
         }
       } else if (currentStep === 2) {
+        console.log('💼 Processing step 2...');
         if (!professionalDetail) {
           createProfessionalDetail(formData.professionalDetails);
         } else {
           updateProfessionalDetail(formData.professionalDetails);
         }
       } else if (currentStep === 3) {
-        // If not undergraduate_student, open payment modal first
-        const memberCat = professionalDetail?.professionalDetails?.membershipCategory || formData?.professionalDetails?.membershipCategory;
-        if (memberCat && memberCat !== 'undergraduate_student') {
-          setIsModalVisible(true);
+        console.log('📋 Processing step 3...');
+        console.log('subscriptionDetail exists?', !!subscriptionDetail);
+        // Always create/update subscription detail first
+        if (!subscriptionDetail) {
+          console.log('Creating new subscription detail...');
+          createSubscriptionDetail(formData.subscriptionDetails);
         } else {
-          if (!subscriptionDetail) {
-            createSubscriptionDetail(formData.subscriptionDetails);
-          } else {
-            updateSubscriptionDetail(formData.subscriptionDetails);
-          }
+          console.log('Updating existing subscription detail...');
+          updateSubscriptionDetail(formData.subscriptionDetails);
         }
+        // Modal will be shown by useEffect after subscription is saved (via shouldShowModal)
       }
+      // Remove automatic step increment - it will be handled by API success callbacks
       setShowValidation(false);
+    } else {
+      console.log('❌ Validation failed for step', currentStep);
     }
   };
   const handlePrevious = () => {
@@ -168,9 +188,18 @@ const Application = () => {
           nurseType,
           nmbiNo,
         } = formData.professionalDetails || {};
-        if (!grade || !workLocation || !membershipCategory) {
+        
+        // Check required fields
+        if (!grade || !membershipCategory) {
           return false;
         }
+        
+        // Work location is only required for non-undergraduate students
+        const isUndergraduateStudent = membershipCategory === 'undergraduate_student';
+        if (!isUndergraduateStudent && !workLocation) {
+          return false;
+        }
+        
         if (nursingAdaptation === true) {
           if (!nurseType || !nmbiNo) return false;
         }
@@ -180,14 +209,78 @@ const Application = () => {
         const {
           paymentType,
           payrollNo,
-          irishTradeUnion,
-          membershipStatus,
+          otherIrishTradeUnion,
+          otherScheme,
+          memberStatus,
+          termsAndConditions,
+          primarySection,
+          otherPrimarySection,
+          secondarySection,
+          otherSecondarySection,
+          incomeProtectionScheme,
+          inmoRewards,
         } = formData.subscriptionDetails || {};
-        if (!paymentType) return false;
-        if (paymentType === 'Payroll Deduction' && !payrollNo) return false;
-        if (!membershipStatus) return false;
-        if (irishTradeUnion === undefined) return false;
-        // Add more validations as needed for your business logic
+        
+        console.log('📋 Step 3 Validation Data:', {
+          paymentType,
+          payrollNo,
+          otherIrishTradeUnion,
+          otherScheme,
+          memberStatus,
+          termsAndConditions,
+          incomeProtectionScheme,
+          inmoRewards,
+        });
+        
+        // Required fields
+        if (!paymentType) {
+          console.log('❌ Validation failed: paymentType missing');
+          return false;
+        }
+        if (paymentType === 'Deduction at Source' && !payrollNo) {
+          console.log('❌ Validation failed: payrollNo missing');
+          return false;
+        }
+        if (!memberStatus) {
+          console.log('❌ Validation failed: memberStatus missing');
+          return false;
+        }
+        if (!otherIrishTradeUnion) {
+          console.log('❌ Validation failed: otherIrishTradeUnion missing');
+          return false;
+        }
+        if (!otherScheme) {
+          console.log('❌ Validation failed: otherScheme missing');
+          return false;
+        }
+        if (!termsAndConditions) {
+          console.log('❌ Validation failed: termsAndConditions missing');
+          return false;
+        }
+        
+        // Conditional required fields
+        if (primarySection === 'Other' && !otherPrimarySection) {
+          console.log('❌ Validation failed: otherPrimarySection missing');
+          return false;
+        }
+        if (secondarySection === 'Other' && !otherSecondarySection) {
+          console.log('❌ Validation failed: otherSecondarySection missing');
+          return false;
+        }
+        
+        // Required for new/graduate members
+        if (memberStatus === 'new' || memberStatus === 'graduate') {
+          if (!incomeProtectionScheme) {
+            console.log('❌ Validation failed: incomeProtectionScheme missing for new/graduate');
+            return false;
+          }
+          if (!inmoRewards) {
+            console.log('❌ Validation failed: inmoRewards missing for new/graduate');
+            return false;
+          }
+        }
+        
+        console.log('✅ Step 3 validation passed!');
         break;
       }
     }
@@ -208,16 +301,26 @@ const Application = () => {
     setIsModalVisible(false);
   };
 
-  const handlePaymentSuccess = () => {
-    if (!subscriptionDetail) {
-      createSubscriptionDetail(formData.subscriptionDetails);
-    } else {
-      updateSubscriptionDetail(formData.subscriptionDetails);
-    }
+  const handlePaymentSuccess = (paymentData) => {
+    console.log('✅ Payment Success Data:', paymentData);
+    
+    // Close the payment modal
     setIsModalVisible(false);
+    
+    // Show success alert and mark as submitted
+    Alert.alert('Success', 'Payment completed successfully!', [
+      {
+        text: 'OK',
+        onPress: () => {
+          // Reset form state
+          setIsSubmitted(true);
+        }
+      }
+    ]);
   };
 
   const handlePaymentFailure = (message) => {
+    console.log('❌ Payment Failed:', message);
     setIsModalVisible(false);
     Alert.alert('Payment Failed', message || 'Please try again.');
   };
@@ -321,9 +424,10 @@ const Application = () => {
           ...prev.subscriptionDetails,
           paymentType: subscriptionDetail?.subscriptionDetails?.paymentType,
           payrollNo: subscriptionDetail?.subscriptionDetails?.payrollNo ?? '',
-          membershipStatus: subscriptionDetail?.subscriptionDetails?.membershipStatus ?? '',
-          irishTradeUnion: subscriptionDetail?.subscriptionDetails?.otherIrishTradeUnion ?? false,
-          otherScheme: subscriptionDetail?.subscriptionDetails?.otherScheme ?? false,
+          memberStatus: subscriptionDetail?.subscriptionDetails?.memberStatus ?? '',
+          otherIrishTradeUnion: subscriptionDetail?.subscriptionDetails?.otherIrishTradeUnion ?? '',
+          otherTradeUnionName: subscriptionDetail?.subscriptionDetails?.otherTradeUnionName ?? '',
+          otherScheme: subscriptionDetail?.subscriptionDetails?.otherScheme ?? '',
           recuritedBy: subscriptionDetail?.subscriptionDetails?.recuritedBy ?? '',
           recuritedByMembershipNo: subscriptionDetail?.subscriptionDetails?.recuritedByMembershipNo ?? '',
           primarySection: subscriptionDetail?.subscriptionDetails?.primarySection,
@@ -492,9 +596,10 @@ const Application = () => {
     const subscriptionFields = {
       paymentType: data?.paymentType,
       payrollNo: data?.payrollNo,
-      membershipStatus: data?.membershipStatus,
-      otherIrishTradeUnion: data?.irishTradeUnion === true,
-      otherScheme: data?.otherScheme === true,
+      memberStatus: data?.memberStatus,
+      otherIrishTradeUnion: data?.otherIrishTradeUnion,
+      otherTradeUnionName: data?.otherTradeUnionName,
+      otherScheme: data?.otherScheme,
       recuritedBy: data?.recuritedBy,
       recuritedByMembershipNo: data?.recuritedByMembershipNo,
       primarySection: data?.primarySection,
@@ -512,13 +617,27 @@ const Application = () => {
     const subscriptionInfo = { subscriptionDetails };
     createSubscriptionDetailRequest(personalDetail.ApplicationId, subscriptionInfo).then(res => {
       if (res?.status === 200) {
+        console.log('✅ Subscription detail created successfully');
         setSubscriptionDetail(res?.data?.data);
-        setCurrentStep(prev => Math.min(prev + 1, steps.length));
-        setIsModalVisible(true);
+        
+        // Check if undergraduate student - they don't need payment
+        if (professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
+            professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
+          console.log('🎓 Undergraduate student - skipping payment');
+          setIsSubmitted(true);
+          Alert.alert('Success', 'Application submitted successfully!');
+        } else {
+          // Trigger payment modal for other categories (matching web version)
+          console.log('💳 Triggering payment modal...');
+          setShouldShowModal(true);
+        }
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add subscription detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(err => {
+      console.error('❌ Subscription creation failed:', err);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const updateSubscriptionDetail = data => {
@@ -529,9 +648,10 @@ const Application = () => {
     const subscriptionFields = {
       paymentType: data?.paymentType,
       payrollNo: data?.payrollNo,
-      membershipStatus: data?.membershipStatus,
-      otherIrishTradeUnion: data?.irishTradeUnion === true,
-      otherScheme: data?.otherScheme === true,
+      memberStatus: data?.memberStatus,
+      otherIrishTradeUnion: data?.otherIrishTradeUnion,
+      otherTradeUnionName: data?.otherTradeUnionName,
+      otherScheme: data?.otherScheme,
       recuritedBy: data?.recuritedBy,
       recuritedByMembershipNo: data?.recuritedByMembershipNo,
       primarySection: data?.primarySection,
@@ -549,13 +669,27 @@ const Application = () => {
     const subscriptionInfo = { subscriptionDetails };
     updateSubscriptionDetailRequest(personalDetail.ApplicationId, subscriptionInfo).then(res => {
       if (res?.status === 200) {
+        console.log('✅ Subscription detail updated successfully');
         setSubscriptionDetail(res?.data?.data);
-        setCurrentStep(prev => Math.min(prev + 1, steps.length));
-        setIsModalVisible(true);
+        
+        // Check if undergraduate student - they don't need payment
+        if (professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
+            professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
+          console.log('🎓 Undergraduate student - skipping payment');
+          setIsSubmitted(true);
+          Alert.alert('Success', 'Application updated successfully!');
+        } else {
+          // Trigger payment modal for other categories (matching web version)
+          console.log('💳 Triggering payment modal...');
+          setShouldShowModal(true);
+        }
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update subscription detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(err => {
+      console.error('❌ Subscription update failed:', err);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const renderStepContent = () => {
@@ -589,7 +723,7 @@ const Application = () => {
           return null;
       }
     } catch (error) {
-      console.error('Error rendering step content:', error);
+      console.error('❌ Error rendering step content:', error);
       return (
         <View style={{ padding: 20, alignItems: 'center' }}>
           <Text style={{ color: 'red', fontSize: 16 }}>Error loading form step</Text>
@@ -597,6 +731,9 @@ const Application = () => {
       );
     }
   };
+
+  // Debug log for modal state (matching web version)
+  console.log('💳 Payment modal visible:', isModalVisible);
 
   return (
     <Wrapper style={commonStyles.screenContainer} title={'Application'} showBack={false}>
@@ -682,6 +819,7 @@ const Application = () => {
                   onFailure={handlePaymentFailure}
                   formData={formData}
                   membershipCategory={professionalDetail?.professionalDetails?.membershipCategory || formData?.professionalDetails?.membershipCategory}
+                  applicationId={personalDetail?.ApplicationId}
                 />
               </>
             )}

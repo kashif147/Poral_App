@@ -15,23 +15,35 @@ const GOOGLE_PLACES_API_KEY = 'AIzaSyCJYpj8WV5Rzof7O3jGhW9XabD0J4Yqe1o';
 
 const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => {
   const ref = useRef();
-  const { genderLookups, titleLookups, countryLookups, fetchCountryLookups } = useLookup();
+  const lookupContext = useLookup();
+  const { genderLookups = [], titleLookups = [], countryLookups = [], fetchCountryLookups } = lookupContext || {};
 
   useEffect(() => {
+    console.log('🌍 PersonalInfo - countryLookups:', countryLookups?.length);
     if (!countryLookups || countryLookups.length === 0) {
+      console.log('🌍 Fetching countries from PersonalInfo...');
       fetchCountryLookups?.();
     }
   }, [countryLookups, fetchCountryLookups]);
 
-  const titleOptions = (titleLookups || [])
-    .map(i => i?.lookupname)
-    .filter(Boolean);
-  const genderOptions = (genderLookups || [])
-    .map(i => i?.lookupname)
-    .filter(Boolean);
-  const countryOptions = (countryLookups || [])
-    .map(c => c?.displayname || c?.name || c?.code)
-    .filter(Boolean);
+  const titleOptions = Array.isArray(titleLookups)
+    ? titleLookups.map(i => i?.lookupname).filter(Boolean)
+    : [];
+  const genderOptions = Array.isArray(genderLookups)
+    ? genderLookups.map(i => i?.lookupname).filter(Boolean)
+    : [];
+  const countryOptions = Array.isArray(countryLookups)
+    ? countryLookups.map(c => {
+        // Try multiple possible field names
+        const name = c?.displayname || c?.DisplayName || c?.name || c?.countryName || c?.code || c?.countryCode;
+        console.log('🌍 Country item:', JSON.stringify(c).substring(0, 200));
+        return name;
+      }).filter(Boolean)
+    : [];
+
+    console.log('🌍 countryOptions=========>', countryOptions);
+    console.log('👤 genderOptions=========>', genderOptions);
+    console.log('👔 titleOptions=========>', titleOptions);
 
   return (
     <View style={{ backgroundColor: Colors.surface }}>

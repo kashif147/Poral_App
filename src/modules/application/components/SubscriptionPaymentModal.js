@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Modal, View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, SafeAreaView, StatusBar } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Button } from '../../../common/button';
 import { hp, Colors } from '../../../utils/Styles';
 import { createPaymentIntentRequest } from '../../../api/payment.api';
+import { fetchCategoryByCategoryId } from '../../../api/category.api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SubscriptionPaymentModal = ({
   visible,
@@ -12,147 +14,268 @@ const SubscriptionPaymentModal = ({
   onFailure,
   formData,
   membershipCategory,
-  price, // optional, in Euros
+  applicationId,
 }) => {
   const { confirmPayment } = useStripe();
   const [isLoading, setIsLoading] = useState(false);
+  const [productLoading, setProductLoading] = useState(false);
   const [cardComplete, setCardComplete] = useState(false);
-  const [method, setMethod] = useState('card');
-  const [customPrice, setCustomPrice] = useState(
-    typeof price === 'number' ? String(price.toFixed(2)) : ''
-  );
-  const [cardholderName, setCardholderName] = useState(
-    `${formData?.personalInfo?.forename || ''} ${formData?.personalInfo?.surname || ''}`.trim()
-  );
-  const [email, setEmail] = useState(formData?.personalInfo?.personalEmail || '');
+  const [clientSecret, setClientSecret] = useState(null);
+  const [categoryData, setCategoryData] = useState(null);
+  const [customPrice, setCustomPrice] = useState('');
+  const [userDetail, setUserDetail] = useState(null);
+  const [cardholderName, setCardholderName] = useState('');
+  const [email, setEmail] = useState('');
 
-  // Membership prices and helpers (ported from web)
-  const membershipPrices = {
-    general: { full: 299.0, monthly: 74.75 },
-    postgraduate_student: { full: 299.0, monthly: 74.75 },
-    short_term_relief: { full: 228.0, monthly: 57.0 },
-    private_nursing_home: { full: 288.0, monthly: 72.0 },
-    affiliate_members: { full: 116.0, monthly: 29.0 },
-    lecturing: { full: 116.0, monthly: 29.0 },
-    associate: { full: 75.0, monthly: 18.75 },
-    retired_associate: { full: 25.0, monthly: 25.0 },
-    undergraduate_student: { full: 0.0, monthly: 0.0 },
+  // Calculate price info from API data (matching web version)
+  const priceInfo = useMemo(() => {
+    const cents = categoryData?.currentPricing?.price;
+    if (typeof cents === 'number' && !Number.isNaN(cents)) {
+      const full = cents / 100;
+      const monthly = full / 4;
+      return { full, monthly };
+    }
+    return { full: 0, monthly: 0 };
+  }, [categoryData]);
+
+  // Format currency (matching web version)
+  const formatCurrency = value => {
+    const currency = (categoryData?.currentPricing?.currency || 'EUR').toUpperCase();
+    try {
+      return new Intl.NumberFormat('en-IE', {
+        style: 'currency',
+        currency,
+      }).format(value || 0);
+    } catch {
+      return `€${(value || 0).toFixed(2)}`;
+    }
   };
-
-  // Map common labels to keys
-  const categoryLabelToKey = {
-    'General (all grades)': 'general',
-    'Postgraduate Student': 'postgraduate_student',
-    'Short-term/ Relief (under 15 hrs/wk average)': 'short_term_relief',
-    'Private nursing home': 'private_nursing_home',
-    'Affiliate members (non-practicing)': 'affiliate_members',
-    'Lecturing (employed in universities and IT institutes)': 'lecturing',
-    'Associate (not currently employed as a nurse/midwife)': 'associate',
-    'Retired Associate': 'retired_associate',
-    'Undergraduate Student': 'undergraduate_student',
-  };
-
-  const normalizedCategoryKey = useMemo(() => {
-    if (!membershipCategory) return undefined;
-    // If already a key, use it; otherwise map by label
-    if (membershipPrices[membershipCategory]) return membershipCategory;
-    return categoryLabelToKey[membershipCategory];
-  }, [membershipCategory]);
-
-  const priceInfo = normalizedCategoryKey ? membershipPrices[normalizedCategoryKey] : { full: 0, monthly: 0 };
 
   const paymentType = formData?.subscriptionDetails?.paymentType;
   const isCardPayment = paymentType === 'Card Payment' || paymentType === 'Credit Card';
   const isPayrollDeduction = paymentType === 'Payroll Deduction' || paymentType === 'Deduction at Source';
 
+  // Load user data and pre-fill form (matching web version)
   useEffect(() => {
-    // Set method based on upstream payment type
-    if (isPayrollDeduction) {
-      setMethod('bank');
+    const loadUserData = async () => {
+      try {
+        const userStr = await AsyncStorage.getItem('user');
+        const userData = userStr ? JSON.parse(userStr) : null;
+        setUserDetail(userData);
+
+        console.log('💳 User data loaded for payment:', userData);
+
+        // Pre-fill name
+        const userName = userData?.userFirstName && userData?.userLastName
+          ? `${userData.userFirstName} ${userData.userLastName}`
+          : userData?.userName || 
+            (formData?.personalInfo?.forename && formData?.personalInfo?.surname
+              ? `${formData.personalInfo.forename} ${formData.personalInfo.surname}`
+              : '');
+        
+        // Pre-fill email
+        const userEmail = userData?.userEmail || userData?.email || 
+          (formData?.personalInfo?.preferredEmail === 'work'
+            ? formData?.personalInfo?.workEmail
+            : formData?.personalInfo?.personalEmail) || '';
+
+        setCardholderName(userName);
+        setEmail(userEmail);
+
+        console.log('✅ Pre-filled payment form:', { userName, userEmail });
+      } catch (error) {
+        console.error('❌ Error loading user data:', error);
+      }
+    };
+
+    if (visible) {
+      loadUserData();
     } else {
-      setMethod('card');
+      // Reset state when modal closes to ensure fresh start next time
+      console.log('🔄 Resetting payment modal state');
+      setClientSecret(null);
+      setCardComplete(false);
+      setIsLoading(false);
     }
-  }, [isPayrollDeduction, isCardPayment, visible]);
+  }, [visible, formData]);
 
-  // When opening, initialise customPrice from pricing logic
+  // Fetch category data and initialize payment intent (matching web version)
   useEffect(() => {
-    if (!visible) return;
-    const base = isCardPayment ? priceInfo.full : priceInfo.monthly;
-    const baseStr = Number(base || 0).toFixed(2);
-    setCustomPrice(baseStr);
-  }, [visible, priceInfo.full, priceInfo.monthly, isCardPayment]);
+    const initPayment = async () => {
+      if (!visible || !applicationId || !membershipCategory) {
+        console.log('⏸️ Payment init skipped:', { visible, applicationId, membershipCategory });
+        return;
+      }
 
-  const amountDescription = useMemo(() => {
-    return membershipCategory ? `Membership: ${membershipCategory}` : 'Membership';
-  }, [membershipCategory]);
+      // Reset client secret when modal opens to create fresh payment intent
+      setClientSecret(null);
+      console.log('🔄 Starting payment initialization...');
+      setProductLoading(true);
 
-  const minAllowed = priceInfo.full > 0 ? priceInfo.full / 12 : 0;
-  const maxAllowed = priceInfo.full || 0;
+      try {
+        // ✅ Step 1: Fetch category details
+        console.log('📦 Fetching category:', membershipCategory);
+        const categoryRes = await fetchCategoryByCategoryId(membershipCategory);
+        const payload = categoryRes?.data?.data || categoryRes?.data;
+        setCategoryData(payload || null);
+        console.log('✅ Category data loaded:', payload?.name);
 
-  const parsedCustom = useMemo(() => {
-    const n = parseFloat(customPrice);
-    return isFinite(n) ? n : NaN;
-  }, [customPrice]);
+        const currentPricing = payload?.currentPricing || {};
+        const amountInCents = currentPricing?.price;
+        const currency = currentPricing?.currency || 'eur';
 
-  const isCustomValid = useMemo(() => {
-    if (Number.isNaN(parsedCustom)) return false;
-    if (parsedCustom <= 0) return false;
-    if (maxAllowed === 0) return false; // students etc. not payable
-    return parsedCustom >= minAllowed && parsedCustom <= maxAllowed;
-  }, [parsedCustom, minAllowed, maxAllowed]);
+        if (!amountInCents) throw new Error('Invalid category price data');
 
-  const totalAmountDisplay = useMemo(() => {
-    if (!isCustomValid) {
-      const fallback = isCardPayment ? priceInfo.full : priceInfo.monthly;
-      return `€${Number(fallback || 0).toFixed(2)}`;
-    }
-    return `€${parsedCustom.toFixed(2)}`;
-  }, [isCustomValid, parsedCustom, isCardPayment, priceInfo.full, priceInfo.monthly]);
+        // ✅ Step 2: Get user data
+        const userStr = await AsyncStorage.getItem('user');
+        const userData = userStr ? JSON.parse(userStr) : null;
+        const userId = userData?.id || userData?._id;
+        const tenantId = userData?.tenantId || userData?.userTenantId;
 
-  const priceNote = useMemo(() => {
-    return isCardPayment ? 'Billed once via card' : 'Billed three month via payroll deduction';
-  }, [isCardPayment]);
+        // ✅ Step 3: Create Payment Intent
+        const paymentData = {
+          purpose: 'subscriptionFee',
+          amount: amountInCents, // Stripe amount is in smallest currency unit
+          currency,
+          metadata: {
+            applicationId,
+            description: 'Annual membership fees',
+            tenantId,
+            userId,
+            membershipCategory,
+            paymentType: formData?.subscriptionDetails?.paymentType,
+          },
+        };
 
-  const handlePay = async () => {
-    if (method !== 'card') {
-      onFailure?.('Bank transfer is not supported in the app. Please use card.');
+        console.log('🧾 Creating Payment Intent with:', paymentData);
+
+        const res = await createPaymentIntentRequest(paymentData);
+        console.log('💳 Payment Intent Full Response:', JSON.stringify(res?.data, null, 2));
+        
+        const secret =
+          res?.data?.data?.clientSecret ||
+          res?.data?.client_secret ||
+          res?.data?.clientSecret;
+
+        if (!secret) {
+          console.error('❌ No client secret in response. Full response:', res);
+          throw new Error('Missing client secret from response');
+        }
+
+        console.log('✅ Client secret received:', secret?.substring(0, 20) + '...');
+        setClientSecret(secret);
+        console.log('✅ Payment initialized successfully');
+      } catch (error) {
+        console.error('❌ Payment initialization error:', error);
+        console.error('❌ Error stack:', error.stack);
+        Alert.alert('Error', error.message || 'Payment initialization failed');
+        onFailure?.(error.message || 'Payment initialization failed');
+      } finally {
+        setProductLoading(false);
+      }
+    };
+
+    initPayment();
+  }, [visible, membershipCategory, applicationId]);
+
+  // Display price based on payment type
+  const getDisplayPrice = () => {
+    return isCardPayment ? priceInfo.full : priceInfo.monthly;
+  };
+
+  // Payment handler (matching web version)
+  const handlePayNow = async () => {
+    console.log('💳 Pay Now clicked');
+    console.log('📋 Validation:', { 
+      cardholderName: !!cardholderName, 
+      email: !!email, 
+      clientSecret: !!clientSecret, 
+      cardComplete,
+      clientSecretPreview: clientSecret ? clientSecret.substring(0, 20) + '...' : 'null'
+    });
+
+    // Validate user data
+    if (!cardholderName || !email) {
+      console.log('❌ Validation failed: Name or email missing');
+      Alert.alert('Error', 'Name and email are required');
       return;
     }
-    if (!cardComplete) return;
-    if (!isCustomValid) {
-      onFailure?.(`Custom price must be between €${minAllowed.toFixed(2)} and €${maxAllowed.toFixed(2)}`);
+
+    if (!clientSecret) {
+      console.log('❌ Validation failed: No client secret');
+      Alert.alert('Error', 'Payment not initialized. Please close and reopen the payment form.');
       return;
     }
+
+    if (!cardComplete) {
+      console.log('❌ Validation failed: Card details incomplete');
+      Alert.alert('Error', 'Please complete all card details');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const payload = {
-        membershipCategory,
-        email,
-        name: cardholderName,
-        description: amountDescription,
-        // Optional amount override in cents for backend
-        customAmount: Math.round(parsedCustom * 100),
-      };
-      const intentRes = await createPaymentIntentRequest(payload);
-      const clientSecret = intentRes?.data?.clientSecret || intentRes?.data?.data?.clientSecret;
-      if (!clientSecret) {
-        throw new Error('Unable to start payment');
-      }
+      console.log('🔄 Confirming payment with Stripe...');
+      console.log('👤 Billing details:', { name: cardholderName, email });
+      console.log('💳 Using client secret:', clientSecret.substring(0, 30) + '...');
+      
       const { error, paymentIntent } = await confirmPayment(clientSecret, {
         paymentMethodType: 'Card',
         paymentMethodData: {
-          billingDetails: { name: cardholderName, email },
+          billingDetails: {
+            name: cardholderName,
+            email: email,
+          },
         },
       });
+
+      console.log('📬 Stripe response received');
+      console.log('❓ Error:', error);
+      console.log('💰 Payment Intent:', paymentIntent);
+
       if (error) {
-        onFailure?.(error.message || 'Payment failed');
-      } else if (paymentIntent && paymentIntent.status === 'Succeeded') {
-        onSuccess?.({ paymentMethod: 'card', total: parsedCustom, customPrice: parsedCustom, paymentIntent });
-      } else {
-        onFailure?.('Payment not completed');
+        console.error('❌ Stripe error object:', JSON.stringify(error, null, 2));
+        console.error('❌ Error code:', error.code);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error type:', error.type);
+        
+        // Provide more specific error messages
+        let errorMessage = error.message;
+        if (error.code === 'payment_intent_unexpected_state') {
+          errorMessage = 'This payment has already been processed. Please close and reopen the payment form.';
+        } else if (error.message?.includes('No such payment_intent')) {
+          errorMessage = 'Payment session expired. Please close and reopen the payment form.';
+        }
+        
+        throw new Error(errorMessage);
       }
-    } catch (e) {
-      onFailure?.(e?.message || 'Payment error');
+
+      console.log('✅ Payment Confirmation Response:', JSON.stringify(paymentIntent, null, 2));
+
+      // Check if payment was successful
+      if (paymentIntent?.status === 'Succeeded') {
+        console.log('🎉 Payment succeeded!');
+        onSuccess?.({
+          paymentMethod: 'card',
+          total: getDisplayPrice(),
+          paymentDetails: {
+            name: cardholderName,
+            email: email,
+          },
+          paymentIntent: paymentIntent,
+        });
+      } else {
+        console.log('⚠️ Payment status:', paymentIntent?.status);
+        console.log('⚠️ Full payment intent:', JSON.stringify(paymentIntent, null, 2));
+        throw new Error(`Payment status: ${paymentIntent?.status || 'unknown'}. Please try again.`);
+      }
+    } catch (err) {
+      console.error('❌ Payment Error:', err);
+      console.error('❌ Error name:', err.name);
+      console.error('❌ Error message:', err.message);
+      console.error('❌ Error stack:', err.stack);
+      Alert.alert('Payment Failed', err.message || 'Payment failed. Please try again.');
+      onFailure?.(err.message || 'Payment failed.');
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +283,11 @@ const SubscriptionPaymentModal = ({
 
   return (
     <Modal visible={visible} transparent={false} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
+        <StatusBar
+          backgroundColor={Colors.background}
+          barStyle="light-content"
+        />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -183,84 +310,74 @@ const SubscriptionPaymentModal = ({
                 </TouchableOpacity>
               </View>
 
+          {/* Show loading while fetching category data */}
+          {productLoading || !categoryData ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={{ color: Colors.white, marginTop: 12 }}>Loading payment details...</Text>
+            </View>
+          ) : (
+            <View>
+
           {/* Membership category card */}
           <View style={styles.categoryCard}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.smallLabel}>Membership Category</Text>
-              <Text style={styles.categoryText}>{amountDescription}</Text>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text style={styles.smallLabel}>MEMBERSHIP CATEGORY</Text>
+              <Text style={styles.categoryText}>{categoryData?.name || membershipCategory}</Text>
+              {categoryData?.description && (
+                <Text style={styles.categoryDescription}>{categoryData.description}</Text>
+              )}
             </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ fontSize: 12, color: '#93A1A1' }}>Price</Text>
-                  <Text style={styles.priceText}>{`€${(isCardPayment ? priceInfo.full : priceInfo.monthly).toFixed(2)}`}</Text>
+                  <Text style={styles.smallLabel}>PRICE</Text>
+                  <Text style={styles.priceText}>{formatCurrency(getDisplayPrice())}</Text>
+              {categoryData?.currentPricing?.frequency && (
+                <Text style={{ fontSize: 11, color: '#B0BEC5', marginTop: 4, fontWeight: '500' }}>{categoryData.currentPricing.frequency}</Text>
+              )}
                 </View>
           </View>
 
-          {/* Payment method */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Payment Method</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-                  <TouchableOpacity style={[styles.radioRow, (isPayrollDeduction) && { opacity: 0.5 }]} onPress={() => !isPayrollDeduction && setMethod('card')}>
-                <View style={[styles.radio, method === 'card' && styles.radioChecked]} />
-                <Text style={styles.radioText}>Credit/Debit Card</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', opacity: 0.5, marginTop: 6 }}>
-              <View style={[styles.radio]} />
-              <Text style={styles.radioText}>Bank Transfer</Text>
-            </View>
-          </View>
-
-          {/* Custom price */}
-          <View style={styles.section}>
-            <Text style={styles.smallLabel}>Custom Price</Text>
-            <TextInput
-              keyboardType="decimal-pad"
-              value={customPrice}
-                  onChangeText={(txt) => {
-                    const cleaned = (txt || '').replace(/[^0-9.]/g, '');
-                    setCustomPrice(cleaned);
-                  }}
-              placeholder={price ? String(Number(price).toFixed(2)) : '€0.00'}
-                  placeholderTextColor="#94A3B8"
-              style={styles.input}
-            />
-                {!isCustomValid && (
-                  <Text style={{ color: '#FF6B6B', marginTop: 4, fontSize: 12 }}>{`Enter between €${minAllowed.toFixed(2)} and €${maxAllowed.toFixed(2)}`}</Text>
-                )}
-          </View>
-
           {/* Name + Email */}
-          <View style={[styles.row, { marginTop: 8 }]}> 
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={styles.requiredLabel}>Name on Card</Text>
-                  <TextInput value={cardholderName} onChangeText={setCardholderName} placeholder="Full name" placeholderTextColor="#94A3B8" style={styles.input} />
+          <View style={[styles.row, { marginTop: 20 }]}> 
+            <View style={{ flex: 1, marginRight: 6 }}>
+              <Text style={styles.requiredLabel}>Name on Card *</Text>
+                  <TextInput value={cardholderName} onChangeText={setCardholderName} placeholder="Full name" placeholderTextColor="#6B7280" style={styles.input} />
             </View>
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={styles.requiredLabel}>Email</Text>
-                  <TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor="#94A3B8" keyboardType="email-address" style={styles.input} />
+            <View style={{ flex: 1, marginLeft: 6 }}>
+              <Text style={styles.requiredLabel}>Email *</Text>
+                  <TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor="#6B7280" keyboardType="email-address" style={styles.input} />
             </View>
           </View>
           <TouchableOpacity onPress={() => {
-            setCardholderName(`${formData?.personalInfo?.forename || ''} ${formData?.personalInfo?.surname || ''}`.trim());
-            setEmail(formData?.personalInfo?.personalEmail || '');
+            const userName = userDetail?.userFirstName && userDetail?.userLastName
+              ? `${userDetail.userFirstName} ${userDetail.userLastName}`
+              : `${formData?.personalInfo?.forename || ''} ${formData?.personalInfo?.surname || ''}`.trim();
+            const userEmail = userDetail?.userEmail || 
+              (formData?.personalInfo?.preferredEmail === 'work'
+                ? formData?.personalInfo?.workEmail
+                : formData?.personalInfo?.personalEmail) || '';
+            setCardholderName(userName);
+            setEmail(userEmail);
+            console.log('🔄 Autofilled from profile:', { userName, userEmail });
           }} style={styles.autofillLink}>
-            <Text style={{ color: '#007bff' }}>Autofill from profile</Text>
+            <Text style={{ color: Colors.primary, fontSize: 13, fontWeight: '600' }}>✓ Auto-fill from profile</Text>
           </TouchableOpacity>
 
           {/* Card details */}
-          <View style={{ marginTop: 8 }}>
-            <Text style={styles.requiredLabel}>Card Details</Text>
+          <View style={{ marginTop: 20 }}>
+            <Text style={styles.requiredLabel}>Card Details *</Text>
                 <View style={styles.cardFieldWrapper}>
             <CardField
               postalCodeEnabled={false}
                     placeholders={{ number: '4242 4242 4242 4242', cvc: 'CVC', expiration: 'MM/YY' }}
                     cardStyle={{
                       backgroundColor: '#00000000',
-                      textColor: '#000000',
-                      placeholderColor: '#94A3B8',
+                      textColor: '#FFFFFF',
+                      placeholderColor: '#6B7280',
                       borderWidth: 0,
                       borderColor: '#00000000',
-                      borderRadius: 10,
+                      borderRadius: 12,
+                      fontSize: 15,
                     }}
                     style={{ width: '100%', height: 52 }}
               onCardChange={details => setCardComplete(details?.complete)}
@@ -269,16 +386,55 @@ const SubscriptionPaymentModal = ({
           </View>
 
           {/* Total + Actions */}
-          <View style={{ marginTop: 14 }}>
-                <Text style={{ fontWeight: '600', color: Colors.white }}>{`Total Amount: ${totalAmountDisplay}`}</Text>
-                <Text style={{ color: '#93A1A1', fontSize: 12, marginTop: 2 }}>{priceNote}</Text>
-              </View>
+          <View style={{ 
+            marginTop: 24, 
+            paddingTop: 20, 
+            borderTopWidth: 1, 
+            borderTopColor: '#2A3038' 
+          }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={{ fontSize: 14, color: '#B0BEC5', fontWeight: '500' }}>Total Amount</Text>
+              <Text style={{ fontSize: 28, fontWeight: '800', color: Colors.primary, letterSpacing: -0.5 }}>
+                {formatCurrency(getDisplayPrice())}
+              </Text>
+            </View>
+            <Text style={{ color: '#6B7280', fontSize: 12, textAlign: 'right', marginBottom: 20 }}>
+              {isCardPayment ? 'Billed once via card' : 'Billed per quarter via payroll deduction'}
+            </Text>
+            
+            {/* Action buttons */}
+            <View style={{ flexDirection: 'row' }}>
+              <Button 
+                title="Cancel" 
+                onPress={onClose} 
+                outlined 
+                style={{ 
+                  flex: 1, 
+                  height: 52, 
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: '#2A3038',
+                  marginRight: 8,
+                }} 
+                textStyle={{ fontSize: 15, fontWeight: '600' }} 
+              />
+              <Button 
+                title={isLoading ? 'Processing…' : 'Pay Now'} 
+                onPress={handlePayNow} 
+                disabled={!cardComplete || isLoading || !clientSecret} 
+                primary 
+                style={{ 
+                  flex: 1, 
+                  height: 52, 
+                  borderRadius: 12,
+                  marginLeft: 8,
+                }} 
+                textStyle={{ fontSize: 15, fontWeight: '700' }} 
+              />
           </View>
-            {/* Sticky footer actions */}
-            {/* <View style={styles.footerBar}> */}
-            <View style={{ flexDirection: 'row' ,marginTop: 12}}>
-              <Button title="Cancel" onPress={onClose} outlined style={{ flex: 1, marginRight: 8 }} textStyle={{ fontSize: 14, fontWeight: '600' }} />
-              <Button title={isLoading ? 'Processing…' : 'Pay Now'} onPress={handlePay} disabled={!cardComplete || isLoading || method !== 'card' || !isCustomValid} primary style={{ flex: 1, marginLeft: 8 }} textStyle={{ fontSize: 14, fontWeight: '700' }} />
+          </View>
+            </View>
+          )}
           </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -287,49 +443,117 @@ const SubscriptionPaymentModal = ({
               <ActivityIndicator />
             </View>
           )}
-        </View>
-      {/* </View> */}
+        </SafeAreaView>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: Colors.background },
-  container: { flex: 1, backgroundColor: Colors.surface, width: '100%', borderRadius: 0, padding: 16, paddingTop: 18, alignSelf: 'stretch' },
-  title: { fontWeight: 'bold', fontSize: hp(2.4), color: Colors.white },
-  caption: { marginTop: 2, color: '#93A1A1', fontSize: 12 },
-  smallLabel: { fontWeight: '600', color: '#E5F9F4', fontSize: 12 },
-  requiredLabel: { fontWeight: '600', color: Colors.white },
-  label: { fontWeight: '600', color: Colors.white },
-  section: { marginTop: 12 },
-  sectionTitle: { fontWeight: '700', color: Colors.white },
-  categoryCard: {
-    marginTop: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: '#1A1E21',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 6,
+  scrollContent: {
+    flexGrow: 1,
   },
-  categoryText: { fontWeight: '600', color: Colors.white, marginTop: 4 },
-  priceText: { fontWeight: '700', color: Colors.white },
-  input: {
-    height: 46,
-    borderWidth: 1,
-    borderColor: '#2A2F33',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    backgroundColor: '#1A1E21',
-    marginTop: 6,
+  container: { 
+    flex: 1, 
+    backgroundColor: Colors.surface, 
+    width: '100%', 
+    borderRadius: 0, 
+    padding: 20, 
+    paddingTop: 24, 
+    alignSelf: 'stretch' 
+  },
+  title: { 
+    fontWeight: '700', 
+    fontSize: hp(2.8), 
     color: Colors.white,
+    letterSpacing: -0.5,
   },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  radioRow: { flexDirection: 'row', alignItems: 'center' },
+  caption: { 
+    marginTop: 6, 
+    color: '#93A1A1', 
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  smallLabel: { 
+    fontWeight: '600', 
+    color: '#B0BEC5', 
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  requiredLabel: { 
+    fontWeight: '600', 
+    color: '#E5F9F4',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  label: { 
+    fontWeight: '600', 
+    color: Colors.white 
+  },
+  section: { 
+    marginTop: 16 
+  },
+  sectionTitle: { 
+    fontWeight: '700', 
+    color: Colors.white 
+  },
+  categoryCard: {
+    marginTop: 16,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    padding: 18,
+    borderRadius: 16,
+    backgroundColor: '#1E2328',
+    borderWidth: 1,
+    borderColor: '#2A3038',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  categoryText: { 
+    fontWeight: '700', 
+    color: Colors.white, 
+    fontSize: 16,
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  categoryDescription: { 
+    fontSize: 12, 
+    color: '#93A1A1', 
+    marginTop: 4,
+    lineHeight: 16,
+  },
+  priceText: { 
+    fontWeight: '800', 
+    color: Colors.primary,
+    fontSize: 24,
+    letterSpacing: -0.5,
+  },
+  input: {
+    height: 52,
+    borderWidth: 1.5,
+    borderColor: '#2A3038',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#1E2328',
+    marginTop: 2,
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  row: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
+  radioRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center' 
+  },
   radio: {
     width: 16,
     height: 16,
@@ -338,41 +562,48 @@ const styles = StyleSheet.create({
     borderColor: '#4B5563',
     marginRight: 8,
   },
-  radioChecked: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  radioText: { color: Colors.white },
-  autofillLink: { alignSelf: 'flex-end', marginTop: 6 },
+  radioChecked: { 
+    backgroundColor: Colors.primary, 
+    borderColor: Colors.primary 
+  },
+  radioText: { 
+    color: Colors.white 
+  },
+  autofillLink: { 
+    alignSelf: 'flex-end', 
+    marginTop: 8,
+    paddingVertical: 4,
+  },
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
+    marginBottom: 8,
   },
   closeButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2A2F33',
+    backgroundColor: '#2A3038',
+    marginLeft: 12,
   },
-  closeButtonText: { fontSize: 16, color: Colors.white, fontWeight: '700' },
+  closeButtonText: { 
+    fontSize: 18, 
+    color: '#93A1A1', 
+    fontWeight: '400',
+    lineHeight: 18,
+  },
   cardFieldWrapper: {
-    marginTop: 8,
-    borderWidth: 0,
-    borderColor: 'transparent',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#1A1E21',
-  },
-  footerBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: Colors.surface,
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#2A2F33',
+    marginTop: 2,
+    borderWidth: 1.5,
+    borderColor: '#2A3038',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#1E2328',
+    minHeight: 52,
   },
 });
 

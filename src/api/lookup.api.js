@@ -1,17 +1,17 @@
 import request from './request';
 
 export const fetchAllLookupRequest = () => {
-  return request.get('/lookup');
+  return request.get('/api/lookup');
 };
 
 export const fetchLookupById = id => {
-  return request.get(`/lookup/${id}`);
+  return request.get(`/api/lookup/${id}`);
 };
 
 export const fetchLookupHierarchyByType = (typeId) => {
-  return request.get(`/lookup/by-type/${typeId}/hierarchy`);
+  return request.get(`/api/lookup/by-type/${typeId}/hierarchy`);
 };
 
 export const fetchAllCountry = () => {
-  return request.get(`/countries`);
+  return request.get(`/api/countries`);
 };
