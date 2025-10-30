@@ -83,7 +83,7 @@ function App() {
         backgroundColor={isSignedIn ? Colors.background : Colors.white}
         barStyle={isSignedIn ? 'light-content' : 'dark-content'}
       />
-      <StripeProvider publishableKey={'pk_test_51Rut8HQeJh5X1hcfNrG7yUZjkR9F3jURKHAiz5UCpJiOjaHjfx43ZimY7nJvLT3EvgrUtIMq1nrgwMgo5js7TOL1006raA9kpv'}>
+      <StripeProvider publishableKey={'pk_test_51SBAG4FTlZb0wcbr19eI8nC5u62DfuaUWRVS51VTERBocxSM9JSEs4ubrW57hYTCAHK9d6jrarrT4SAViKFMqKjT00TrEr3PNV'}>
         {isSignedIn ? (
           <LookupProvider>
             <ApplicationProvider>
