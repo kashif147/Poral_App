@@ -12,6 +12,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LocalSvg } from 'react-native-svg/css';
 
 const DashBoard = () => {
   const navigation = useNavigation();
@@ -125,7 +126,8 @@ const DashBoard = () => {
             <Text style={styles.greetingText}>Hello, {userName}!</Text>
           </View>
           <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
+          <LocalSvg width={26} height={26} asset={SVG.NOTIFICATION} fill={Colors.textPrimary} />
+            {/* <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} /> */}
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>

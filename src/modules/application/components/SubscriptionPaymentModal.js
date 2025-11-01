@@ -286,7 +286,7 @@ const SubscriptionPaymentModal = ({
       <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
         <StatusBar
           backgroundColor={Colors.background}
-          barStyle="light-content"
+          barStyle="dark-content"
         />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
@@ -314,7 +314,7 @@ const SubscriptionPaymentModal = ({
           {productLoading || !categoryData ? (
             <View style={{ paddingVertical: 40, alignItems: 'center' }}>
               <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={{ color: Colors.white, marginTop: 12 }}>Loading payment details...</Text>
+              <Text style={{ color: Colors.textPrimary, marginTop: 12 }}>Loading payment details...</Text>
             </View>
           ) : (
             <View>
@@ -332,7 +332,7 @@ const SubscriptionPaymentModal = ({
                   <Text style={styles.smallLabel}>PRICE</Text>
                   <Text style={styles.priceText}>{formatCurrency(getDisplayPrice())}</Text>
               {categoryData?.currentPricing?.frequency && (
-                <Text style={{ fontSize: 11, color: '#B0BEC5', marginTop: 4, fontWeight: '500' }}>{categoryData.currentPricing.frequency}</Text>
+                <Text style={{ fontSize: 11, color: Colors.textSecondary, marginTop: 4, fontWeight: '500' }}>{categoryData.currentPricing.frequency}</Text>
               )}
                 </View>
           </View>
@@ -341,11 +341,11 @@ const SubscriptionPaymentModal = ({
           <View style={[styles.row, { marginTop: 20 }]}> 
             <View style={{ flex: 1, marginRight: 6 }}>
               <Text style={styles.requiredLabel}>Name on Card *</Text>
-                  <TextInput value={cardholderName} onChangeText={setCardholderName} placeholder="Full name" placeholderTextColor="#6B7280" style={styles.input} />
+                  <TextInput value={cardholderName} onChangeText={setCardholderName} placeholder="Full name" placeholderTextColor={Colors.textSecondary} style={styles.input} />
             </View>
             <View style={{ flex: 1, marginLeft: 6 }}>
               <Text style={styles.requiredLabel}>Email *</Text>
-                  <TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor="#6B7280" keyboardType="email-address" style={styles.input} />
+                  <TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor={Colors.textSecondary} keyboardType="email-address" style={styles.input} />
             </View>
           </View>
           <TouchableOpacity onPress={() => {
@@ -372,8 +372,8 @@ const SubscriptionPaymentModal = ({
                     placeholders={{ number: '4242 4242 4242 4242', cvc: 'CVC', expiration: 'MM/YY' }}
                     cardStyle={{
                       backgroundColor: '#00000000',
-                      textColor: '#FFFFFF',
-                      placeholderColor: '#6B7280',
+                      textColor: Colors.textPrimary,
+                      placeholderColor: Colors.textSecondary,
                       borderWidth: 0,
                       borderColor: '#00000000',
                       borderRadius: 12,
@@ -390,15 +390,15 @@ const SubscriptionPaymentModal = ({
             marginTop: 24, 
             paddingTop: 20, 
             borderTopWidth: 1, 
-            borderTopColor: '#2A3038' 
+            borderTopColor: Colors.divider
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <Text style={{ fontSize: 14, color: '#B0BEC5', fontWeight: '500' }}>Total Amount</Text>
+              <Text style={{ fontSize: 14, color: Colors.textSecondary, fontWeight: '500' }}>Total Amount</Text>
               <Text style={{ fontSize: 28, fontWeight: '800', color: Colors.primary, letterSpacing: -0.5 }}>
                 {formatCurrency(getDisplayPrice())}
               </Text>
             </View>
-            <Text style={{ color: '#6B7280', fontSize: 12, textAlign: 'right', marginBottom: 20 }}>
+            <Text style={{ color: Colors.textSecondary, fontSize: 12, textAlign: 'right', marginBottom: 20 }}>
               {isCardPayment ? 'Billed once via card' : 'Billed per quarter via payroll deduction'}
             </Text>
             
@@ -413,10 +413,11 @@ const SubscriptionPaymentModal = ({
                   height: 52, 
                   borderRadius: 12,
                   borderWidth: 1.5,
-                  borderColor: '#2A3038',
+                  borderColor: Colors.divider,
                   marginRight: 8,
+                  backgroundColor: Colors.white,
                 }} 
-                textStyle={{ fontSize: 15, fontWeight: '600' }} 
+                textStyle={{ fontSize: 15, fontWeight: '600', color: Colors.textPrimary }} 
               />
               <Button 
                 title={isLoading ? 'Processing…' : 'Pay Now'} 
@@ -440,7 +441,7 @@ const SubscriptionPaymentModal = ({
         </KeyboardAvoidingView>
           {isLoading && (
           <View style={{ marginTop: 10, alignItems: 'center' }}>
-              <ActivityIndicator />
+              <ActivityIndicator color={Colors.primary} />
             </View>
           )}
         </SafeAreaView>
@@ -454,7 +455,7 @@ const styles = StyleSheet.create({
   },
   container: { 
     flex: 1, 
-    backgroundColor: Colors.surface, 
+    backgroundColor: Colors.background, 
     width: '100%', 
     borderRadius: 0, 
     padding: 20, 
@@ -464,18 +465,18 @@ const styles = StyleSheet.create({
   title: { 
     fontWeight: '700', 
     fontSize: hp(2.8), 
-    color: Colors.white,
+    color: Colors.textPrimary,
     letterSpacing: -0.5,
   },
   caption: { 
     marginTop: 6, 
-    color: '#93A1A1', 
+    color: Colors.textSecondary, 
     fontSize: 13,
     lineHeight: 18,
   },
   smallLabel: { 
     fontWeight: '600', 
-    color: '#B0BEC5', 
+    color: Colors.textSecondary, 
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -483,20 +484,20 @@ const styles = StyleSheet.create({
   },
   requiredLabel: { 
     fontWeight: '600', 
-    color: '#E5F9F4',
+    color: Colors.textPrimary,
     fontSize: 14,
     marginBottom: 8,
   },
   label: { 
     fontWeight: '600', 
-    color: Colors.white 
+    color: Colors.textPrimary 
   },
   section: { 
     marginTop: 16 
   },
   sectionTitle: { 
     fontWeight: '700', 
-    color: Colors.white 
+    color: Colors.textPrimary 
   },
   categoryCard: {
     marginTop: 16,
@@ -506,25 +507,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 18,
     borderRadius: 16,
-    backgroundColor: '#1E2328',
-    borderWidth: 1,
-    borderColor: '#2A3038',
+    backgroundColor: Colors.cardBackground,
+    borderWidth: 1.5,
+    borderColor: Colors.divider,
     shadowColor: '#000',
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   categoryText: { 
     fontWeight: '700', 
-    color: Colors.white, 
+    color: Colors.textPrimary, 
     fontSize: 16,
     marginTop: 2,
     marginBottom: 4,
   },
   categoryDescription: { 
     fontSize: 12, 
-    color: '#93A1A1', 
+    color: Colors.textSecondary, 
     marginTop: 4,
     lineHeight: 16,
   },
@@ -537,14 +538,19 @@ const styles = StyleSheet.create({
   input: {
     height: 52,
     borderWidth: 1.5,
-    borderColor: '#2A3038',
+    borderColor: '#E5E5E5',
     borderRadius: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#1E2328',
+    backgroundColor: Colors.white,
     marginTop: 2,
-    color: Colors.white,
+    color: Colors.textPrimary,
     fontSize: 15,
     fontWeight: '500',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   row: { 
     flexDirection: 'row', 
@@ -559,7 +565,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: '#4B5563',
+    borderColor: Colors.textSecondary,
     marginRight: 8,
   },
   radioChecked: { 
@@ -567,7 +573,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary 
   },
   radioText: { 
-    color: Colors.white 
+    color: Colors.textPrimary 
   },
   autofillLink: { 
     alignSelf: 'flex-end', 
@@ -586,24 +592,36 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2A3038',
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.divider,
     marginLeft: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
   closeButtonText: { 
     fontSize: 18, 
-    color: '#93A1A1', 
+    color: Colors.textSecondary, 
     fontWeight: '400',
     lineHeight: 18,
   },
   cardFieldWrapper: {
     marginTop: 2,
     borderWidth: 1.5,
-    borderColor: '#2A3038',
+    borderColor: '#E5E5E5',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#1E2328',
+    backgroundColor: Colors.white,
     minHeight: 52,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
 });
 

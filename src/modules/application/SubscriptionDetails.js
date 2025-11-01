@@ -39,12 +39,12 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
   ), [secondarySectionLookups]);
 
   return (
-    <View style={{ backgroundColor: Colors.cardBackground, paddingBottom: 20 }}>
-      <Text style={styles.sectionHeader}>Subscription Details</Text>
-      <Text style={styles.sectionSubtitle}>Complete your subscription information.</Text>
-      {/* Payment Type & Payroll No */}
-      {/* <View style={styles.row}> */}
-      <View style={styles.halfInput}>
+    <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
+      {/* Payment Information Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Payment Information</Text>
+        
+        {/* Payment Type */}
         <Text style={styles.label}>Payment Type *</Text>
         <View style={styles.pickerField}>
           <Picker
@@ -57,8 +57,8 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
             {paymentTypes.map(t => <Picker.Item key={t} label={t} value={t} />)}
           </Picker>
         </View>
-      </View>
-      <View style={styles.halfInput}>
+
+        {/* Payroll No */}
         <Text style={styles.label}>Payroll No {formData.paymentType === 'Deduction at Source' && '*'}</Text>
         <View style={styles.inputField}>
           <InputField
@@ -70,42 +70,57 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
           />
         </View>
       </View>
-      {/* Membership status radio group */}
-      <Text style={styles.label}>
-        Please select the most appropriate option below *
-        {showValidation && !formData.memberStatus && <Text style={{ color: 'red' }}> (Required)</Text>}
-      </Text>
-      <View style={styles.radioGroup}>
-        {membershipStatuses.map(status => (
-          <TouchableOpacity
-            key={status.value}
-            style={[styles.radioButton, formData.memberStatus === status.value && styles.radioSelected]}
-            onPress={() => onFormDataChange({ ...formData, memberStatus: status.value })}
-          >
-            <Text style={styles.radioLabel}>{status.label}</Text>
-          </TouchableOpacity>
-        ))}
+
+      {/* Membership Status Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Membership Status</Text>
+        
+        {/* Membership status radio group */}
+        <Text style={styles.label}>
+          Please select the most appropriate option below *
+          {showValidation && !formData.memberStatus && <Text style={{ color: 'red' }}> (Required)</Text>}
+        </Text>
+        <View style={styles.radioGroup}>
+          {membershipStatuses.map(status => (
+            <TouchableOpacity
+              key={status.value}
+              style={[styles.radioButton, formData.memberStatus === status.value && styles.radioSelected]}
+              onPress={() => onFormDataChange({ ...formData, memberStatus: status.value })}
+            >
+              <Text style={[styles.radioLabel, formData.memberStatus === status.value && styles.radioLabelSelected]}>
+                {status.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-      {/* Member of another Trade Union */}
-      <Text style={styles.label}>
-        If you are a member of another Trade Union. If yes, which Union? *
-        {showValidation && !formData.otherIrishTradeUnion && <Text style={{ color: 'red' }}> (Required)</Text>}
-      </Text>
-      <View style={styles.radioRow}>
-        <TouchableOpacity
-          style={[styles.radioButton, formData.otherIrishTradeUnion === 'yes' && styles.radioSelected]}
-          onPress={() => onFormDataChange({ ...formData, otherIrishTradeUnion: 'yes' })}
-        >
-          <Text style={styles.radioLabel}>Yes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.radioButton, formData.otherIrishTradeUnion === 'no' && styles.radioSelected]}
-          onPress={() => onFormDataChange({ ...formData, otherIrishTradeUnion: 'no', otherTradeUnionName: '' })}
-        >
-          <Text style={styles.radioLabel}>No</Text>
-        </TouchableOpacity>
+
+      {/* Trade Union Information Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Trade Union Information</Text>
+        
+        {/* Member of another Trade Union */}
+        <Text style={styles.label}>
+          If you are a member of another Trade Union. If yes, which Union? *
+          {showValidation && !formData.otherIrishTradeUnion && <Text style={{ color: 'red' }}> (Required)</Text>}
+        </Text>
+        <View style={styles.radioRow}>
+          <TouchableOpacity
+            style={[styles.radioButton, formData.otherIrishTradeUnion === 'yes' && styles.radioSelected]}
+            onPress={() => onFormDataChange({ ...formData, otherIrishTradeUnion: 'yes' })}
+          >
+            <Text style={[styles.radioLabel, formData.otherIrishTradeUnion === 'yes' && styles.radioLabelSelected]}>Yes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, formData.otherIrishTradeUnion === 'no' && styles.radioSelected]}
+            onPress={() => onFormDataChange({ ...formData, otherIrishTradeUnion: 'no', otherTradeUnionName: '' })}
+          >
+            <Text style={[styles.radioLabel, formData.otherIrishTradeUnion === 'no' && styles.radioLabelSelected]}>No</Text>
+          </TouchableOpacity>
+        </View>
+        
         {formData.otherIrishTradeUnion === 'yes' && (
-          <View style={[styles.inputField, { flex: 1 }]}>
+          <View style={[styles.inputField, { marginTop: 8 }]}>
             <InputField
               value={formData.otherTradeUnionName}
               holderTextColor={'#94A3B8'}
@@ -114,29 +129,33 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
             />
           </View>
         )}
+
+        {/* Member of another Irish Trade Union Protection Scheme */}
+        <Text style={styles.label}>
+          Are you or were you a member of another Irish trade Union salary or Income Protection Scheme? *
+          {showValidation && !formData.otherScheme && <Text style={{ color: 'red' }}> (Required)</Text>}
+        </Text>
+        <View style={styles.radioRow}>
+          <TouchableOpacity
+            style={[styles.radioButton, formData.otherScheme === 'yes' && styles.radioSelected]}
+            onPress={() => onFormDataChange({ ...formData, otherScheme: 'yes' })}
+          >
+            <Text style={[styles.radioLabel, formData.otherScheme === 'yes' && styles.radioLabelSelected]}>Yes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.radioButton, formData.otherScheme === 'no' && styles.radioSelected]}
+            onPress={() => onFormDataChange({ ...formData, otherScheme: 'no' })}
+          >
+            <Text style={[styles.radioLabel, formData.otherScheme === 'no' && styles.radioLabelSelected]}>No</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-      {/* Member of another Irish Trade Union */}
-      <Text style={styles.label}>
-        Are you or were you a member of another Irish trade Union salary or Income Protection Scheme? *
-        {showValidation && !formData.otherScheme && <Text style={{ color: 'red' }}> (Required)</Text>}
-      </Text>
-      <View style={styles.radioRow}>
-        <TouchableOpacity
-          style={[styles.radioButton, formData.otherScheme === 'yes' && styles.radioSelected]}
-          onPress={() => onFormDataChange({ ...formData, otherScheme: 'yes' })}
-        >
-          <Text style={styles.radioLabel}>Yes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.radioButton, formData.otherScheme === 'no' && styles.radioSelected]}
-          onPress={() => onFormDataChange({ ...formData, otherScheme: 'no' })}
-        >
-          <Text style={styles.radioLabel}>No</Text>
-        </TouchableOpacity>
-      </View>
-      {/* Recruited By */}
-      {/* <View style={styles.row}> */}
-      <View style={styles.halfInput}>
+
+      {/* Recruitment & Section Details Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Recruitment & Section Details</Text>
+        
+        {/* Recruited By */}
         <Text style={styles.label}>Recruited By</Text>
         <View style={styles.inputField}>
           <InputField
@@ -146,8 +165,8 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
             placeholder="Enter the name of the person who recruited you"
           />
         </View>
-      </View>
-      <View style={styles.halfInput}>
+
+        {/* Recruited By Membership No */}
         <Text style={styles.label}>Recruited By (Membership No)</Text>
         <View style={styles.inputField}>
           <InputField
@@ -157,11 +176,8 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
             placeholder="Enter the membership number of the recruiter"
           />
         </View>
-      </View>
-      {/* </View> */}
-      {/* Primary/Other Primary Section */}
-      {/* <View style={styles.row}> */}
-      <View style={styles.halfInput}>
+
+        {/* Primary Section */}
         <Text style={styles.label}>Primary Section</Text>
         <View style={styles.pickerField}>
           <Picker
@@ -171,8 +187,8 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
             {[...primaryNames, 'Other'].map(s => <Picker.Item key={s} label={s} value={s} />)}
           </Picker>
         </View>
-      </View>
-      <View style={styles.halfInput}>
+
+        {/* Other Primary Section */}
         <Text style={styles.label}>Other Primary Section {formData.primarySection === 'Other' && '*'}</Text>
         <View style={styles.inputField}>
           <InputField
@@ -183,11 +199,8 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
             placeholder="Enter your other primary section"
           />
         </View>
-      </View>
-      {/* </View> */}
-      {/* Secondary/Other Secondary Section */}
-      {/* <View style={styles.row}> */}
-      <View style={styles.halfInput}>
+
+        {/* Secondary Section */}
         <Text style={styles.label}>Secondary Section</Text>
         <View style={styles.pickerField}>
           <Picker
@@ -197,8 +210,8 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
             {[...secondaryNames, 'Other'].map(s => <Picker.Item key={s} label={s} value={s} />)}
           </Picker>
         </View>
-      </View>
-      <View style={styles.halfInput}>
+
+        {/* Other Secondary Section */}
         <Text style={styles.label}>Other Secondary Section {formData.secondarySection === 'Other' && '*'}</Text>
         <View style={styles.inputField}>
           <InputField
@@ -210,87 +223,111 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
           />
         </View>
       </View>
-      {/* </View> */}
-      {/* Checkboxes */}
-      <View style={styles.checkboxRow}>
-        <TouchableOpacity
-          style={[
-            styles.checkboxItem,
-            (formData?.memberStatus !== 'new' && formData?.memberStatus !== 'graduate') && { opacity: 0.5 }
-          ]}
-          onPress={() => {
-            // Only allow toggle if memberStatus is 'new' or 'graduate'
-            if (formData?.memberStatus === 'new' || formData?.memberStatus === 'graduate') {
-              onFormDataChange({ ...formData, incomeProtectionScheme: !formData?.incomeProtectionScheme });
-            }
-          }}
-          disabled={formData?.memberStatus !== 'new' && formData?.memberStatus !== 'graduate'}
-        >
-          <View style={[styles.checkboxBox, formData?.incomeProtectionScheme && styles.checkboxBoxChecked]}>
-            {formData?.incomeProtectionScheme ? <Text style={styles.checkboxTick}>✓</Text> : null}
-          </View>
-          <Text style={styles.checkboxLabel}>
-            Tick here to join INMO Income Protection Scheme
-            {(formData?.memberStatus === 'new' || formData?.memberStatus === 'graduate') && 
-              showValidation && !formData?.incomeProtectionScheme && 
-              <Text style={{ color: 'red' }}> (Required)</Text>
-            }
-          </Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.checkboxItem,
-            (formData?.memberStatus !== 'new' && formData?.memberStatus !== 'graduate') && { opacity: 0.5 }
-          ]}
-          onPress={() => {
-            // Only allow toggle if memberStatus is 'new' or 'graduate'
-            if (formData?.memberStatus === 'new' || formData?.memberStatus === 'graduate') {
-              onFormDataChange({ ...formData, inmoRewards: !formData?.inmoRewards });
-            }
-          }}
-          disabled={formData?.memberStatus !== 'new' && formData?.memberStatus !== 'graduate'}
-        >
-          <View style={[styles.checkboxBox, formData?.inmoRewards && styles.checkboxBoxChecked]}>
-            {formData?.inmoRewards ? <Text style={styles.checkboxTick}>✓</Text> : null}
-          </View>
-          <Text style={styles.checkboxLabel}>
-            Tick here to join Rewards for INMO members
-            {(formData?.memberStatus === 'new' || formData?.memberStatus === 'graduate') && 
-              showValidation && !formData?.inmoRewards && 
-              <Text style={{ color: 'red' }}> (Required)</Text>
-            }
-          </Text>
-        </TouchableOpacity>
+      {/* Agreements & Consents Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Agreements & Consents</Text>
+        
+        <View style={styles.checkboxRow}>
+          <TouchableOpacity
+            style={[
+              styles.checkboxItem,
+              (formData?.memberStatus !== 'new' && formData?.memberStatus !== 'graduate') && { opacity: 0.5 }
+            ]}
+            onPress={() => {
+              // Only allow toggle if memberStatus is 'new' or 'graduate'
+              if (formData?.memberStatus === 'new' || formData?.memberStatus === 'graduate') {
+                onFormDataChange({ ...formData, incomeProtectionScheme: !formData?.incomeProtectionScheme });
+              }
+            }}
+            disabled={formData?.memberStatus !== 'new' && formData?.memberStatus !== 'graduate'}
+          >
+            <View style={[styles.checkboxBox, formData?.incomeProtectionScheme && styles.checkboxBoxChecked]}>
+              {formData?.incomeProtectionScheme ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              Tick here to join INMO Income Protection Scheme
+              {(formData?.memberStatus === 'new' || formData?.memberStatus === 'graduate') && 
+                showValidation && !formData?.incomeProtectionScheme && 
+                <Text style={{ color: 'red' }}> (Required)</Text>
+              }
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.checkboxItem}
-          onPress={() => onFormDataChange({ ...formData, valueAddedServices: !formData?.valueAddedServices })}
-        >
-          <View style={[styles.checkboxBox, formData?.valueAddedServices && styles.checkboxBoxChecked]}>
-            {formData?.valueAddedServices ? <Text style={styles.checkboxTick}>✓</Text> : null}
-          </View>
-          <Text style={styles.checkboxLabel}>Tick here to allow our partners to contact you about Value added Services by Email and SMS</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.checkboxItem,
+              (formData?.memberStatus !== 'new' && formData?.memberStatus !== 'graduate') && { opacity: 0.5 }
+            ]}
+            onPress={() => {
+              // Only allow toggle if memberStatus is 'new' or 'graduate'
+              if (formData?.memberStatus === 'new' || formData?.memberStatus === 'graduate') {
+                onFormDataChange({ ...formData, inmoRewards: !formData?.inmoRewards });
+              }
+            }}
+            disabled={formData?.memberStatus !== 'new' && formData?.memberStatus !== 'graduate'}
+          >
+            <View style={[styles.checkboxBox, formData?.inmoRewards && styles.checkboxBoxChecked]}>
+              {formData?.inmoRewards ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.checkboxLabel}>
+              Tick here to join Rewards for INMO members
+              {(formData?.memberStatus === 'new' || formData?.memberStatus === 'graduate') && 
+                showValidation && !formData?.inmoRewards && 
+                <Text style={{ color: 'red' }}> (Required)</Text>
+              }
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.checkboxItem, { alignItems: 'flex-start' }]}
-          onPress={() => onFormDataChange({ ...formData, termsAndConditions: !formData?.termsAndConditions })}
-        >
-          <View style={[styles.checkboxBox, formData?.termsAndConditions && styles.checkboxBoxChecked]}>
-            {formData?.termsAndConditions ? <Text style={styles.checkboxTick}>✓</Text> : null}
-          </View>
-          <Text style={[styles.checkboxLabel, { flex: 1 }]}>
-            I have read and agree to the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/DataProtection')}>Data Protection Statement</Text>, the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/PrivacyStatement')}>Privacy Statement</Text> and the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/ConditionsOfMembership')}>Conditions of Membership</Text>
-            {showValidation && !formData?.termsAndConditions && <Text style={{ color: 'red' }}> (Required)</Text>}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.checkboxItem}
+            onPress={() => onFormDataChange({ ...formData, valueAddedServices: !formData?.valueAddedServices })}
+          >
+            <View style={[styles.checkboxBox, formData?.valueAddedServices && styles.checkboxBoxChecked]}>
+              {formData?.valueAddedServices ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={styles.checkboxLabel}>Tick here to allow our partners to contact you about Value added Services by Email and SMS</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.checkboxItem, { alignItems: 'flex-start' }]}
+            onPress={() => onFormDataChange({ ...formData, termsAndConditions: !formData?.termsAndConditions })}
+          >
+            <View style={[styles.checkboxBox, formData?.termsAndConditions && styles.checkboxBoxChecked]}>
+              {formData?.termsAndConditions ? <Text style={styles.checkboxTick}>✓</Text> : null}
+            </View>
+            <Text style={[styles.checkboxLabel, { flex: 1 }]}>
+              I have read and agree to the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/DataProtection')}>Data Protection Statement</Text>, the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/PrivacyStatement')}>Privacy Statement</Text> and the INMO <Text style={styles.link} onPress={() => Linking.openURL('https://www.inmo.ie/ConditionsOfMembership')}>Conditions of Membership</Text>
+              {showValidation && !formData?.termsAndConditions && <Text style={{ color: 'red' }}> (Required)</Text>}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBackground,
+    // marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardTitle: {
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 18,
+    marginBottom: 16,
+    letterSpacing: 0.3,
+  },
   sectionHeader: {
     color: Colors.textPrimary,
     fontWeight: 'bold',
@@ -332,28 +369,40 @@ const styles = StyleSheet.create({
   radioRow: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    marginBottom: 8 
+    marginBottom: 8,
+    gap: 12,
   },
   radioGroup: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
-    marginBottom: 8 
+    marginBottom: 8,
+    gap: 12,
   },
   radioButton: { 
-    padding: 8, 
-    borderWidth: 1, 
-    borderColor: '#2A2F33', 
-    backgroundColor: '#1A1E21',
-    borderRadius: 16, 
-    marginRight: 8, 
-    marginBottom: 6 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    borderWidth: 1.5, 
+    borderColor: '#E5E5E5', 
+    backgroundColor: Colors.white,
+    borderRadius: 12, 
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   radioSelected: { 
     backgroundColor: Colors.primary, 
     borderColor: Colors.primary 
   },
   radioLabel: { 
-    color: '#E5F9F4' 
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  radioLabelSelected: {
+    color: Colors.white,
+    fontWeight: '600',
   },
   checkboxRow: { 
     flexDirection: 'column', 
