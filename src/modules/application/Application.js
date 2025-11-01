@@ -823,7 +823,7 @@ const Application = () => {
             renderItem={() => (
               <>
                 {/* Step Content */}
-                <View style={[styles.card, { borderRadius: 16, backgroundColor: Colors.cardBackground, marginHorizontal: 20 }]}>
+                <View style={[ { borderRadius: 16, backgroundColor: Colors.cardBackground, marginHorizontal: 20 }]}>
                   {renderStepContent()}
                 </View>
                 {/* Payment Modal (Stripe) */}
