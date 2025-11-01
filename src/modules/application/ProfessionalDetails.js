@@ -147,31 +147,32 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
   const isUndergraduateStudent = formData?.membershipCategory === 'undergraduate_student';
 
   return (
-    <View style={{ backgroundColor: Colors.cardBackground, paddingBottom: 20 }}>
-      <Text style={styles.sectionHeader}>Professional Details</Text>
-      <Text style={styles.sectionSubtitle}>Tell us about your professional background.</Text>
-      {/* Membership Category */}
-      <Text style={styles.label}>Membership Category *</Text>
-      <View style={styles.pickerField}>
-        <Picker
-          selectedValue={formData.membershipCategory || ''}
-          onValueChange={val => {
-            if (val) {
-              onFormDataChange({ ...formData, membershipCategory: val });
-            }
-          }}
-        >
-          <Picker.Item label="Select membership category" value="" />
-          {membershipCategoryOptions.map(c => (
-            <Picker.Item key={c.value} label={c.label} value={c.value} />
-          ))}
-        </Picker>
-      </View>
+    <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
+      {/* Membership Information Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Membership Information</Text>
+        
+        {/* Membership Category */}
+        <Text style={styles.label}>Membership Category *</Text>
+        <View style={styles.pickerField}>
+          <Picker
+            selectedValue={formData.membershipCategory || ''}
+            onValueChange={val => {
+              if (val) {
+                onFormDataChange({ ...formData, membershipCategory: val });
+              }
+            }}
+          >
+            <Picker.Item label="Select membership category" value="" />
+            {membershipCategoryOptions.map(c => (
+              <Picker.Item key={c.value} label={c.label} value={c.value} />
+            ))}
+          </Picker>
+        </View>
 
-      {/* Conditional fields for Undergraduate Students */}
-      {isUndergraduateStudent && (
-        <>
-          <View style={styles.halfInput}>
+        {/* Conditional fields for Undergraduate Students */}
+        {isUndergraduateStudent && (
+          <>
             <Text style={styles.label}>Study Location</Text>
             <View style={styles.pickerField}>
               <Picker
@@ -186,19 +187,21 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
                 {studyLocations.map(loc => <Picker.Item key={loc} label={loc} value={loc} />)}
               </Picker>
             </View>
-          </View>
 
-          <View style={styles.halfInput}>
             <Text style={styles.label}>Graduation Date</Text>
             <DatePicker
               value={formData.graduationDate}
               onChange={date => onFormDataChange({ ...formData, graduationDate: date })}
             />
-          </View>
-        </>
-      )}
-      {/* Work Location & Other Work Location */}
-      <View style={styles.halfInput}>
+          </>
+        )}
+      </View>
+
+      {/* Work Location Details Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Work Location Details</Text>
+        
+        {/* Work Location */}
         <Text style={styles.label}>Work Location {!isUndergraduateStudent && '*'}</Text>
         <View style={styles.pickerField}>
           <Picker
@@ -209,9 +212,8 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
             {workLocationNames.map(w => <Picker.Item key={w} label={w} value={w} />)}
           </Picker>
         </View>
-      </View>
 
-      <View style={styles.halfInput}>
+        {/* Other Work Location */}
         <Text style={styles.label}>Other Work Location</Text>
         <View style={styles.inputField}>
           <InputField
@@ -222,10 +224,8 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
             placeholder="Enter your work other location"
           />
         </View>
-      </View>
-      {/* Branch & Region */}
-      {/* <View style={styles.row}> */}
-      <View style={styles.halfInput}>
+
+        {/* Branch */}
         <Text style={styles.label}>Branch</Text>
         <View style={styles.inputField}>
           <InputField
@@ -236,8 +236,8 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
             placeholder="Branch (auto-filled)"
           />
         </View>
-      </View>
-      <View style={styles.halfInput}>
+
+        {/* Region */}
         <Text style={styles.label}>Region</Text>
         <View style={styles.inputField}>
           <InputField
@@ -249,50 +249,66 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
           />
         </View>
       </View>
-      {/* </View> */}
-      {/* Nursing adaptation programme */}
-      <Text style={styles.label}>Are you currently undertaking a nursing adaptation programme?</Text>
-      <View style={styles.radioRow}>
-        <TouchableOpacity
-          style={[styles.radioButton, adaptationYes && styles.radioSelected]}
-          onPress={() => onFormDataChange({ ...formData, nursingAdaptationProgramme: 'yes' })}
-        >
-          <Text style={styles.radioLabel}>Yes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.radioButton, !adaptationYes && styles.radioSelected]}
-          onPress={() => onFormDataChange({ ...formData, nursingAdaptationProgramme: 'no' })}
-        >
-          <Text style={styles.radioLabel}>No</Text>
-        </TouchableOpacity>
-      </View>
-      {/* NMBI No */}
-      <Text style={styles.label}>NMBI No / An Board Altranais Number</Text>
-      <View style={styles.inputField}>
-        <InputField
-          value={formData.nmbiNo}
-          editable={!adaptationYes}
-          holderTextColor={'#94A3B8'}
-          onChange={text => onFormDataChange({ ...formData, nmbiNo: text })}
-          placeholder="12344"
-        />
-      </View>
-      {/* Nurse Type radio group */}
-      <Text style={styles.label}>Please tick one of the following</Text>
-      <View style={styles.radioGroup}>
-        {nurseTypes.map(type => (
+
+      {/* Professional Credentials Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Professional Credentials</Text>
+        
+        {/* Nursing adaptation programme */}
+        <Text style={styles.label}>Are you currently undertaking a nursing adaptation programme?</Text>
+        <View style={styles.radioRow}>
           <TouchableOpacity
-            key={type}
-            style={[styles.radioButton, formData.nurseType === type && styles.radioSelected, !adaptationYes && { opacity: 0.5 }]}
-            onPress={() => adaptationYes && onFormDataChange({ ...formData, nurseType: type })}
+            style={[styles.radioButton, adaptationYes && styles.radioSelected]}
+            onPress={() => onFormDataChange({ ...formData, nursingAdaptationProgramme: 'yes' })}
           >
-            <Text style={styles.radioLabel}>{type}</Text>
+            <Text style={[styles.radioLabel, adaptationYes && styles.radioLabelSelected]}>Yes</Text>
           </TouchableOpacity>
-        ))}
+          <TouchableOpacity
+            style={[styles.radioButton, !adaptationYes && styles.radioSelected]}
+            onPress={() => onFormDataChange({ ...formData, nursingAdaptationProgramme: 'no' })}
+          >
+            <Text style={[styles.radioLabel, !adaptationYes && styles.radioLabelSelected]}>No</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* NMBI No */}
+        <Text style={styles.label}>NMBI No / An Board Altranais Number</Text>
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.nmbiNo}
+            editable={!adaptationYes}
+            holderTextColor={'#94A3B8'}
+            onChange={text => onFormDataChange({ ...formData, nmbiNo: text })}
+            placeholder="12344"
+          />
+        </View>
+
+        {/* Nurse Type radio group */}
+        <Text style={styles.label}>Please tick one of the following</Text>
+        <View style={styles.radioGroup}>
+          {nurseTypes.map(type => (
+            <TouchableOpacity
+              key={type}
+              style={[
+                styles.radioButton, 
+                formData.nurseType === type && styles.radioSelected, 
+                !adaptationYes && { opacity: 0.5 }
+              ]}
+              onPress={() => adaptationYes && onFormDataChange({ ...formData, nurseType: type })}
+            >
+              <Text style={[styles.radioLabel, formData.nurseType === type && styles.radioLabelSelected]}>
+                {type}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
-      {/* Grade & Other Grade */}
-      {/* <View style={styles.row}> */}
-      <View style={styles.halfInput}>
+
+      {/* Grade & Status Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Grade & Status</Text>
+        
+        {/* Grade */}
         <Text style={styles.label}>Grade *</Text>
         <View style={styles.pickerField}>
           <Picker
@@ -307,8 +323,8 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
             {grades.map(g => <Picker.Item key={g} label={g} value={g} />)}
           </Picker>
         </View>
-      </View>
-      <View style={styles.halfInput}>
+
+        {/* Other Grade */}
         <Text style={styles.label}>Other Grade</Text>
         <View style={styles.inputField}>
           <InputField
@@ -319,11 +335,8 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
             placeholder="Enter your other grade"
           />
         </View>
-      </View>
-      {/* </View> */}
-      {/* Retired Date, Retired, Pension No */}
-      {/* <View style={styles.row}> */}
-      <View style={styles.halfInput}>
+
+        {/* Retired Date */}
         <Text style={styles.label}>Retired Date</Text>
         <View style={styles.inputField}>
           <InputField
@@ -335,15 +348,17 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
             keyboardType="numeric"
           />
         </View>
-      </View>
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>Retired</Text>
-        <CustomSwitch
-          value={!!formData.isRetired}
-          onValueChange={val => onFormDataChange({ ...formData, isRetired: val })}
-        />
-      </View>
-      <View style={styles.halfInput}>
+
+        {/* Retired Switch */}
+        <View style={styles.switchRow}>
+          <Text style={styles.switchLabel}>Retired</Text>
+          <CustomSwitch
+            value={!!formData.isRetired}
+            onValueChange={val => onFormDataChange({ ...formData, isRetired: val })}
+          />
+        </View>
+
+        {/* Pension No */}
         <Text style={styles.label}>Pension No</Text>
         <View style={styles.inputField}>
           <InputField
@@ -356,11 +371,30 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
         </View>
       </View>
     </View>
-    // </View>
   );
 };
 
 const styles = StyleSheet.create({
+  card: {
+    backgroundColor: Colors.cardBackground,
+    // marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 16,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardTitle: {
+    color: Colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 18,
+    marginBottom: 16,
+    letterSpacing: 0.3,
+  },
   sectionHeader: {
     color: Colors.textPrimary,
     fontWeight: 'bold',
@@ -388,6 +422,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     letterSpacing: 0.2,
   },
+  switchLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    marginRight: 12,
+    fontWeight: '400',
+    lineHeight: 20,
+  },
   row: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -409,28 +451,40 @@ const styles = StyleSheet.create({
   radioRow: { 
     flexDirection: 'row', 
     alignItems: 'center', 
-    marginBottom: 6 
+    marginBottom: 6,
+    gap: 12,
   },
   radioGroup: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
-    marginBottom: 8 
+    marginBottom: 8,
+    gap: 12,
   },
   radioButton: { 
-    padding: 8, 
-    borderWidth: 1, 
-    borderColor: '#2A2F33', 
-    backgroundColor: '#1A1E21',
-    borderRadius: 16, 
-    marginRight: 8, 
-    marginBottom: 6 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    borderWidth: 1.5, 
+    borderColor: '#E5E5E5', 
+    backgroundColor: Colors.white,
+    borderRadius: 12, 
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   radioSelected: { 
     backgroundColor: Colors.primary, 
     borderColor: Colors.primary 
   },
   radioLabel: { 
-    color: '#E5F9F4' 
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  radioLabelSelected: {
+    color: Colors.white,
+    fontWeight: '600',
   },
 });
 
