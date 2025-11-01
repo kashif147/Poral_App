@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import CustomSwitch from '../../common/switch';
@@ -7,6 +7,7 @@ import { Colors, form, wp } from '../../utils/Styles';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { DatePicker } from '../../common/DatePicker';
 import { useLookup } from '../../contexts/lookupContext';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const preferredAddresses = ['Home', 'Work', 'Other'];
 const preferredEmails = ['Personal', 'Work'];
@@ -46,7 +47,11 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
     console.log('👔 titleOptions=========>', titleOptions);
 
   return (
-    <View style={{ backgroundColor: Colors.surface }}>
+    <View style={{ backgroundColor: Colors.cardBackground, paddingBottom: 20 }}>
+      {/* Section Header */}
+      <Text style={styles.sectionHeader}>Personal Information</Text>
+      <Text style={styles.sectionSubtitle}>Let's start with the basics.</Text>
+      
       {/* Title */}
       <Text style={styles.label}>Title *</Text>
       <View style={styles.pickerField}>
@@ -61,6 +66,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           ))}
         </Picker>
       </View>
+
       {/* Surname & Forename - two columns */}
       <View style={styles.row}>
         <View style={styles.halfCol}>
@@ -86,30 +92,40 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           </View>
         </View>
       </View>
-      {/* Gender & Date of Birth */}
-      <View style={styles.halfInput}>
-        <Text style={styles.label}>Gender *</Text>
-        <View style={styles.pickerField}>
-          <Picker
-            selectedValue={formData.gender || (genderOptions[0] || 'Male')}
-            onValueChange={val => onFormDataChange({ ...formData, gender: val })}
+
+      {/* Gender - Button Style */}
+      <Text style={styles.label}>Gender *</Text>
+      <View style={styles.genderContainer}>
+        {(genderOptions.length ? genderOptions : ['Woman', 'Man', 'Non-binary', 'Prefer not to say']).map(gender => (
+          <TouchableOpacity
+            key={gender}
+            style={[
+              styles.genderButton,
+              formData.gender === gender && styles.genderButtonActive
+            ]}
+            onPress={() => onFormDataChange({ ...formData, gender })}
+            activeOpacity={0.7}
           >
-            {(genderOptions.length ? genderOptions : ['Male', 'Female', 'Other']).map(g => (
-              <Picker.Item key={g} label={g} value={g} />
-            ))}
-          </Picker>
-        </View>
+            <Text style={[
+              styles.genderButtonText,
+              formData.gender === gender && styles.genderButtonTextActive
+            ]}>
+              {gender}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
-      <View style={styles.halfInput}>
-        <DatePicker
-          label="Date of Birth"
-          name="dob"
-          required
-          value={formData.dob}
-          showValidation={showValidation}
-          onChange={({ target }) => onFormDataChange({ ...formData, dob: target.value })}
-        />
-      </View>
+
+      {/* Date of Birth */}
+      <DatePicker
+        label="Date of Birth"
+        name="dob"
+        required
+        value={formData.dob}
+        showValidation={showValidation}
+        onChange={({ target }) => onFormDataChange({ ...formData, dob: target.value })}
+      />
+
       {/* Country of Primary Qualification */}
       <Text style={styles.label}>Country of Primary Qualification</Text>
       <View style={styles.pickerField}>
@@ -122,19 +138,21 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           ))}
         </Picker>
       </View>
+
       {/* Correspondence Details Section */}
       <Text style={styles.sectionTitle}>Correspondence Details</Text>
-      <View style={styles.switchRow}>
-        <Text style={styles.label}>Consent to receive Correspondence from INMO</Text>
+      <View style={styles.termsRow}>
+        <Text style={styles.termsLabel}>Consent to receive Correspondence from INMO</Text>
         <CustomSwitch
           value={formData.consent}
           onValueChange={val => onFormDataChange({ ...formData, consent: val })}
         />
       </View>
+
       <Text style={styles.label}>Search by address or Eircode</Text>
       <View style={[styles.autocompleteContainer, { zIndex: 9999, elevation: 10 }]}>
         <GooglePlacesAutocomplete
-          placeholder="Enter Eircode or address"
+          placeholder="Search for your address"
           fetchDetails
           predefinedPlaces={[
             {
@@ -168,8 +186,6 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
             console.log('Selected place:', data);
             console.log('Place details:', details);
             try {
-              // React Native equivalent of React JS handlePlacesChanged function
-              // This extracts address components from Google Places API response
               const components = details?.address_components || [];
               console.log('components=========>', components);
 
@@ -211,26 +227,41 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
             components: 'country:ie',
           }}
           styles={{
+            textInputContainer: {
+              backgroundColor: 'transparent',
+            },
             textInput: {
-              ...form.inputBG,
-              color: 'black',
-              height: 48,
-              fontSize: 16,
+              height: 52,
+              borderWidth: 1.5,
+              borderColor: '#E5E5E5',
+              borderRadius: 12,
+              paddingHorizontal: 16,
+              paddingRight: 48,
+              fontSize: 15,
+              color: Colors.textPrimary,
+              backgroundColor: Colors.white,
+              fontWeight: '400',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 1,
             },
             listView: {
               zIndex: 9999,
               position: 'absolute',
-              top: 48,
+              top: 52,
               left: 0,
               right: 0,
               backgroundColor: 'white',
-              borderRadius: 8,
+              borderRadius: 12,
               elevation: 10,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 3.84,
+              shadowOpacity: 0.1,
+              shadowRadius: 8,
               maxHeight: 200,
+              marginTop: 4,
             },
             row: {
               padding: 15,
@@ -240,13 +271,18 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
             },
             description: {
               fontSize: 15,
-              color: '#333',
+              color: Colors.textPrimary,
             },
             separator: {
               height: 1,
               backgroundColor: '#f0f0f0',
             },
           }}
+          renderRightButton={() => (
+            <View style={styles.addressIconContainer}>
+              <Ionicons name="location-outline" size={20} color={Colors.textSecondary} />
+            </View>
+          )}
           minLength={2}
           listViewDisplayed="auto"
           returnKeyType="search"
@@ -262,6 +298,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           keyboardShouldPersistTaps="always"
         />
       </View>
+
       <View style={styles.halfInput}>
         <Text style={styles.label}>Preferred address *</Text>
         <View style={styles.pickerField}>
@@ -273,7 +310,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           </Picker>
         </View>
       </View>
-      <View style={styles.halfInput} />
+
       <Text style={styles.label}>Address line 1 (Building or House) *</Text>
       <View style={styles.inputField}>
         <InputField
@@ -283,6 +320,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           placeholder="Building or House"
         />
       </View>
+
       <Text style={styles.label}>Address line 2 (Street or Road)</Text>
       <View style={styles.inputField}>
         <InputField
@@ -291,6 +329,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           placeholder="Street or Road"
         />
       </View>
+
       <View style={styles.halfInput}>
         <Text style={styles.label}>Address line 3 (Area or Town)</Text>
         <View style={styles.inputField}>
@@ -301,6 +340,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           />
         </View>
       </View>
+
       <View style={styles.halfInput}>
         <Text style={styles.label}>Address line 4 (County, City or Postcode) *</Text>
         <View style={styles.inputField}>
@@ -312,6 +352,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           />
         </View>
       </View>
+
       <Text style={styles.label}>Eircode</Text>
       <View style={styles.inputField}>
         <InputField
@@ -320,6 +361,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           placeholder="Eircode"
         />
       </View>
+
       <Text style={styles.label}>Country</Text>
       <View style={styles.pickerField}>
         <Picker
@@ -331,6 +373,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           ))}
         </Picker>
       </View>
+
       <View style={styles.halfInput}>
         <Text style={styles.label}>Mobile No *</Text>
         <View style={styles.inputField}>
@@ -343,25 +386,19 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           />
         </View>
       </View>
-      {/* <View style={styles.switchRow}>
-        <Text style={styles.label}>Consent to receive SMS Alerts</Text>
-        <Switch
-          value={formData.smsConsent}
-          onValueChange={val => onFormDataChange({ ...formData, smsConsent: val })}
-        />
-      </View> */}
+
       <View style={styles.halfInput}>
         <Text style={styles.label}>Home / Work Tel Number</Text>
         <View style={styles.inputField}>
           <InputField
             value={formData.workTel}
-            checkValue={formData.workTel}
             onChange={text => onFormDataChange({ ...formData, workTel: text })}
             placeholder="Enter your work number"
+            keyboardType="phone-pad"
           />
         </View>
       </View>
-      <View style={styles.halfInput} />
+
       <View style={styles.halfInput}>
         <Text style={styles.label}>Preferred Email</Text>
         <View style={styles.pickerField}>
@@ -373,15 +410,9 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           </Picker>
         </View>
       </View>
-      {/* <View style={styles.switchRow}>
-        <Text style={styles.label}>Consent to receive Email Alerts</Text>
-        <Switch
-          value={formData.emailConsent}
-          onValueChange={val => onFormDataChange({ ...formData, emailConsent: val })}
-        />
-      </View> */}
+
       <View style={styles.halfInput}>
-        <Text style={styles.label}>Personal Email</Text>
+        <Text style={styles.label}>Personal Email *</Text>
         <View style={styles.inputField}>
           <InputField
             value={formData.personalEmail}
@@ -397,6 +428,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
           />
         </View>
       </View>
+
       <View style={styles.halfInput}>
         <Text style={styles.label}>Work Email</Text>
         <View style={styles.inputField}>
@@ -419,18 +451,34 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: {
-    color: Colors.white,
+  sectionHeader: {
+    color: Colors.textPrimary,
     fontWeight: 'bold',
+    fontSize: 24,
+    marginBottom: 8,
+    letterSpacing: 0.3,
+  },
+  sectionSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  sectionTitle: {
+    color: Colors.textPrimary,
+    fontWeight: '600',
     fontSize: 16,
-    marginTop: 8,
-    marginBottom: 8
+    marginTop: 20,
+    marginBottom: 12,
+    letterSpacing: 0.2,
   },
   label: {
-    color: Colors.white,
-    fontWeight: 'bold',
-    marginTop: 8,
-    marginBottom: 4
+    color: Colors.textPrimary,
+    fontWeight: '500',
+    fontSize: 14,
+    marginTop: 16,
+    marginBottom: 8,
+    letterSpacing: 0.2,
   },
   row: {
     flexDirection: 'row',
@@ -439,31 +487,79 @@ const styles = StyleSheet.create({
   halfCol: {
     width: '48%',
     marginRight: 8,
-    marginBottom: 8
+    marginBottom: 4
   },
   halfInput: {
     width: '100%',
-    marginBottom: 8
+    marginBottom: 4
   },
   inputField: {
-    marginBottom: 8
+    marginBottom: 4,
   },
   pickerField: {
-    marginBottom: 8
+    marginBottom: 4,
   },
-  switchRow: {
+  genderContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 8,
+    gap: 12,
+  },
+  genderButton: {
+    flex: 1,
+    minWidth: '45%',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  genderButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  genderButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+  },
+  genderButtonTextActive: {
+    color: Colors.white,
+    fontWeight: '600',
+  },
+  termsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
-    marginBottom: 8,
-    flex: 1
+    marginTop: 20,
+    paddingVertical: 4,
+  },
+  termsLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    marginRight: 12,
+    fontWeight: '400',
   },
   autocompleteContainer: {
     position: 'relative',
     zIndex: 9999,
-    marginBottom: 8,
+    marginBottom: 4,
     elevation: 10,
+  },
+  addressIconContainer: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    zIndex: 1,
   },
 });
 

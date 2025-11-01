@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image, NativeModules, Platform, StyleSheet, Text, View, Dimensions, TouchableOpacity, Keyboard } from 'react-native';
-import { Colors, wp } from '../utils/Styles';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Colors, wp, hp } from '../utils/Styles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Application from '../modules/application/Application';
 import Event from '../modules/event/Event';
 import Categories from '../modules/categories/Categories';
@@ -23,7 +23,7 @@ const Tab = createBottomTabNavigator();
 const TAB_ICONS = [
   {
     name: STACKS.DASHBOARD_STACK,
-    label: 'Dashboard',
+    label: 'Home',
     icon: IMAGES.HOME,
   },
   {
@@ -38,7 +38,7 @@ const TAB_ICONS = [
   },
   {
     name: 'menu',
-    label: 'Menu',
+    label: 'More',
     icon: null,
   },
 ];
@@ -47,6 +47,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const [popupVisible, setPopupVisible] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const { width } = Dimensions.get('window');
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -80,7 +81,9 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       'Category': STACKS.CATEGORIES_STACK,
       'Courses': STACKS.COURSES_STACK,
       'Membership': STACKS.MEMBERSHIP_STACK,
-      'Profile': 'Profile', // You can add this to STACKS if needed
+      'Profile': 'Profile',
+      'Application': STACKS.APPLICATION_STACK,
+      'Payment': STACKS.PAYMENT_STACK,
     };
     
     const targetRoute = routeMap[route];
@@ -98,16 +101,19 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     <>
       <View
         style={{
-          height: 70,
+          height: hp(8),
           flexDirection: 'row',
-          backgroundColor: Colors.surface,
+          backgroundColor: Colors.white,
           alignItems: 'center',
           justifyContent: 'space-between',
+          borderTopWidth: 1,
+          borderTopColor: Colors.divider,
           shadowColor: '#000',
-          shadowOpacity: 0.08,
+          shadowOpacity: 0.05,
           shadowRadius: 8,
           shadowOffset: { width: 0, height: -2 },
           elevation: 10,
+          paddingBottom: 0,
         }}
       >
         {state.routes.map((route, index) => {
@@ -149,18 +155,18 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             >
               <View style={{
                 borderRadius: 24,
-                marginBottom: 4,
+                marginBottom: 2,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
                 {tab.name === 'menu' ? (
                   <HamburgerIcon
-                    color={isFocused ? Colors.primary : '#93A1A1'}
+                    color={isFocused ? Colors.primary : '#999999'}
                     size={wp(5)}
                   />
                 ) : tab.name === STACKS.PAYMENT_STACK ? (
                   <PaymentIcon
-                    color={isFocused ? Colors.primary : '#93A1A1'}
+                    color={isFocused ? Colors.primary : '#999999'}
                     size={wp(5)}
                   />
                 ) : (
@@ -169,15 +175,15 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                     resizeMode="contain"
                     style={{
                       ...styles.image,
-                      tintColor: isFocused ? Colors.primary : '#93A1A1',
+                      tintColor: isFocused ? Colors.primary : '#999999',
                     }}
                   />
                 )}
               </View>
               <Text style={{
-                color: isFocused ? Colors.primary : '#93A1A1',
-                fontSize: 12,
-                fontWeight: isFocused ? '700' : '500',
+                color: isFocused ? Colors.primary : '#999999',
+                fontSize: 10,
+                fontWeight: isFocused ? '600' : '500',
                 marginTop: 2,
               }}>{tab.label}</Text>
             </TouchableOpacity>
@@ -194,19 +200,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 };
 
 const TabNavigator = () => {
-  const { StatusBarManager } = NativeModules;
-  const backgroundStyle = {
-    backgroundColor: Colors.background,
-    flex: 1,
-  };
   return (
-    <SafeAreaProvider
-      style={[
-        backgroundStyle,
-        {
-          paddingTop: Platform.OS === 'ios' ? StatusBarManager.HEIGHT || 0 : 0,
-        },
-      ]}>
       <Tab.Navigator
         initialRouteName="Dashboard"
         backBehavior="history"
@@ -227,8 +221,8 @@ const TabNavigator = () => {
         <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
         <Tab.Screen name="Profile" component={Profile} />
+        <Tab.Screen name="Directory" component={Profile} />
       </Tab.Navigator>
-    </SafeAreaProvider>
   );
 };
 
@@ -238,8 +232,8 @@ export default TabNavigator;
 export const styles = StyleSheet.create({
 
   image: {
-    height: wp(5),
-    width: wp(5),
+    height: wp(4.5),
+    width: wp(4.5),
   },
   title: { fontSize: wp(2.5), fontWeight: '600' },
 });

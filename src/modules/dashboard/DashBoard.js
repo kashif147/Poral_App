@@ -1,458 +1,404 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, Dimensions, StyleSheet, TouchableOpacity, Image, Text } from 'react-native';
+import { View, ScrollView, Dimensions, StyleSheet, TouchableOpacity, Image, Text, ImageBackground, Platform } from 'react-native';
 import { Label } from '../../common/text/label';
 import { Wrapper } from '../../common/wrapper';
 import { SVG } from '../../assets/svg';
 import { DashboardCard } from '../../common/DashboardCard';
 import { useNavigation } from '@react-navigation/native';
 import { STACKS } from '../../enums/ScreenEnums';
-import { Colors, commonStyles, wp, hp } from '../../utils/Styles';
+import { Colors, commonStyles, wp, hp, TEXT_STYLE } from '../../utils/Styles';
 import { IMAGES } from '../../assets/images';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DashBoard = () => {
   const navigation = useNavigation();
-  const [subscriptionData, setSubscriptionData] = useState({
-    current: {
-      status: 'Active',
-      plan: 'Short-term/ Relief (under 15 hrs/wk average',
-      nextPayment: '2024-02-15',
-      amount: '€25.00',
-    },
-    pending: {
-      status: 'Pending',
-      plan: 'Short-term/ Relief (under 15 hrs/wk average',
-      applicationDate: '2024-01-20',
-      amount: '€25.00',
-    },
-  });
+  const [userName, setUserName] = useState('User');
+  const insets = useSafeAreaInsets();
 
-  const dashboardCards = [
+  // Fetch user name from token or storage
+  useEffect(() => {
+    const fetchUserName = async () => {
+      try {
+        const token = await AsyncStorage.getItem('token');
+        if (token) {
+          // Decode JWT token to get user info
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split('')
+              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+          const decoded = JSON.parse(jsonPayload);
+          
+          // Extract name from token (adjust field names based on your token structure)
+          const name = decoded.name || decoded.given_name || decoded.email?.split('@')[0] || 'User';
+          setUserName(name.charAt(0).toUpperCase() + name.slice(1));
+        }
+      } catch (error) {
+        console.log('Error fetching user name:', error);
+        setUserName('User');
+      }
+    };
+    
+    fetchUserName();
+  }, []);
+
+  // Quick Links - 2x2 grid
+  const quickLinks = [
+    { 
+      key: 'directory', 
+      title: 'Member Directory', 
+      icon: 'account-group',
+      iconType: 'MaterialCommunityIcons',
+      iconColor: '#5A8DEE',
+      backgroundColor: '#E8F0FE',
+      onPress: () => navigation.navigate('Directory')
+    },
+    { 
+      key: 'resources', 
+      title: 'Resources', 
+      icon: 'folder-open',
+      iconType: 'MaterialCommunityIcons',
+      iconColor: '#5A8DEE',
+      backgroundColor: '#E8F0FE',
+      onPress: () => navigation.navigate(STACKS.CATEGORIES_STACK)
+    },
+    { 
+      key: 'profile', 
+      title: 'My Profile', 
+      icon: 'account',
+      iconType: 'MaterialCommunityIcons',
+      iconColor: '#5A8DEE',
+      backgroundColor: '#E8F0FE',
+      onPress: () => navigation.navigate('Profile')
+    },
+    { 
+      key: 'contact', 
+      title: 'Contact Us', 
+      icon: 'email',
+      iconType: 'MaterialCommunityIcons',
+      iconColor: '#5A8DEE',
+      backgroundColor: '#E8F0FE',
+      onPress: () => console.log('Contact Us')
+    },
+  ];
+
+  // Upcoming Events
+  const upcomingEvents = [
     {
-      key: 'application',
-      icon: SVG.PENCIL,
-      title: 'Application',
-      description: 'Start or continue your membership application',
-      button: "Let's get started",
-      onPress: () => navigation.navigate(STACKS.APPLICATION_STACK),
+      id: 1,
+      title: 'Networking Mixer',
+      date: 'Oct 25, 7:00 PM',
+      image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=200&h=200&fit=crop',
+      onPress: () => navigation.navigate(STACKS.EVENTS_STACK)
+    },
+    {
+      id: 2,
+      title: 'Leadership Webinar',
+      date: 'Nov 2, 10:00 AM',
+      image: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=200&h=200&fit=crop',
+      onPress: () => navigation.navigate(STACKS.EVENTS_STACK)
+    },
+    {
+      id: 3,
+      title: 'Tech Skills Workshop',
+      date: 'Nov 15, 2:00 PM',
+      image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=200&h=200&fit=crop',
+      onPress: () => navigation.navigate(STACKS.EVENTS_STACK)
     },
   ];
-
-  // Quick access menu items
-  // Quick access excluding the three main tabs
-  const quickActions = [
-    { key: 'events', title: 'Events', icon: IMAGES.EVENT, onPress: () => navigation.navigate(STACKS.EVENTS_STACK) },
-    { key: 'categories', title: 'Categories', icon: IMAGES.CATEGORIES, onPress: () => navigation.navigate(STACKS.CATEGORIES_STACK) },
-    { key: 'courses', title: 'Courses', icon: IMAGES.COURSES, onPress: () => navigation.navigate(STACKS.COURSES_STACK) },
-    { key: 'membership', title: 'Membership', icon: IMAGES.SETTING, onPress: () => navigation.navigate(STACKS.MEMBERSHIP_STACK) },
-    { key: 'profile', title: 'Profile', icon: IMAGES.USER, onPress: () => navigation.navigate('Profile') },
-  ];
-
-  // Mock data for charts
-  const monthlySpend = [120, 80, 140, 100, 160, 110, 90, 130, 150, 170, 155, 180];
-  const recentPayments = [
-    { label: 'Jul', amount: '€25.00' },
-    { label: 'Aug', amount: '€25.00' },
-    { label: 'Sep', amount: '€25.00' },
-  ];
-
-  const renderBarChart = (data) => {
-    const max = Math.max(...data, 1);
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 120 }}>
-        {data.map((v, i) => (
-          <View key={i} style={{ width: 10, marginHorizontal: 6, backgroundColor: '#123338', height: 120, borderRadius: 6, justifyContent: 'flex-end' }}>
-            <View style={{ height: Math.max(6, (v / max) * 120), backgroundColor: Colors.primary, borderRadius: 6 }} />
-          </View>
-        ))}
-      </View>
-    );
-  };
-
-  const renderSubscriptionCard = (type, data) => (
-    <View style={[styles.subscriptionCard, { backgroundColor: type === 'current' ? '#e8f5e8' : '#fff3cd' }]}>
-      <View style={styles.subscriptionHeader}>
-        <Label style={[styles.subscriptionStatus, { color: type === 'current' ? '#28a745' : '#ffc107' }]}>
-          {data.status}
-        </Label>
-        <View style={[styles.statusIndicator, { backgroundColor: type === 'current' ? '#28a745' : '#ffc107' }]} />
-      </View>
-      <Label style={styles.subscriptionPlan} numberOfLines={2}>{data.plan}</Label>
-      <View style={styles.subscriptionDetails}>
-        <View style={styles.detailRow}>
-          <Label style={styles.detailLabel} numberOfLines={1}>
-            {type === 'current' ? 'Next Payment:' : 'Application Date:'}
-          </Label>
-        </View>
-        <View style={styles.detailRow}>
-          <Label style={styles.detailLabel} numberOfLines={1}>Amount:</Label>
-          <Label style={styles.detailValue} numberOfLines={1}>{data.amount}</Label>
-        </View>
-      </View>
-    </View>
-  );
 
   return (
-    <Wrapper style={commonStyles.screenContainer} title={'Dashboard'}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.container, { paddingBottom: 120 }]}>
-        {/* Overview graph */}
-        <View style={styles.card}>
-          <Label style={styles.sectionTitle}>Payments Overview</Label>
-          {renderBarChart(monthlySpend)}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-            <Text style={{ color: '#93A1A1', fontSize: 12 }}>Last 12 months</Text>
-            <Text style={{ color: Colors.white, fontWeight: '700' }}>Total: €{monthlySpend.reduce((a,b)=>a+b,0).toFixed(2)}</Text>
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Header with greeting and notification */}
+        <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarContainer}>
+              <Ionicons name="person" size={24} color={Colors.white} />
+            </View>
+            <Text style={styles.greetingText}>Hello, {userName}!</Text>
           </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
+            <View style={styles.notificationBadge} />
+          </TouchableOpacity>
         </View>
 
-        {/* Quick Access horizontal buttons */}
-        <View style={{ marginTop: 16 }}>
-          <Label style={styles.sectionTitle}>Quick Access</Label>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickContainer}
+        {/* Featured Card - Annual General Meeting */}
+        <View style={styles.featuredCard}>
+          <ImageBackground
+            source={{ uri: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop' }}
+            style={styles.featuredImageBackground}
+            imageStyle={styles.featuredImage}
           >
-            {quickActions.map(item => (
-              <TouchableOpacity
-                key={item.key}
-                activeOpacity={0.9}
-                onPress={item.onPress}
-                style={styles.quickButton}
-              >
-                <Image source={item.icon} resizeMode="contain" style={styles.quickIcon} />
-                <Text style={styles.quickLabel}>{item.title}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+            <View style={styles.featuredOverlay} />
+          </ImageBackground>
+          <View style={styles.featuredContent}>
+            <Text style={styles.featuredTitle}>Annual General Meeting Reminder</Text>
+            <Text style={styles.featuredDescription}>
+              Don't miss our most important meeting of the year. Register now to secure your spot.
+            </Text>
+            <TouchableOpacity 
+              style={styles.registerButton}
+              onPress={() => navigation.navigate(STACKS.EVENTS_STACK)}
+            >
+              <Text style={styles.registerButtonText}>Register</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <View style={styles.subscriptionSection}>
-          <Label style={styles.sectionTitle}>Subscription Details</Label>
-          {/* Single attractive card */}
-          <View style={styles.subscriptionCardEnhanced}>
-            {/* Top: status + amount */}
-            <View style={styles.subscriptionHeader}>
-              <View style={[styles.statusPill, { borderColor: Colors.primary, backgroundColor: '#0b2a2620' }]}>
-                <Text style={{ color: Colors.primary, fontWeight: '700', fontSize: 12 }}>{subscriptionData.current.status}</Text>
-              </View>
-              <Text style={styles.amountText}>{subscriptionData.current.amount}</Text>
-            </View>
-
-            {/* Plan */}
-            <Text style={styles.planText} numberOfLines={2}>{subscriptionData.current.plan}</Text>
-
-            {/* Info row */}
-            <View style={styles.subscriptionDetailsRow}>
-              <View style={styles.detailCol}>
-                <Text style={styles.detailLabel}>Next Payment</Text>
-                <Text style={styles.detailValue}>{subscriptionData.current.nextPayment}</Text>
-              </View>
-              <View style={styles.detailDivider} />
-              <View style={[styles.detailCol, { paddingLeft: 12 }]}>
-                <Text style={styles.detailLabel}>Status</Text>
-                <Text style={styles.detailValue}>{subscriptionData.current.status}</Text>
-              </View>
-            </View>
-
-            {/* CTA */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 12 }}>
+        {/* Quick Links Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Links</Text>
+          <View style={styles.quickLinksGrid}>
+            {quickLinks.map((link) => (
               <TouchableOpacity
-                activeOpacity={0.9}
-                style={styles.primaryBtn}
-                onPress={() => navigation.navigate(STACKS.PAYMENT_STACK)}
+                key={link.key}
+                style={styles.quickLinkCard}
+                onPress={link.onPress}
+                activeOpacity={0.7}
               >
-                <Text style={styles.primaryBtnText}>Manage</Text>
+                <View style={[styles.quickLinkIconContainer, { backgroundColor: link.backgroundColor }]}>
+                  <MaterialCommunityIcons name={link.icon} size={28} color={link.iconColor} />
+                </View>
+                <Text style={styles.quickLinkText}>{link.title}</Text>
               </TouchableOpacity>
-            </View>
-
-            {/* Pending change, if any */}
-            {subscriptionData?.pending ? (
-              <View style={styles.pendingBox}>
-                <Text style={styles.pendingTitle}>Pending Change</Text>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={[styles.detailLabel, { color: '#93A1A1' }]}>Application Date</Text>
-                  <Text style={styles.detailValue}>{subscriptionData.pending.applicationDate}</Text>
-                </View>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-                  <Text style={[styles.detailLabel, { color: '#93A1A1' }]}>Amount</Text>
-                  <Text style={styles.detailValue}>{subscriptionData.pending.amount}</Text>
-                </View>
-              </View>
-            ) : null}
-          </View>
-
-          <View style={[styles.card, { marginTop: 12 }]}>
-            <Text style={{ color: Colors.white, fontWeight: '700', marginBottom: 8 }}>Recent Payments</Text>
-            {recentPayments.map((p, idx) => (
-              <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: idx === recentPayments.length -1 ? 0 : 1, borderBottomColor: '#2A2F33' }}>
-                <Text style={{ color: '#93A1A1' }}>{p.label}</Text>
-                <Text style={{ color: Colors.white, fontWeight: '600' }}>{p.amount}</Text>
-              </View>
             ))}
           </View>
         </View>
 
-        {/* Quick Actions removed as per design - using floating action button instead */}
+        {/* Upcoming Events Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Upcoming Events</Text>
+            <TouchableOpacity onPress={() => navigation.navigate(STACKS.EVENTS_STACK)}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          {upcomingEvents.map((event) => (
+            <TouchableOpacity
+              key={event.id}
+              style={styles.eventCard}
+              onPress={event.onPress}
+              activeOpacity={0.7}
+            >
+              <Image
+                source={{ uri: event.image }}
+                style={styles.eventImage}
+              />
+              <View style={styles.eventContent}>
+                <Text style={styles.eventTitle}>{event.title}</Text>
+                <Text style={styles.eventDate}>{event.date}</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.viewButton}
+                onPress={event.onPress}
+              >
+                <Text style={styles.viewButtonText}>View</Text>
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </View>
       </ScrollView>
-      <TouchableOpacity
-        onPress={() => navigation.navigate(STACKS.APPLICATION_STACK)}
-        activeOpacity={0.9}
-        style={{
-          position: 'absolute',
-          right: wp(2),
-          bottom: wp(4),
-          backgroundColor: Colors.primary,
-          borderRadius: 22,
-          height: 44,
-          paddingHorizontal: 16,
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'row',
-          shadowColor: '#000',
-          shadowOpacity: 0.2,
-          shadowRadius: 6,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 10,
-        }}
-      >
-        <Image source={IMAGES.PEN} resizeMode="contain" style={{ height: 18, width: 18, tintColor: Colors.white, marginRight: 8 }} />
-        <Text style={{ color: Colors.white, fontWeight: '700' }}>Add application</Text>
-      </TouchableOpacity>
-    </Wrapper>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 0,
+    flex: 1,
+    backgroundColor: Colors.background,
   },
-  card: {
-    backgroundColor: '#1A1F23',
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#2A2F33',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: Colors.surface,
+    paddingBottom: 16,
   },
-  welcomeTitle: {
-    fontSize: 24,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5A77B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  greetingText: {
+    fontSize: 22,
     fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
+    color: Colors.textPrimary,
   },
-  welcomeSubtitle: {
-    color: '#888',
+  notificationButton: {
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF4444',
+    borderWidth: 2,
+    borderColor: Colors.surface,
+  },
+  featuredCard: {
+    margin: 20,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  featuredImageBackground: {
+    width: '100%',
+    height: 160,
+  },
+  featuredImage: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  featuredOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.1)',
+  },
+  featuredContent: {
+    padding: 16,
+  },
+  featuredTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    marginBottom: 8,
+  },
+  featuredDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  registerButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  registerButtonText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  section: {
+    marginHorizontal: 20,
     marginBottom: 24,
-    fontSize: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: Colors.textPrimary,
     marginBottom: 16,
-    color: Colors.white,
   },
-  subscriptionSection: {
-    marginBottom: 32,
-    marginTop: 16
-  },
-  subscriptionContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
-    paddingHorizontal: 16,
-  },
-  subscriptionCard: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2A2F33',
-    backgroundColor: '#1A1F23',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 8,
-    minHeight: 120,
-  },
-  subscriptionCardEnhanced: {
-    backgroundColor: '#1A1F23',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2A2F33',
-    padding: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  subscriptionDetailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1F23',
-    borderWidth: 1,
-    borderColor: '#22292E',
-    padding: 12,
-    borderRadius: 12,
-  },
-  pendingBox: {
-    marginTop: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2A2F33',
-    backgroundColor: '#161C20',
-    padding: 12,
-  },
-  pendingTitle: {
-    color: Colors.white,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  primaryBtn: {
-    backgroundColor: '#1A1F23',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  primaryBtnText: {
-    color: Colors.white,
-    fontWeight: '700',
-  },
-  quickContainer: {
-    gap: 12,
-  },
-  quickButton: {
-    height: 120,
-    width: 140,
-    borderRadius: 16,
-    backgroundColor: '#1A1F23',
-    borderWidth: 1,
-    borderColor: '#2A2F33',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  quickIcon: {
-    height: 28,
-    width: 28,
-    tintColor: Colors.white,
-    marginBottom: 8,
-  },
-  quickLabel: {
-    color: Colors.white,
-    fontWeight: '700',
-  },
-  subscriptionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  subscriptionStatus: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  statusIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  subscriptionPlan: {
+  viewAllText: {
     fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#93A1A1',
-    flexWrap: 'wrap',
-  },
-  amountText: {
-    color: Colors.white,
-    fontWeight: '800',
-    fontSize: 18,
-  },
-  planText: {
-    color: '#B7C3C6',
-    fontWeight: '700',
-    fontSize: 14,
-    marginBottom: 12,
-    marginTop: 2,
-  },
-  subscriptionDetails: {
-    gap: 6,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: '#93A1A1',
-    flex: 1,
-  },
-  detailValue: {
-    fontSize: 11,
+    color: Colors.primary,
     fontWeight: '600',
-    color: '#93A1A1',
-    textAlign: 'right',
-    flex: 1,
-    minWidth: 0,
   },
-  cardsSection: {
-    marginBottom: 16,
-  },
-  cardsContainer: {
+  quickLinksGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
+  },
+  quickLinkCard: {
+    width: '48%',
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickLinkIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  quickLinkText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+  },
+  eventCard: {
+    flexDirection: 'row',
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  eventImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  eventContent: {
+    flex: 1,
+  },
+  eventTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  eventDate: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  viewButton: {
+    paddingVertical: 6,
     paddingHorizontal: 16,
   },
-  cardWrapper: {
-    width: '100%',
-    marginBottom: 12,
-    flex: 0,
-  },
-  dashboardCard: {
-    height: 'auto',
-    minHeight: 160,
-  },
-  detailCol: {
-    flex: 1,
-    minWidth: 0,
-  },
-  detailDivider: {
-    width: 1,
-    alignSelf: 'stretch',
-    backgroundColor: '#232a2f',
+  viewButtonText: {
+    fontSize: 14,
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });
 

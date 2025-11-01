@@ -2,7 +2,8 @@ import 'react-native-get-random-values';
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import TabNavigator from './src/navigation/TabNavigation';
-import { SafeAreaView, StatusBar } from 'react-native';
+import { StatusBar, View, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { Colors } from './src/utils/Styles';
 import { ApplicationProvider } from './src/contexts/applicationContext';
@@ -78,25 +79,30 @@ function App() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: isSignedIn ? Colors.background : Colors.white }}>
+    <View style={{ flex: 1 }}>
       <StatusBar
-        backgroundColor={isSignedIn ? Colors.background : Colors.white}
-        barStyle={isSignedIn ? 'light-content' : 'dark-content'}
+        backgroundColor={Platform.OS === 'android' ? Colors.surface : Colors.background}
+        barStyle='dark-content'
+        translucent={false}
+        hidden={false}
+        animated={true}
       />
-      <StripeProvider publishableKey={'pk_test_51SBAG4FTlZb0wcbr19eI8nC5u62DfuaUWRVS51VTERBocxSM9JSEs4ubrW57hYTCAHK9d6jrarrT4SAViKFMqKjT00TrEr3PNV'}>
-        {isSignedIn ? (
-          <LookupProvider>
-            <ApplicationProvider>
-              <NavigationContainer>
-                <TabNavigator />
-              </NavigationContainer>
-            </ApplicationProvider>
-          </LookupProvider>
-        ) : (
-          <LandingPage onLoginPress={handleLogin} />)
-        }
-      </StripeProvider>
-    </SafeAreaView>
+      <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }} edges={['top']}>
+        <StripeProvider publishableKey={'pk_test_51SBAG4FTlZb0wcbr19eI8nC5u62DfuaUWRVS51VTERBocxSM9JSEs4ubrW57hYTCAHK9d6jrarrT4SAViKFMqKjT00TrEr3PNV'}>
+          {isSignedIn ? (
+            <LookupProvider>
+              <ApplicationProvider>
+                <NavigationContainer>
+                  <TabNavigator />
+                </NavigationContainer>
+              </ApplicationProvider>
+            </LookupProvider>
+          ) : (
+            <LandingPage onLoginPress={handleLogin} />)
+          }
+        </StripeProvider>
+      </SafeAreaView>
+    </View>
   );
 }
 

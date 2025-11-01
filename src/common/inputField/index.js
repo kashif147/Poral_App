@@ -51,7 +51,7 @@ export const InputField = ({
   ...props
 }) => {
   return (
-    <View style={[styles.textinputContainer, bgStyle, checkValue && { borderColor: Colors.red }]}>
+    <View style={[styles.textinputContainer, bgStyle, checkValue && { borderColor: Colors.red, borderWidth: 2 }]}>
       {sign && <Text style={styles.textStyle}> $ </Text>}
       {icon1 && <LocalSvg style={styles.svgStyle} asset={icon1} />}
       <TextInput
@@ -64,13 +64,13 @@ export const InputField = ({
           color: checkValue
             ? Colors.red
             : formData
-              ? Colors.white
+              ? Colors.textPrimary
               : editable
-                ? Colors.grey
-                : Colors.black,
+                ? Colors.textSecondary
+                : Colors.textPrimary,
         }}
         value={value}
-        selectionColor={Colors.gray}
+        selectionColor={Colors.primary}
         {...props}
         keyboardType={keyboardType}
         secureTextEntry={secureTextEntry}
@@ -78,7 +78,7 @@ export const InputField = ({
         multiline={multiline}
         placeholder={placeholder}
         placeholderTextColor={
-          holderTextColor ? holderTextColor : Colors.grey500
+          holderTextColor ? holderTextColor : Colors.textSecondary
         }
         autoCapitalize={
           keyboardType === 'email-address'

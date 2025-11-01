@@ -33,14 +33,16 @@ const Picker = forwardRef(({ style, itemStyle, containerStyle, enabled = true, s
   // Default text styling that matches InputField
   const defaultItemStyle = {
     ...form.inputText,
-    color: Colors.black,
+    color: Colors.textPrimary,
+    fontSize: 15,
   };
 
   // Default picker styling - matches InputField text styling
   const defaultStyle = {
     ...form.inputText,
-    color: Colors.black,
+    color: Colors.textPrimary,
     flex: 1,
+    fontSize: 15,
   };
 
   // Container styling - matches InputField container
@@ -48,7 +50,7 @@ const Picker = forwardRef(({ style, itemStyle, containerStyle, enabled = true, s
     ...form.inputBG,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 50,
+    minHeight: 52,
   };
 
   // iOS: Show as touchable with modal
@@ -177,9 +179,9 @@ const iosStyles = StyleSheet.create({
   },
   dropdownIcon: {
     fontSize: 12,
-    color: Colors.black,
+    color: Colors.textSecondary,
     paddingRight: 12,
-    opacity: 0.6,
+    opacity: 0.8,
   },
 });
 

@@ -39,8 +39,9 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
   ), [secondarySectionLookups]);
 
   return (
-    <View style={{ backgroundColor: Colors.surface }}>
-      <Text style={styles.sectionTitle}>Subscription Details</Text>
+    <View style={{ backgroundColor: Colors.cardBackground, paddingBottom: 20 }}>
+      <Text style={styles.sectionHeader}>Subscription Details</Text>
+      <Text style={styles.sectionSubtitle}>Complete your subscription information.</Text>
       {/* Payment Type & Payroll No */}
       {/* <View style={styles.row}> */}
       <View style={styles.halfInput}>
@@ -290,18 +291,32 @@ const SubscriptionDetails = ({ formData, onFormDataChange, showValidation }) => 
 };
 
 const styles = StyleSheet.create({
+  sectionHeader: {
+    color: Colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  sectionSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    marginBottom: 24,
+  },
   sectionTitle: { 
-    color: Colors.white,
-    fontWeight: 'bold', 
+    color: Colors.textPrimary,
+    fontWeight: '600', 
     fontSize: 16, 
-    marginTop: 8, 
-    marginBottom: 8 
+    marginTop: 20, 
+    marginBottom: 12,
+    letterSpacing: 0.2,
   },
   label: { 
-    fontWeight: 'bold', 
-    marginTop: 8, 
-    marginBottom: 4,
-    color: '#E5F9F4'
+    fontWeight: '500', 
+    fontSize: 14,
+    marginTop: 16, 
+    marginBottom: 8,
+    color: Colors.textPrimary,
+    letterSpacing: 0.2,
   },
   row: { 
     flexDirection: 'row', 
@@ -310,14 +325,10 @@ const styles = StyleSheet.create({
   },
   halfInput: { 
     width: '100%',
-    marginBottom: 8
+    marginBottom: 4
   },
-  inputField: {
-    marginBottom: 8
-  },
-  pickerField: {
-    marginBottom: 8
-  },
+  inputField: { marginBottom: 4 },
+  pickerField: { marginBottom: 4 },
   radioRow: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -346,7 +357,7 @@ const styles = StyleSheet.create({
   },
   checkboxRow: { 
     flexDirection: 'column', 
-    marginTop: 8 
+    marginTop: 16
   },
   checkboxCol: { 
     flex: 1 
@@ -362,7 +373,9 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'left',
     lineHeight: 18,
-    color: '#E5F9F4'
+    fontSize: 14,
+    color: Colors.textPrimary,
+    fontWeight: '400',
   },
   checkboxBox: {
     width: 18,

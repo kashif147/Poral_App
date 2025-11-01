@@ -147,8 +147,9 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
   const isUndergraduateStudent = formData?.membershipCategory === 'undergraduate_student';
 
   return (
-    <View style={{ backgroundColor: Colors.surface }}>
-      <Text style={styles.sectionTitle}>Professional Details</Text>
+    <View style={{ backgroundColor: Colors.cardBackground, paddingBottom: 20 }}>
+      <Text style={styles.sectionHeader}>Professional Details</Text>
+      <Text style={styles.sectionSubtitle}>Tell us about your professional background.</Text>
       {/* Membership Category */}
       <Text style={styles.label}>Membership Category *</Text>
       <View style={styles.pickerField}>
@@ -360,18 +361,32 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
 };
 
 const styles = StyleSheet.create({
-  sectionTitle: { 
-    fontWeight: 'bold', 
-    fontSize: 16, 
-    marginTop: 8, 
+  sectionHeader: {
+    color: Colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 24,
     marginBottom: 8,
-    color: '#E5F9F4' 
+  },
+  sectionSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    marginBottom: 24,
+  },
+  sectionTitle: { 
+    fontWeight: '600', 
+    fontSize: 16, 
+    marginTop: 20, 
+    marginBottom: 12,
+    color: Colors.textPrimary,
+    letterSpacing: 0.2,
   },
   label: { 
-    fontWeight: 'bold', 
-    marginTop: 8, 
-    marginBottom: 4,
-    color: '#E5F9F4'
+    fontWeight: '500', 
+    fontSize: 14,
+    marginTop: 16, 
+    marginBottom: 8,
+    color: Colors.textPrimary,
+    letterSpacing: 0.2,
   },
   row: { 
     flexDirection: 'row', 
@@ -380,21 +395,16 @@ const styles = StyleSheet.create({
   },
   halfInput: { 
     width: '100%',
-    marginBottom: 8
+    marginBottom: 4
   },
-  inputField: {
-    marginBottom: 8
-  },
-  pickerField: {
-    marginBottom: 8
-  },
-  switchRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    marginTop: 6, 
-    marginBottom: 8,
-    flex: 1 
+  inputField: { marginBottom: 4 },
+  pickerField: { marginBottom: 4 },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingVertical: 4,
   },
   radioRow: { 
     flexDirection: 'row', 

@@ -138,7 +138,7 @@ export const DatePicker = ({
   return (
     <View style={{ marginBottom: 8 }}>
       {label ? (
-        <Text style={{ fontWeight: 'bold', marginBottom: 4, color: isEmpty ? 'red' : Colors.white }}>
+        <Text style={{ fontWeight: '600', fontSize: 14, marginTop: 12, marginBottom: 8, color: isEmpty ? Colors.red : Colors.textPrimary }}>
           {label} {required ? '*' : ''} {isEmpty ? '(Required)' : ''}
         </Text>
       ) : null}
@@ -151,25 +151,34 @@ export const DatePicker = ({
           editable={!disabled}
           keyboardType="numeric"
           style={{
-            borderWidth: 1,
-            borderColor: isEmpty || error ? 'red' : '#E7E7E7',
-            borderRadius: 8,
-            paddingVertical: 10,
-            paddingHorizontal: 12,
-            color: '#111',
-            backgroundColor: Colors.grey300,
-            height: 48,
+            borderWidth: isEmpty || error ? 2 : 1.5,
+            borderColor: isEmpty || error ? Colors.red : '#E5E5E5',
+            borderRadius: 12,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            paddingRight: 48,
+            color: Colors.textPrimary,
+            backgroundColor: Colors.white,
+            height: 52,
+            fontSize: 15,
+            fontWeight: '400',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
           }}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={Colors.textSecondary}
         />
         <Pressable
           onPress={() => !disabled && setOpen(true)}
-          style={{ position: 'absolute', right: 10, top: 10, padding: 8 }}
+          style={{ position: 'absolute', right: 12, top: 12, padding: 4 }}
+          disabled={disabled}
         >
-          <Text style={{ fontSize: 16 }}>📅</Text>
+          <Text style={{ fontSize: 20, opacity: disabled ? 0.5 : 1 }}>📅</Text>
         </Pressable>
       </View>
-      {!!error && <Text style={{ color: 'red', marginTop: 4 }}>{error}</Text>}
+      {!!error && <Text style={{ color: Colors.red, marginTop: 6, fontSize: 13 }}>{error}</Text>}
       {open && (
         Platform.OS === 'android' ? (
           <RNDateTimePicker

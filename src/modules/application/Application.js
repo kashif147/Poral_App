@@ -8,6 +8,8 @@ import { Colors, commonStyles, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
 import SubscriptionPaymentModal from './components/SubscriptionPaymentModal';
 import { useApplication } from '../../contexts/applicationContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 import {
   fetchPersonalDetail,
   fetchProfessionalDetail,
@@ -21,9 +23,9 @@ import {
 } from '../../api/application.api';
 
 const steps = [
-  { number: 1, title: 'Personal Information' },
-  { number: 2, title: 'Professional Details' },
-  { number: 3, title: 'Subscription Details' },
+  { number: 1, title: 'Personal' },
+  { number: 2, title: 'Professional' },
+  { number: 3, title: 'Subscription' },
 ];
 
 const initialFormData = {
@@ -56,6 +58,7 @@ const initialFormData = {
 
 const Application = () => {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -736,14 +739,22 @@ const Application = () => {
   console.log('💳 Payment modal visible:', isModalVisible);
 
   return (
-    <Wrapper style={commonStyles.screenContainer} title={'Application'} showBack={false}>
+    <View style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
+        {/* Header */}
+        <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
+          <Text style={styles.headerTitle}>Application</Text>
+          <View style={styles.avatarContainer}>
+            <Ionicons name="person" size={20} color={Colors.white} />
+          </View>
+        </View>
+
         {/* Stepper */}
-        <View style={[styles.stepperRow, { width: '100%', marginBottom: width * 0.06 }]}>
+        <View style={[styles.stepperRow, { width: '100%', marginBottom: width * 0.04, paddingHorizontal: 20 }]}>
           {steps.map((step, idx) => (
             <React.Fragment key={step.number}>
               <View style={styles.stepperItemContainer}>
@@ -751,26 +762,28 @@ const Application = () => {
                   style={[
                     styles.stepCircle,
                     {
-                      width: Math.max(36, width * 0.09), height: Math.max(36, width * 0.09), borderRadius: Math.max(18, width * 0.045),
+                      width: Math.max(40, width * 0.1), 
+                      height: Math.max(40, width * 0.1), 
+                      borderRadius: Math.max(20, width * 0.05),
                       shadowColor: '#000',
                       shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.15,
+                      shadowOpacity: 0.08,
                       shadowRadius: 4,
-                      elevation: 4,
-                      borderWidth: currentStep === step.number ? 3 : 1,
-                      borderColor: currentStep === step.number ? '#007bff' : '#e0e0e0',
+                      elevation: 3,
+                      borderWidth: currentStep === step.number ? 2 : 0,
+                      borderColor: currentStep === step.number ? Colors.primary : 'transparent',
                       backgroundColor: currentStep === step.number
-                        ? '#fff'
+                        ? Colors.primary
                         : currentStep > step.number
-                          ? '#28a745'
-                          : '#e0e0e0',
+                          ? Colors.primary
+                          : '#E5E5E5',
                     },
                   ]}
                 >
                   <Text style={{
-                    color: currentStep === step.number ? '#007bff' : '#fff',
+                    color: (currentStep === step.number || currentStep > step.number) ? Colors.white : '#999999',
                     fontWeight: 'bold',
-                    fontSize: Math.max(14, width * 0.038),
+                    fontSize: Math.max(16, width * 0.04),
                   }}>
                     {(() => {
                       if (isSubmitted && step.number === 3) {
@@ -784,12 +797,12 @@ const Application = () => {
                   </Text>
                 </View>
                 <Text style={{
-                  fontSize: Math.max(10, width * 0.025),
-                  color: currentStep === step.number ? Colors.white : '#888',
-                  fontWeight: currentStep === step.number ? 'bold' : 'normal',
-                  marginTop: 8,
+                  fontSize: Math.max(10, width * 0.027),
+                  color: currentStep === step.number ? Colors.textPrimary : Colors.textSecondary,
+                  fontWeight: currentStep === step.number ? '600' : 'normal',
+                  marginTop: 6,
                   textAlign: 'center',
-                  width: Math.max(60, width * 0.18),
+                  width: Math.max(70, width * 0.22),
                 }}>
                   {String(step.title)}
                 </Text>
@@ -797,7 +810,7 @@ const Application = () => {
               {idx < steps.length - 1 && (
                 <View style={[
                   styles.stepConnector,
-                  { backgroundColor: currentStep > step.number ? '#28a745' : '#e0e0e0', width: Math.max(30, width * 0.13) }
+                  { backgroundColor: currentStep > step.number ? Colors.primary : '#E5E5E5', width: Math.max(20, width * 0.08) }
                 ]} />
               )}
             </React.Fragment>
@@ -810,7 +823,9 @@ const Application = () => {
             renderItem={() => (
               <>
                 {/* Step Content */}
-                <View style={[styles.card, { borderRadius: width * 0.02, backgroundColor: Colors.surface }]}> {renderStepContent()} </View>
+                <View style={[styles.card, { borderRadius: 16, backgroundColor: Colors.cardBackground, marginHorizontal: 20 }]}>
+                  {renderStepContent()}
+                </View>
                 {/* Payment Modal (Stripe) */}
                 <SubscriptionPaymentModal
                   visible={isModalVisible}
@@ -825,8 +840,8 @@ const Application = () => {
             )}
             keyExtractor={(item) => item.key}
             contentContainerStyle={[styles.container, { 
-              paddingBottom: isKeyboardVisible ? hp(20) : hp(12),
-              backgroundColor: Colors.surface
+              paddingBottom: isKeyboardVisible ? hp(20) : hp(14),
+              backgroundColor: Colors.background
             }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -838,37 +853,85 @@ const Application = () => {
           <View style={[styles.buttonRow, {
             position: 'absolute',
             bottom: hp(2),
-            left: 16,
-            right: 16,
+            left: 0,
+            right: 0,
             zIndex: 1000,
             backgroundColor: 'transparent',
-            paddingHorizontal: 16,
+            paddingHorizontal: 20,
           }]}>
             <Button
               title="← Previous"
               onPress={handlePrevious}
               disabled={currentStep === 1}
-              outlined={currentStep === 1}
-              textStyle={{ fontSize: hp(2) }}
-              style={{ flex: 1, marginRight: 12 }}
+              outlined={true}
+              textStyle={{ fontSize: hp(2), color: currentStep === 1 ? '#999999' : Colors.primary }}
+              style={{ 
+                flex: 1, 
+                marginRight: 8,
+                backgroundColor: 'transparent',
+                borderColor: currentStep === 1 ? '#E5E5E5' : Colors.primary,
+                borderWidth: 2,
+                borderRadius: 12,
+              }}
             />
             <Button
               title={currentStep === steps.length ? 'Submit' : 'Continue →'}
               onPress={currentStep === steps.length ? handleSubmit : handleNext}
               primary
-              textStyle={{ fontSize: hp(2) }}
-              style={{ flex: 1, marginLeft: 12 }}
+              textStyle={{ fontSize: hp(2), color: Colors.white, fontWeight: '600' }}
+              style={{ 
+                flex: 1, 
+                marginLeft: 8,
+                backgroundColor: Colors.primary,
+                borderRadius: 12,
+              }}
             />
           </View>
         )}
       </KeyboardAvoidingView>
-    </Wrapper>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: Colors.background, flexGrow: 1 },
-  title: { fontWeight: 'bold', marginBottom: 16 },
+  container: { 
+    backgroundColor: Colors.background, 
+    flexGrow: 1,
+    paddingTop: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 16,
+    backgroundColor: Colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    letterSpacing: 0.3,
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5A77B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: { 
+    fontWeight: 'bold', 
+    marginBottom: 16,
+    color: Colors.textPrimary,
+  },
   stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -886,21 +949,36 @@ const styles = StyleSheet.create({
   stepCircle: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e0e0e0',
   },
   stepConnector: {
-    height: 3,
+    height: 2,
     alignSelf: 'center',
-    borderRadius: 2,
+    borderRadius: 1,
     marginHorizontal: 2,
   },
-  card: { marginBottom: 16 },
+  card: { 
+    marginBottom: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { backgroundColor: '#fff', alignItems: 'center' },
+  modalContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0,0,0,0.5)' 
+  },
+  modalContent: { 
+    backgroundColor: '#fff', 
+    alignItems: 'center' 
+  },
 });
 
 export default Application;
