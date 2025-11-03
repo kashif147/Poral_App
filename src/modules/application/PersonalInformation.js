@@ -42,10 +42,6 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       }).filter(Boolean)
     : [];
 
-    console.log('🌍 countryOptions=========>', countryOptions);
-    console.log('👤 genderOptions=========>', genderOptions);
-    console.log('👔 titleOptions=========>', titleOptions);
-
   return (
     <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
       {/* Section Header */}
@@ -53,7 +49,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
       <Text style={styles.sectionSubtitle}>Let's start with the basics.</Text>
       
       {/* Basic Information Card */}
-      <View style={{}}>
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>Basic Information</Text>
         
         {/* Title */}
@@ -70,9 +66,6 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
             ))}
           </Picker>
         </View>
-
-        {/* Surname & Forename - two columns */}
-        <View style={styles.row}>
           <View style={styles.halfCol}>
             <Text style={styles.label}>Surname *</Text>
             <View style={styles.inputField}>
@@ -95,7 +88,7 @@ const PersonalInformation = ({ formData, onFormDataChange, showValidation }) => 
               />
             </View>
           </View>
-        </View>
+        {/* </View> */}
 
         {/* Gender - Button Style */}
         <Text style={styles.label}>Gender *</Text>
@@ -523,7 +516,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   halfCol: {
-    width: '48%',
+    width: '100%',
     marginRight: 8,
     marginBottom: 4
   },

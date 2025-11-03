@@ -826,6 +826,57 @@ const Application = () => {
                 <View style={[ { borderRadius: 16, backgroundColor: Colors.cardBackground, marginHorizontal: 20 }]}>
                   {renderStepContent()}
                 </View>
+                
+                {/* Navigation Buttons - Hide when keyboard is visible */}
+                {!isKeyboardVisible && (
+                  <View style={{
+                    backgroundColor: Colors.background,
+                    paddingHorizontal: 20,
+                    paddingTop: 20,
+                    paddingBottom: 8,
+                  }}>
+                    <View style={styles.buttonRow}>
+                      <Button
+                        title={currentStep === 1 ? "Save Draft" : "Previous"}
+                        onPress={handlePrevious}
+                        disabled={false}
+                        outlined={true}
+                        textStyle={{ 
+                          fontSize: 16, 
+                          color: Colors.textPrimary,
+                          fontWeight: '600',
+                        }}
+                        style={{ 
+                          flex: 1, 
+                          marginRight: 8,
+                          backgroundColor: '#E8EEF7',
+                          borderColor: '#E8EEF7',
+                          borderWidth: 0,
+                          borderRadius: 25,
+                          height: 56,
+                        }}
+                      />
+                      <Button
+                        title={currentStep === steps.length ? 'Submit' : 'Next Step'}
+                        onPress={currentStep === steps.length ? handleSubmit : handleNext}
+                        primary
+                        textStyle={{ 
+                          fontSize: 16, 
+                          color: Colors.white, 
+                          fontWeight: '600',
+                        }}
+                        style={{ 
+                          flex: 1, 
+                          marginLeft: 8,
+                          backgroundColor: '#4CAF50',
+                          borderRadius: 25,
+                          height: 56,
+                        }}
+                      />
+                    </View>
+                  </View>
+                )}
+                
                 {/* Payment Modal (Stripe) */}
                 <SubscriptionPaymentModal
                   visible={isModalVisible}
@@ -840,54 +891,13 @@ const Application = () => {
             )}
             keyExtractor={(item) => item.key}
             contentContainerStyle={[styles.container, { 
-              paddingBottom: isKeyboardVisible ? hp(20) : hp(14),
+              paddingBottom: isKeyboardVisible ? hp(20) : hp(3),
               backgroundColor: Colors.background
             }]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           />
         </View>
-        
-        {/* Navigation Buttons - Hide when keyboard is visible */}
-        {!isKeyboardVisible && (
-          <View style={[styles.buttonRow, {
-            position: 'absolute',
-            bottom: hp(2),
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            backgroundColor: 'transparent',
-            paddingHorizontal: 20,
-          }]}>
-            <Button
-              title="← Previous"
-              onPress={handlePrevious}
-              disabled={currentStep === 1}
-              outlined={true}
-              textStyle={{ fontSize: hp(2), color: currentStep === 1 ? '#999999' : Colors.primary }}
-              style={{ 
-                flex: 1, 
-                marginRight: 8,
-                backgroundColor: 'transparent',
-                borderColor: currentStep === 1 ? '#E5E5E5' : Colors.primary,
-                borderWidth: 2,
-                borderRadius: 12,
-              }}
-            />
-            <Button
-              title={currentStep === steps.length ? 'Submit' : 'Continue →'}
-              onPress={currentStep === steps.length ? handleSubmit : handleNext}
-              primary
-              textStyle={{ fontSize: hp(2), color: Colors.white, fontWeight: '600' }}
-              style={{ 
-                flex: 1, 
-                marginLeft: 8,
-                backgroundColor: Colors.primary,
-                borderRadius: 12,
-              }}
-            />
-          </View>
-        )}
       </KeyboardAvoidingView>
     </View>
   );
