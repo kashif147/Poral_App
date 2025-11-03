@@ -13,11 +13,15 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LocalSvg } from 'react-native-svg/css';
+import { useApplication } from '../../contexts/applicationContext';
+import { applicationConfirmationRequest } from '../../api/application.api';
 
 const DashBoard = () => {
   const navigation = useNavigation();
   const [userName, setUserName] = useState('User');
   const insets = useSafeAreaInsets();
+  const { personalDetail } = useApplication();
+  const [applicationStatus, setApplicationStatus] = useState(null);
 
   // Fetch user name from token or storage
   useEffect(() => {
@@ -48,6 +52,86 @@ const DashBoard = () => {
     
     fetchUserName();
   }, []);
+
+  // Fetch application status
+  useEffect(() => {
+    const checkApplicationStatus = async () => {
+      if (personalDetail?.ApplicationId) {
+        try {
+          console.log('📋 Checking application status for:', personalDetail.ApplicationId);
+          const response = await applicationConfirmationRequest(personalDetail.ApplicationId);
+          console.log('Application Status Response:', response);
+          
+          if (response?.status === 200 || response?.data?.status === 'success') {
+            const status = response?.data?.data?.applicationStatus || response?.data?.applicationStatus;
+            console.log('✅ Application status:', status);
+            setApplicationStatus(status || 'submitted'); // Default to 'submitted' if no status
+          } else {
+            // For testing: set default status
+            console.log('⚠️ No valid response, setting default status');
+            setApplicationStatus('submitted');
+          }
+        } catch (error) {
+          console.error('❌ Failed to fetch application status:', error);
+          // For testing: set default status even on error
+          setApplicationStatus('submitted');
+        }
+      } else {
+        // For testing: show card even without ApplicationId
+        console.log('⚠️ No ApplicationId, setting default status for testing');
+        setApplicationStatus('submitted');
+      }
+    };
+
+    checkApplicationStatus();
+  }, [personalDetail?.ApplicationId]);
+
+  // Get application status display info
+  const getStatusInfo = (status) => {
+    const statusMap = {
+      'submitted': {
+        label: 'Submitted',
+        sublabel: 'Completed on Jan 12, 2024',
+        icon: 'checkmark-circle',
+        iconColor: Colors.primary,
+        iconBg: '#E8F0FE',
+        status: 'completed'
+      },
+      'in_review': {
+        label: 'In Review',
+        sublabel: 'Current Step',
+        icon: 'reload-circle',
+        iconColor: '#FFA500',
+        iconBg: '#FFF4E6',
+        status: 'current'
+      },
+      'approved': {
+        label: 'Approved',
+        sublabel: 'Pending',
+        icon: 'lock-closed',
+        iconColor: '#94A3B8',
+        iconBg: '#F1F5F9',
+        status: 'pending'
+      },
+      'pending': {
+        label: 'Pending Review',
+        sublabel: 'Waiting for approval',
+        icon: 'time',
+        iconColor: '#FFA500',
+        iconBg: '#FFF4E6',
+        status: 'current'
+      },
+      'rejected': {
+        label: 'Rejected',
+        sublabel: 'Please contact support',
+        icon: 'close-circle',
+        iconColor: '#EF4444',
+        iconBg: '#FEE2E2',
+        status: 'rejected'
+      }
+    };
+    return statusMap[status] || statusMap['pending'];
+  };
 
   // Quick Links - 2x2 grid
   const quickLinks = [
@@ -131,6 +215,85 @@ const DashBoard = () => {
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>
+
+        {/* Application Status Card */}
+        {applicationStatus && (
+          <View style={styles.statusCard}>
+            <Text style={styles.statusCardTitle}>Your Application Status</Text>
+            <Text style={{ fontSize: 10, color: '#999', marginBottom: 8 }}>Status: {applicationStatus}</Text>
+            
+            {/* Status Timeline */}
+            <View style={styles.statusTimeline}>
+              {/* Submitted */}
+              <View style={styles.statusRow}>
+                <View style={styles.statusIconContainer}>
+                  <View style={[styles.statusIcon, { backgroundColor: '#E8F0FE' }]}>
+                    <Text style={styles.statusEmoji}>✓</Text>
+                  </View>
+                  {applicationStatus !== 'submitted' && <View style={styles.statusConnector} />}
+                </View>
+                <View style={styles.statusContent}>
+                  <Text style={styles.statusLabel}>Submitted</Text>
+                  <Text style={styles.statusSublabel}>Completed on Jan 12, 2024</Text>
+                </View>
+              </View>
+
+              {/* In Review */}
+              <View style={styles.statusRow}>
+                <View style={styles.statusIconContainer}>
+                  <View style={[
+                    styles.statusIcon,
+                    { backgroundColor: applicationStatus === 'in_review' || applicationStatus === 'approved' ? '#FFF4E6' : '#F1F5F9' }
+                  ]}>
+                    <Text style={[
+                      styles.statusEmoji,
+                      { color: applicationStatus === 'in_review' || applicationStatus === 'approved' ? '#FFA500' : '#94A3B8' }
+                    ]}>⟳</Text>
+                  </View>
+                  {applicationStatus !== 'in_review' && applicationStatus !== 'approved' && (
+                    <View style={[styles.statusConnector, { backgroundColor: '#E5E5E5' }]} />
+                  )}
+                  {(applicationStatus === 'in_review' || applicationStatus === 'approved') && (
+                    <View style={styles.statusConnector} />
+                  )}
+                </View>
+                <View style={styles.statusContent}>
+                  <Text style={[styles.statusLabel, applicationStatus === 'in_review' && { color: Colors.primary }]}>
+                    In Review
+                  </Text>
+                  {applicationStatus === 'in_review' && (
+                    <Text style={[styles.statusSublabel, { color: Colors.primary, fontWeight: '600' }]}>
+                      Current Step
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              {/* Approved */}
+              <View style={styles.statusRow}>
+                <View style={styles.statusIconContainer}>
+                  <View style={[
+                    styles.statusIcon,
+                    { backgroundColor: applicationStatus === 'approved' ? '#10B981' : '#F1F5F9' }
+                  ]}>
+                    <Text style={[
+                      styles.statusEmoji,
+                      { color: applicationStatus === 'approved' ? '#FFFFFF' : '#94A3B8' }
+                    ]}>{applicationStatus === 'approved' ? '✓' : '🔒'}</Text>
+                  </View>
+                </View>
+                <View style={styles.statusContent}>
+                  <Text style={[styles.statusLabel, applicationStatus === 'approved' && { color: '#10B981' }]}>
+                    {applicationStatus === 'approved' ? 'Approved' : 'Approved'}
+                  </Text>
+                  {applicationStatus !== 'approved' && (
+                    <Text style={styles.statusSublabel}>Pending</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Featured Card - Annual General Meeting */}
         <View style={styles.featuredCard}>
@@ -401,6 +564,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.primary,
     fontWeight: '600',
+  },
+  statusCard: {
+    margin: 20,
+    marginTop: 16,
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  statusCardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    marginBottom: 20,
+  },
+  statusTimeline: {
+    paddingLeft: 8,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+  },
+  statusIconContainer: {
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  statusIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusEmoji: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  statusConnector: {
+    width: 2,
+    height: 32,
+    backgroundColor: Colors.primary,
+    marginTop: 4,
+  },
+  statusContent: {
+    flex: 1,
+    paddingTop: 4,
+  },
+  statusLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  statusSublabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
 });
 
