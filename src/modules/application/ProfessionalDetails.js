@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+} from 'react-native';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import CustomSwitch from '../../common/switch';
@@ -7,13 +13,7 @@ import { Colors, wp } from '../../utils/Styles';
 import { useLookup } from '../../contexts/lookupContext';
 import { DatePicker } from '../../common/DatePicker';
 
-const grades = [
-  'Junior',
-  'Senior',
-  'Lead',
-  'Manager',
-  'Other',
-];
+const grades = ['Junior', 'Senior', 'Lead', 'Manager', 'Other'];
 
 const nurseTypes = [
   'General Nurse',
@@ -24,43 +24,56 @@ const nurseTypes = [
   'Registered Nurse for Intellectual Disability',
 ];
 
-const studyLocations = [
-  'Location 1',
-  'Location 2',
-  'Location 3',
-];
+const studyLocations = ['Location 1', 'Location 2', 'Location 3'];
 
 // Fallback categories in case API is slow or fails
 const fallbackCategories = [
   { value: 'general', label: 'General (all grades)' },
   { value: 'postgraduate_student', label: 'Postgraduate Student' },
-  { value: 'short_term_relief', label: 'Short-term/ Relief (under 15 hrs/wk average)' },
+  {
+    value: 'short_term_relief',
+    label: 'Short-term/ Relief (under 15 hrs/wk average)',
+  },
   { value: 'private_nursing_home', label: 'Private nursing home' },
   { value: 'affiliate_members', label: 'Affiliate members (non-practicing)' },
-  { value: 'lecturing', label: 'Lecturing (employed in universities and IT institutes)' },
-  { value: 'associate', label: 'Associate (not currently employed as a nurse/midwife)' },
+  {
+    value: 'lecturing',
+    label: 'Lecturing (employed in universities and IT institutes)',
+  },
+  {
+    value: 'associate',
+    label: 'Associate (not currently employed as a nurse/midwife)',
+  },
   { value: 'retired_associate', label: 'Retired Associate' },
   { value: 'undergraduate_student', label: 'Undergraduate Student' },
 ];
 
-const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => {
+const ProfessionalDetails = ({
+  formData,
+  onFormDataChange,
+  showValidation,
+}) => {
   const lookupContext = useLookup();
-  const { 
-    workLocationLookups, 
-    fetchWorkLocationLookups, 
-    categoryLookups, 
-    fetchCategoryLookups 
+  const {
+    workLocationLookups,
+    fetchWorkLocationLookups,
+    categoryLookups,
+    fetchCategoryLookups,
   } = lookupContext || {};
 
   // Ensure these are always arrays
-  const safeWorkLocationLookups = Array.isArray(workLocationLookups) ? workLocationLookups : [];
-  const safeCategoryLookups = Array.isArray(categoryLookups) ? categoryLookups : [];
+  const safeWorkLocationLookups = Array.isArray(workLocationLookups)
+    ? workLocationLookups
+    : [];
+  const safeCategoryLookups = Array.isArray(categoryLookups)
+    ? categoryLookups
+    : [];
 
   useEffect(() => {
     console.log('ProfessionalDetails mounted');
     console.log('Initial work locations:', safeWorkLocationLookups?.length);
     console.log('Initial categories:', safeCategoryLookups?.length);
-    
+
     if (safeWorkLocationLookups.length === 0) {
       console.log('Fetching work locations...');
       fetchWorkLocationLookups?.();
@@ -85,14 +98,28 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
     if (safeCategoryLookups.length === 0) {
       // Return fallback categories while loading or if API fails
       console.log('Using fallback categories');
+      console.log('Fallback categories:', fallbackCategories);
       return fallbackCategories;
     }
     console.log('Category lookups available:', safeCategoryLookups.length);
-    return safeCategoryLookups.map(item => {
-      const value = item?.id || item?._id || item?.code || item?.value || item?.name || item?.productType?.name;
-      const label = item?.name || item?.DisplayName || item?.label || item?.productType?.name || value;
+    const mapped = safeCategoryLookups.map(item => {
+      const value =
+        item?.id ||
+        item?._id ||
+        item?.code ||
+        item?.value ||
+        item?.name ||
+        item?.productType?.name;
+      const label =
+        item?.name ||
+        item?.DisplayName ||
+        item?.label ||
+        item?.productType?.name ||
+        value;
       return { value: String(value || ''), label: String(label || '') };
     });
+    console.log('Mapped categories:', mapped);
+    return mapped;
   }, [safeCategoryLookups]);
 
   const workLocationNames = useMemo(() => {
@@ -101,57 +128,94 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
       console.log('No work locations available, returning default');
       return ['Other'];
     }
-    
+
     // Try multiple possible data structures
     const names = safeWorkLocationLookups
       .map(i => {
         // Try different possible structures
-        return i?.lookup?.DisplayName || 
-               i?.lookup?.lookupname || 
-               i?.DisplayName || 
-               i?.lookupname || 
-               i?.name ||
-               i?.label;
+        return (
+          i?.lookup?.DisplayName ||
+          i?.lookup?.lookupname ||
+          i?.DisplayName ||
+          i?.lookupname ||
+          i?.name ||
+          i?.label
+        );
       })
       .filter(Boolean);
-    
+
     console.log('Extracted work location names:', names);
     return [...names, 'Other'];
   }, [safeWorkLocationLookups]);
 
-  const handleWorkLocationChange = (val) => {
+  const handleWorkLocationChange = val => {
     console.log('Work location changed to:', val);
     const selected = safeWorkLocationLookups.find(i => {
-      const itemName = i?.lookup?.DisplayName || 
-                      i?.lookup?.lookupname || 
-                      i?.DisplayName || 
-                      i?.lookupname || 
-                      i?.name ||
-                      i?.label;
+      const itemName =
+        i?.lookup?.DisplayName ||
+        i?.lookup?.lookupname ||
+        i?.DisplayName ||
+        i?.lookupname ||
+        i?.name ||
+        i?.label;
       return itemName === val;
     });
-    
+
     console.log('Selected work location item:', selected);
-    
+
     onFormDataChange({
       ...formData,
       workLocation: val,
-      branch: selected ? (selected?.branch?.DisplayName || selected?.branch?.lookupname || selected?.branch?.name || '') : '',
-      region: selected ? (selected?.region?.DisplayName || selected?.region?.lookupname || selected?.region?.name || '') : '',
+      branch: selected
+        ? selected?.branch?.DisplayName ||
+          selected?.branch?.lookupname ||
+          selected?.branch?.name ||
+          ''
+        : '',
+      region: selected
+        ? selected?.region?.DisplayName ||
+          selected?.region?.lookupname ||
+          selected?.region?.name ||
+          ''
+        : '',
       ...(val !== 'Other' ? { otherWorkLocation: '' } : {}),
     });
   };
 
   const adaptationYes = formData?.nursingAdaptationProgramme === 'yes';
-  const isRetired = !!formData?.isRetired || formData?.membershipCategory === 'Retired Associate';
-  const isUndergraduateStudent = formData?.membershipCategory === 'undergraduate_student';
+
+  // Find the selected category by ID or value to get its label
+  const selectedCategory = membershipCategoryOptions.find(
+    cat => cat.value === formData?.membershipCategory,
+  );
+  const selectedCategoryLabel = (
+    selectedCategory?.label ||
+    formData?.membershipCategory ||
+    ''
+  ).toLowerCase();
+
+  // More flexible checks - check both value and label, case-insensitive
+  const membershipCategoryLower = (
+    formData?.membershipCategory || ''
+  ).toLowerCase();
+  const isRetired =
+    !!formData?.isRetired ||
+    selectedCategoryLabel.includes('retired') ||
+    membershipCategoryLower.includes('retired') ||
+    formData?.membershipCategory === 'Retired Associate' ||
+    formData?.membershipCategory === 'retired_associate';
+  const isUndergraduateStudent =
+    selectedCategoryLabel.includes('undergraduate') ||
+    membershipCategoryLower.includes('undergraduate') ||
+    formData?.membershipCategory === 'undergraduate_student' ||
+    formData?.membershipCategory === 'Undergraduate Student';
 
   return (
     <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
       {/* Membership Information Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Membership Information</Text>
-        
+
         {/* Membership Category */}
         <Text style={styles.label}>Membership Category *</Text>
         <View style={styles.pickerField}>
@@ -184,32 +248,70 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
                 }}
               >
                 <Picker.Item label="Select study location" value="" />
-                {studyLocations.map(loc => <Picker.Item key={loc} label={loc} value={loc} />)}
+                {studyLocations.map(loc => (
+                  <Picker.Item key={loc} label={loc} value={loc} />
+                ))}
               </Picker>
             </View>
 
             <Text style={styles.label}>Graduation Date</Text>
             <DatePicker
               value={formData.graduationDate}
-              onChange={date => onFormDataChange({ ...formData, graduationDate: date })}
+              onChange={date =>
+                onFormDataChange({ ...formData, graduationDate: date })
+              }
             />
+          </>
+        )}
+
+        {/* Conditional fields for Retired Associate */}
+        {isRetired && (
+          <>
+            <Text style={styles.label}>Retired Date</Text>
+            <View style={styles.inputField}>
+              <InputField
+                value={formData.retiredDate}
+                editable={true}
+                holderTextColor={'#94A3B8'}
+                onChange={text =>
+                  onFormDataChange({ ...formData, retiredDate: text })
+                }
+                placeholder="DD/MM/YYYY"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <Text style={styles.label}>Pension No</Text>
+            <View style={styles.inputField}>
+              <InputField
+                value={formData.pensionNo}
+                editable={true}
+                holderTextColor={'#94A3B8'}
+                onChange={text =>
+                  onFormDataChange({ ...formData, pensionNo: text })
+                }
+                placeholder="Enter your pension number"
+              />
+            </View>
           </>
         )}
       </View>
 
-      {/* Work Location Details Card */}
+      {/* Employment Details Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Work Location Details</Text>
-        
+        <Text style={styles.cardTitle}>Employment Details</Text>
+
         {/* Work Location */}
-        <Text style={styles.label}>Work Location {!isUndergraduateStudent && '*'}</Text>
+        <Text style={styles.label}>Work Location</Text>
         <View style={styles.pickerField}>
           <Picker
             selectedValue={formData.workLocation || ''}
             onValueChange={handleWorkLocationChange}
           >
-            <Picker.Item label="Select work location" value="" />
-            {workLocationNames.map(w => <Picker.Item key={w} label={w} value={w} />)}
+            <Picker.Item label="Select Location..." value="" />
+            {workLocationNames.map(w => (
+              <Picker.Item key={w} label={w} value={w} />
+            ))}
           </Picker>
         </View>
 
@@ -220,32 +322,74 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
             value={formData.otherWorkLocation}
             editable={formData.workLocation === 'Other'}
             holderTextColor={'#94A3B8'}
-            onChange={text => onFormDataChange({ ...formData, otherWorkLocation: text })}
-            placeholder="Enter your work other location"
+            onChange={text =>
+              onFormDataChange({ ...formData, otherWorkLocation: text })
+            }
+            placeholder="Enabled if 'Other' is selected"
           />
         </View>
 
         {/* Branch */}
         <Text style={styles.label}>Branch</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.branch}
-            editable={true}
-            holderTextColor={'#94A3B8'}
-            onChange={text => onFormDataChange({ ...formData, branch: text })}
-            placeholder="Branch (auto-filled)"
-          />
+        <View style={styles.pickerField}>
+          <Picker
+            selectedValue={formData.branch || ''}
+            onValueChange={val => {
+              if (val) {
+                onFormDataChange({ ...formData, branch: val });
+              }
+            }}
+          >
+            <Picker.Item label="Select Branch..." value="" />
+            <Picker.Item label={formData.branch || 'Auto-filled'} value={formData.branch || ''} />
+          </Picker>
         </View>
 
         {/* Region */}
         <Text style={styles.label}>Region</Text>
+        <View style={styles.pickerField}>
+          <Picker
+            selectedValue={formData.region || ''}
+            onValueChange={val => {
+              if (val) {
+                onFormDataChange({ ...formData, region: val });
+              }
+            }}
+          >
+            <Picker.Item label="Select Region..." value="" />
+            <Picker.Item label={formData.region || 'Auto-filled'} value={formData.region || ''} />
+          </Picker>
+        </View>
+
+        {/* Grade */}
+        <Text style={styles.label}>Grade</Text>
+        <View style={styles.pickerField}>
+          <Picker
+            selectedValue={formData.grade || ''}
+            onValueChange={val => {
+              if (val) {
+                onFormDataChange({ ...formData, grade: val });
+              }
+            }}
+          >
+            <Picker.Item label="Select Grade..." value="" />
+            {grades.map(g => (
+              <Picker.Item key={g} label={g} value={g} />
+            ))}
+          </Picker>
+        </View>
+
+        {/* Other Grade */}
+        <Text style={styles.label}>Other Grade</Text>
         <View style={styles.inputField}>
           <InputField
-            value={formData.region}
-            editable={true}
+            value={formData.otherGrade}
+            editable={formData.grade === 'Other'}
             holderTextColor={'#94A3B8'}
-            onChange={text => onFormDataChange({ ...formData, region: text })}
-            placeholder="Region (auto-filled)"
+            onChange={text =>
+              onFormDataChange({ ...formData, otherGrade: text })
+            }
+            placeholder="Enabled if 'Other' is selected"
           />
         </View>
       </View>
@@ -253,21 +397,47 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
       {/* Professional Credentials Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Professional Credentials</Text>
-        
+
         {/* Nursing adaptation programme */}
-        <Text style={styles.label}>Are you currently undertaking a nursing adaptation programme?</Text>
+        <Text style={styles.label}>
+          Are you currently undertaking a nursing adaptation programme?
+        </Text>
         <View style={styles.radioRow}>
           <TouchableOpacity
             style={[styles.radioButton, adaptationYes && styles.radioSelected]}
-            onPress={() => onFormDataChange({ ...formData, nursingAdaptationProgramme: 'yes' })}
+            onPress={() =>
+              onFormDataChange({
+                ...formData,
+                nursingAdaptationProgramme: 'yes',
+              })
+            }
           >
-            <Text style={[styles.radioLabel, adaptationYes && styles.radioLabelSelected]}>Yes</Text>
+            <Text
+              style={[
+                styles.radioLabel,
+                adaptationYes && styles.radioLabelSelected,
+              ]}
+            >
+              Yes
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.radioButton, !adaptationYes && styles.radioSelected]}
-            onPress={() => onFormDataChange({ ...formData, nursingAdaptationProgramme: 'no' })}
+            onPress={() =>
+              onFormDataChange({
+                ...formData,
+                nursingAdaptationProgramme: 'no',
+              })
+            }
           >
-            <Text style={[styles.radioLabel, !adaptationYes && styles.radioLabelSelected]}>No</Text>
+            <Text
+              style={[
+                styles.radioLabel,
+                !adaptationYes && styles.radioLabelSelected,
+              ]}
+            >
+              No
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -290,13 +460,21 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
             <TouchableOpacity
               key={type}
               style={[
-                styles.radioButton, 
-                formData.nurseType === type && styles.radioSelected, 
-                !adaptationYes && { opacity: 0.5 }
+                styles.radioButton,
+                formData.nurseType === type && styles.radioSelected,
+                !adaptationYes && { opacity: 0.5 },
               ]}
-              onPress={() => adaptationYes && onFormDataChange({ ...formData, nurseType: type })}
+              onPress={() =>
+                adaptationYes &&
+                onFormDataChange({ ...formData, nurseType: type })
+              }
             >
-              <Text style={[styles.radioLabel, formData.nurseType === type && styles.radioLabelSelected]}>
+              <Text
+                style={[
+                  styles.radioLabel,
+                  formData.nurseType === type && styles.radioLabelSelected,
+                ]}
+              >
                 {type}
               </Text>
             </TouchableOpacity>
@@ -304,69 +482,18 @@ const ProfessionalDetails = ({ formData, onFormDataChange, showValidation }) => 
         </View>
       </View>
 
-      {/* Grade & Status Card */}
+      {/* Retirement Status Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Grade & Status</Text>
-        
-        {/* Grade */}
-        <Text style={styles.label}>Grade *</Text>
-        <View style={styles.pickerField}>
-          <Picker
-            selectedValue={formData.grade || ''}
-            onValueChange={val => {
-              if (val) {
-                onFormDataChange({ ...formData, grade: val });
-              }
-            }}
-          >
-            <Picker.Item label="Select grade" value="" />
-            {grades.map(g => <Picker.Item key={g} label={g} value={g} />)}
-          </Picker>
-        </View>
-
-        {/* Other Grade */}
-        <Text style={styles.label}>Other Grade</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.otherGrade}
-            editable={formData.grade !== 'Other'}
-            holderTextColor={'#94A3B8'}
-            onChange={text => onFormDataChange({ ...formData, otherGrade: text })}
-            placeholder="Enter your other grade"
-          />
-        </View>
-
-        {/* Retired Date */}
-        <Text style={styles.label}>Retired Date</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.retiredDate}
-            editable={!(isRetired || formData.membershipCategory === 'Retired Associate')}
-            holderTextColor={'#94A3B8'}
-            onChange={text => onFormDataChange({ ...formData, retiredDate: text })}
-            placeholder="DD/MM/YYYY"
-            keyboardType="numeric"
-          />
-        </View>
+        <Text style={styles.cardTitle}>Retirement Status</Text>
 
         {/* Retired Switch */}
         <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>Retired</Text>
           <CustomSwitch
             value={!!formData.isRetired}
-            onValueChange={val => onFormDataChange({ ...formData, isRetired: val })}
-          />
-        </View>
-
-        {/* Pension No */}
-        <Text style={styles.label}>Pension No</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.pensionNo}
-            editable={!(isRetired || formData.membershipCategory === 'Retired Associate')}
-            holderTextColor={'#94A3B8'}
-            onChange={text => onFormDataChange({ ...formData, pensionNo: text })}
-            placeholder="Enter your pension number"
+            onValueChange={val =>
+              onFormDataChange({ ...formData, isRetired: val })
+            }
           />
         </View>
       </View>
@@ -406,18 +533,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 24,
   },
-  sectionTitle: { 
-    fontWeight: '600', 
-    fontSize: 16, 
-    marginTop: 20, 
+  sectionTitle: {
+    fontWeight: '600',
+    fontSize: 16,
+    marginTop: 20,
     marginBottom: 12,
     color: Colors.textPrimary,
     letterSpacing: 0.2,
   },
-  label: { 
-    fontWeight: '500', 
+  label: {
+    fontWeight: '500',
     fontSize: 14,
-    marginTop: 16, 
+    marginTop: 16,
     marginBottom: 8,
     color: Colors.textPrimary,
     letterSpacing: 0.2,
@@ -430,14 +557,14 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     lineHeight: 20,
   },
-  row: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center' 
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  halfInput: { 
+  halfInput: {
     width: '100%',
-    marginBottom: 4
+    marginBottom: 4,
   },
   inputField: { marginBottom: 4 },
   pickerField: { marginBottom: 4 },
@@ -448,36 +575,36 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 4,
   },
-  radioRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  radioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 6,
     gap: 12,
   },
-  radioGroup: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
+  radioGroup: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginBottom: 8,
     gap: 12,
   },
-  radioButton: { 
-    paddingVertical: 12, 
-    paddingHorizontal: 16, 
-    borderWidth: 1.5, 
-    borderColor: '#E5E5E5', 
+  radioButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
     backgroundColor: Colors.white,
-    borderRadius: 12, 
+    borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
-  radioSelected: { 
-    backgroundColor: Colors.primary, 
-    borderColor: Colors.primary 
+  radioSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
-  radioLabel: { 
+  radioLabel: {
     color: Colors.textPrimary,
     fontSize: 14,
     fontWeight: '500',
@@ -488,4 +615,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProfessionalDetails; 
+export default ProfessionalDetails;
