@@ -720,6 +720,7 @@ const Application = () => {
               formData={formData.subscriptionDetails}
               onFormDataChange={data => handleFormDataChange('subscriptionDetails', data)}
               showValidation={showValidation}
+              membershipCategory={formData.professionalDetails?.membershipCategory}
             />
           );
         default:
