@@ -1,43 +1,59 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Image, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { Colors, wp, hp } from '../../utils/Styles';
-import { Wrapper } from '../../common/wrapper';
-import { commonStyles } from '../../utils/Styles';
 import PersonalInformation from '../application/PersonalInformation';
 import { Button } from '../../common/button';
 import { useApplication } from '../../contexts/applicationContext';
 import { updatePersonalDetailRequest } from '../../api/application.api';
 import { format } from 'date-fns';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import CustomSwitch from '../../common/switch';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Profile = () => {
   const { personalDetail, getPersonalDetail } = useApplication();
   const applicationId = personalDetail?.ApplicationId;
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(false);
   const [personalInfo, setPersonalInfo] = useState({});
+  const [showPersonalInfoForm, setShowPersonalInfoForm] = useState(false);
+  
+  // Communication preferences state
+  const [emailNewsletter, setEmailNewsletter] = useState(true);
+  const [promotionalOffers, setPromotionalOffers] = useState(false);
+  const [pushNotifications, setPushNotifications] = useState(true);
 
-  // Hydrate local form state from context
+  // Hydrate local form state from context - matching PersonalInformation field names
   useEffect(() => {
     if (!personalDetail) return;
     setPersonalInfo({
+      // Basic Information
       title: personalDetail?.personalInfo?.title || '',
       surname: personalDetail?.personalInfo?.surname || '',
       forename: personalDetail?.personalInfo?.forename || '',
       gender: personalDetail?.personalInfo?.gender || '',
       dob: personalDetail?.personalInfo?.dateOfBirth || '',
-      countryPrimaryQualification: personalDetail?.personalInfo?.countryPrimaryQualification || '',
-      personalEmail: personalDetail?.contactInfo?.personalEmail || '',
-      mobileNo: personalDetail?.contactInfo?.mobileNumber || '',
+      primaryCountry: personalDetail?.personalInfo?.countryPrimaryQualification || '',
+      
+      // Consent
       consent: personalDetail?.contactInfo?.consent ?? true,
+      
+      // Address Information
       addressLine1: personalDetail?.contactInfo?.buildingOrHouse || '',
       addressLine2: personalDetail?.contactInfo?.streetOrRoad || '',
       addressLine3: personalDetail?.contactInfo?.areaOrTown || '',
       addressLine4: personalDetail?.contactInfo?.countyCityOrPostCode || '',
       eircode: personalDetail?.contactInfo?.eircode || '',
       preferredAddress: personalDetail?.contactInfo?.preferredAddress || '',
+      correspondenceCountry: personalDetail?.contactInfo?.country || '',
+      
+      // Contact Information
+      mobileNo: personalDetail?.contactInfo?.mobileNumber || '',
+      workTel: personalDetail?.contactInfo?.telephoneNumber || '',
       preferredEmail: personalDetail?.contactInfo?.preferredEmail || '',
-      homeWorkTelNo: personalDetail?.contactInfo?.telephoneNumber || '',
-      country: personalDetail?.contactInfo?.country || '',
+      personalEmail: personalDetail?.contactInfo?.personalEmail || '',
       workEmail: personalDetail?.contactInfo?.workEmail || '',
     });
   }, [personalDetail]);
@@ -60,7 +76,7 @@ const Profile = () => {
         forename: personalInfo.forename,
         gender: personalInfo.gender,
         dateOfBirth: personalInfo.dob,
-        countryPrimaryQualification: personalInfo.countryPrimaryQualification,
+        countryPrimaryQualification: personalInfo.primaryCountry,
       };
       personalInfoPayload.personalInfo = {};
       Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfoPayload.personalInfo[k] = v; });
@@ -72,9 +88,9 @@ const Profile = () => {
         streetOrRoad: personalInfo.addressLine2,
         areaOrTown: personalInfo.addressLine3,
         countyCityOrPostCode: personalInfo.addressLine4,
-        country: personalInfo.country,
+        country: personalInfo.correspondenceCountry,
         mobileNumber: personalInfo.mobileNo,
-        telephoneNumber: personalInfo.homeWorkTelNo,
+        telephoneNumber: personalInfo.workTel,
         preferredEmail: personalInfo.preferredEmail,
         personalEmail: personalInfo.personalEmail,
         workEmail: personalInfo.workEmail,
@@ -87,6 +103,7 @@ const Profile = () => {
       if (res?.status === 200) {
         Alert.alert('Success', 'Personal detail updated');
         getPersonalDetail?.();
+        setShowPersonalInfoForm(false);
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update personal detail');
       }
@@ -98,73 +115,421 @@ const Profile = () => {
   };
 
   return (
-    <Wrapper style={commonStyles.screenContainer} title={'Profile'} showBack={false}>
+    <View style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
-        <ScrollView contentContainerStyle={{ paddingVertical: 16, paddingBottom: hp(8), gap: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          {/* Header card */}
-          <View style={styles.cardHeader}>
-            <View style={styles.avatarCircle}>
-              <Text style={{ color: Colors.white, fontWeight: '700', fontSize: hp(2.2) }}>
-                {String(personalInfo?.forename || 'U').charAt(0)}
-              </Text>
+        {/* Header - Matching Application.js */}
+        <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <View style={styles.headerAvatarContainer}>
+            <Ionicons name="person" size={20} color={Colors.white} />
+          </View>
+        </View>
+
+        <ScrollView contentContainerStyle={{ paddingBottom: hp(12) }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          
+          {/* Profile Header Card */}
+          <View style={styles.profileHeader}>
+            <View style={styles.avatarContainer}>
+              <Image 
+                source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} 
+                style={styles.avatar}
+              />
+              <TouchableOpacity style={styles.editBadge}>
+                <Ionicons name="pencil" size={14} color={Colors.white} />
+              </TouchableOpacity>
             </View>
-            <View style={{ marginLeft: 12, flex: 1 }}>
-              <Text style={styles.nameText}>{`${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || '—'}</Text>
-              <Text style={styles.subText}>{personalInfo?.personalEmail || personalInfo?.workEmail || 'No email'}</Text>
+            <Text style={styles.profileName}>
+              {`${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || 'User Name'}
+            </Text>
+            <Text style={styles.profileId}>Member ID: 12345678</Text>
+          </View>
+
+          {/* Personal Information Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
+            
+            <TouchableOpacity 
+              style={styles.listItem} 
+              onPress={() => setShowPersonalInfoForm(!showPersonalInfoForm)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.listItemIcon}>
+                <Ionicons name="person-outline" size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={styles.listItemContent}>
+                <Text style={styles.listItemLabel}>Full Name</Text>
+                <Text style={styles.listItemValue}>
+                  {`${personalInfo?.title || ''} ${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || '—'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
+              <View style={styles.listItemIcon}>
+                <Ionicons name="mail-outline" size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={styles.listItemContent}>
+                <Text style={styles.listItemLabel}>Email Address</Text>
+                <Text style={styles.listItemValue} numberOfLines={1}>
+                  {personalInfo?.personalEmail || personalInfo?.workEmail || '—'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
+              <View style={styles.listItemIcon}>
+                <Ionicons name="call-outline" size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={styles.listItemContent}>
+                <Text style={styles.listItemLabel}>Phone Number</Text>
+                <Text style={styles.listItemValue}>
+                  {personalInfo?.mobileNo || personalInfo?.workTel || '—'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
+              <View style={styles.listItemIcon}>
+                <Ionicons name="home-outline" size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={styles.listItemContent}>
+                <Text style={styles.listItemLabel}>Mailing Address</Text>
+                <Text style={styles.listItemValue} numberOfLines={1}>
+                  {`${personalInfo?.addressLine1 || ''}, ${personalInfo?.addressLine3 || ''}`.replace(/^,\s*/, '').replace(/,\s*$/, '') || '—'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Membership Details Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Membership Details</Text>
+            
+            <View style={styles.listItem}>
+              <View style={styles.listItemIcon}>
+                <MaterialCommunityIcons name="medal-outline" size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={styles.listItemContent}>
+                <Text style={styles.listItemLabel}>Membership Level</Text>
+                <Text style={styles.listItemValue}>Gold Tier</Text>
+              </View>
+            </View>
+
+            <View style={styles.listItem}>
+              <View style={styles.listItemIcon}>
+                <Ionicons name="calendar-outline" size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={styles.listItemContent}>
+                <Text style={styles.listItemLabel}>Membership Status</Text>
+                <Text style={styles.listItemValue}>Renews on Dec 31, 2024</Text>
+              </View>
+              <View style={styles.activeBadge}>
+                <Text style={styles.activeBadgeText}>Active</Text>
+              </View>
             </View>
           </View>
 
-          {/* Personal Information form */}
-          <View style={styles.cardBody}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
-            <PersonalInformation
-              formData={personalInfo}
-              onFormDataChange={setPersonalInfo}
-              showValidation={false}
-            />
-            <View style={{ flexDirection: 'row', marginTop: 12 }}>
-              <Button title={loading ? 'Saving…' : 'Save'} onPress={handleSave} primary style={{ flex: 1, marginRight: 8 }} />
-              <Button title={'Cancel'} onPress={handleCancel} outlined style={{ flex: 1, marginLeft: 8 }} />
+          {/* Account & Security Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Account & Security</Text>
+            
+            <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
+              <View style={styles.listItemIcon}>
+                <Ionicons name="lock-closed-outline" size={20} color={Colors.textPrimary} />
+              </View>
+              <View style={styles.listItemContent}>
+                <Text style={styles.listItemLabel}>Change Password</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Communication Preferences Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Communication Preferences</Text>
+            
+            <View style={styles.listItem}>
+              <Text style={styles.switchLabel}>Email Newsletter</Text>
+              <CustomSwitch
+                value={emailNewsletter}
+                onValueChange={setEmailNewsletter}
+              />
+            </View>
+
+            <View style={styles.listItem}>
+              <Text style={styles.switchLabel}>Promotional Offers</Text>
+              <CustomSwitch
+                value={promotionalOffers}
+                onValueChange={setPromotionalOffers}
+              />
+            </View>
+
+            <View style={styles.listItem}>
+              <Text style={styles.switchLabel}>Push Notifications</Text>
+              <CustomSwitch
+                value={pushNotifications}
+                onValueChange={setPushNotifications}
+              />
             </View>
           </View>
+
+          {/* Log Out Button */}
+          <TouchableOpacity style={styles.logoutButton} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="logout" size={20} color="#EF4444" />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+
+          {/* Edit Form Modal (shown when clicking items) */}
+          {showPersonalInfoForm && (
+            <View style={styles.formModal}>
+              <View style={styles.formHeader}>
+                <Text style={styles.formTitle}>Edit Personal Information</Text>
+                <TouchableOpacity onPress={() => setShowPersonalInfoForm(false)}>
+                  <Ionicons name="close" size={24} color={Colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+              
+              <PersonalInformation
+                formData={personalInfo}
+                onFormDataChange={setPersonalInfo}
+                showValidation={false}
+              />
+              
+              <View style={{ flexDirection: 'row', marginTop: 20, gap: 12 }}>
+                <Button 
+                  title={loading ? 'Saving…' : 'Save Changes'} 
+                  onPress={handleSave} 
+                  primary 
+                  style={{ flex: 1 }}
+                  disabled={loading}
+                />
+                <Button 
+                  title={'Cancel'} 
+                  onPress={() => setShowPersonalInfoForm(false)} 
+                  outlined 
+                  style={{ flex: 1 }}
+                  disabled={loading}
+                />
+              </View>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </Wrapper>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingVertical: 16, gap: 16 },
-  cardHeader: {
-    backgroundColor: '#1A1F23',
+  // Header - Matching Application.js
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 16,
+    backgroundColor: Colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    letterSpacing: 0.3,
+  },
+  headerAvatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5A77B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Profile Header Card
+  profileHeader: {
+    backgroundColor: Colors.white,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 16,
     borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#2A2F33',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: Colors.primary,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: Colors.primary,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: Colors.white,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  profileId: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '400',
+  },
+
+  // Section Container
+  sectionContainer: {
+    backgroundColor: Colors.white,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 16,
+    letterSpacing: 0.3,
+  },
+
+  // List Items
+  listItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  avatarCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
-  nameText: { color: Colors.white, fontWeight: '700', fontSize: hp(2.2) },
-  subText: { color: '#93A1A1', marginTop: 2 },
-  cardBody: {
-    backgroundColor: '#1A1F23',
+  listItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  listItemContent: {
+    flex: 1,
+  },
+  listItemLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  listItemValue: {
+    fontSize: 15,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+  },
+  activeBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activeBadgeText: {
+    color: '#16A34A',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // Switch Label
+  switchLabel: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.textPrimary,
+    fontWeight: '500',
+  },
+
+  // Logout Button
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 24,
+    paddingVertical: 16,
     borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#2A2F33',
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
+    borderWidth: 1.5,
+    borderColor: '#FEE2E2',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  sectionTitle: { color: Colors.white, fontWeight: '700', marginBottom: 10, fontSize: hp(2.2) },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#EF4444',
+    marginLeft: 8,
+  },
+
+  // Form Modal
+  formModal: {
+    backgroundColor: Colors.white,
+    marginHorizontal: 20,
+    marginTop: 24,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
+  },
+  formTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
 });
 
 export default Profile;

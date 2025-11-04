@@ -483,11 +483,11 @@ const ProfessionalDetails = ({
       </View>
 
       {/* Retirement Status Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Retirement Status</Text>
+      {/* <View style={styles.card}>
+        <Text style={styles.cardTitle}>Retirement Status</Text> */}
 
         {/* Retired Switch */}
-        <View style={styles.switchRow}>
+        {/* <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>Retired</Text>
           <CustomSwitch
             value={!!formData.isRetired}
@@ -495,8 +495,8 @@ const ProfessionalDetails = ({
               onFormDataChange({ ...formData, isRetired: val })
             }
           />
-        </View>
-      </View>
+        </View> */}
+      {/* </View> */}
     </View>
   );
 };

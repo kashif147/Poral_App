@@ -10,6 +10,7 @@ import Courses from '../modules/courses/Courses';
 import Membership from '../modules/membership/Membership';
 import Payment from '../modules/payment/Payment';
 import Profile from '../modules/profile/Profile';
+import Resources from '../modules/resources/Resources';
 import { STACKS } from '../enums/ScreenEnums';
 import { IMAGES } from '../assets/images';
 import { TabBarIcon } from '../common/tabBarIcon';
@@ -82,6 +83,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       'Courses': STACKS.COURSES_STACK,
       'Membership': STACKS.MEMBERSHIP_STACK,
       'Profile': 'Profile',
+      'Resources': 'Resources',
       'Application': STACKS.APPLICATION_STACK,
       'Payment': STACKS.PAYMENT_STACK,
     };
@@ -221,6 +223,7 @@ const TabNavigator = () => {
         <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
         <Tab.Screen name="Profile" component={Profile} />
+        <Tab.Screen name="Resources" component={Resources} />
         <Tab.Screen name="Directory" component={Profile} />
       </Tab.Navigator>
   );

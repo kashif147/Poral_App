@@ -39,6 +39,12 @@ const PopupMenu = ({ visible, onClose, onNavigate }) => {
       route: 'Membership',
     },
     {
+      id: 'resources',
+      label: 'Resources',
+      icon: '📑',
+      route: 'Resources',
+    },
+    {
       id: 'profile',
       label: 'Profile',
       icon: '👤',

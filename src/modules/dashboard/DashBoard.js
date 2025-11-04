@@ -151,7 +151,7 @@ const DashBoard = () => {
       iconType: 'MaterialCommunityIcons',
       iconColor: '#5A8DEE',
       backgroundColor: '#E8F0FE',
-      onPress: () => navigation.navigate(STACKS.CATEGORIES_STACK)
+      onPress: () => navigation.navigate('Resources')
     },
     { 
       key: 'profile', 
@@ -200,22 +200,22 @@ const DashBoard = () => {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Header with greeting and notification */}
-        <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
-          <View style={styles.headerLeft}>
-            <View style={styles.avatarContainer}>
-              <Ionicons name="person" size={24} color={Colors.white} />
-            </View>
-            <Text style={styles.greetingText}>Hello, {userName}!</Text>
+      {/* Sticky Header with greeting and notification */}
+      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
+        <View style={styles.headerLeft}>
+          <View style={styles.avatarContainer}>
+            <Ionicons name="person" size={24} color={Colors.white} />
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-          <LocalSvg width={26} height={26} asset={SVG.NOTIFICATION} fill={Colors.textPrimary} />
-            {/* <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} /> */}
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
+          <Text style={styles.greetingText}>Hello, {userName}!</Text>
         </View>
+        <TouchableOpacity style={styles.notificationButton}>
+        <LocalSvg width={26} height={26} asset={SVG.NOTIFICATION} fill={Colors.textPrimary} />
+          {/* <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} /> */}
+          <View style={styles.notificationBadge} />
+        </TouchableOpacity>
+      </View>
 
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Application Status Card */}
         {applicationStatus && (
           <View style={styles.statusCard}>
@@ -388,6 +388,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     backgroundColor: Colors.surface,
     paddingBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
   },
   headerLeft: {
     flexDirection: 'row',
