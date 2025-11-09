@@ -5725,10 +5725,10 @@ react-is@^19.1.0:
   resolved "https://registry.npmjs.org/react-is/-/react-is-19.1.1.tgz"
   integrity sha512-tr41fA15Vn8p4X9ntI+yCyeGSf1TlYaY5vlTZfQmeLBrFo3psOPX6HhTDnFNL9uj3EhP0KAQ80cugCl4b4BERA==
 
-react-native-app-auth@7.2.0:
-  version "7.2.0"
-  resolved "https://registry.yarnpkg.com/react-native-app-auth/-/react-native-app-auth-7.2.0.tgz#db42468018d1db42ead3a5ef8f00bb6c3e494fa7"
-  integrity sha512-Vw7td8oXklM0nXcerz/6E8Y6Ww+yDRMSohREllYceUe1570kNI7EIwGhzF3+yKjI4QADi8m/LGb7GdwkDxM4XQ==
+react-native-app-auth@^6.4.0:
+  version "6.4.3"
+  resolved "https://registry.yarnpkg.com/react-native-app-auth/-/react-native-app-auth-6.4.3.tgz#14e6d0b66087c60fd72cd98cc0219f0420195071"
+  integrity sha512-3Qi9D11WwB96h56UBkdUPfemOxhsp+lLryPy7YRmETrC0Our4AfgyHMfackJp7eCMKO/oB5LxU99Yh19ueIriA==
   dependencies:
     invariant "2.2.4"
     react-native-base64 "0.0.2"

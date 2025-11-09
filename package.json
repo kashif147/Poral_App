@@ -22,7 +22,7 @@
     "fast-base64-decode": "^2.0.0",
     "react": "19.1.0",
     "react-native": "0.80.1",
-    "react-native-app-auth": "7.2.0",
+    "react-native-app-auth": "^6.4.0",
     "react-native-fast-image": "^8.6.3",
     "react-native-get-random-values": "^1.11.0",
     "react-native-google-places-autocomplete": "^2.5.7",
