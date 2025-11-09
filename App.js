@@ -2,7 +2,7 @@ import 'react-native-get-random-values';
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import TabNavigator from './src/navigation/TabNavigation';
-import { StatusBar, View, Platform } from 'react-native';
+import { StatusBar, View, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { Colors } from './src/utils/Styles';
@@ -45,24 +45,11 @@ function App() {
     };
     checkAuth();
   }, []);
-  const handleLogin = async () => {
-    try {
-      console.log('Hello world');
-      await setBearerToken('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODg4YjVkYzYwYzc5OGIwOTdlODZjOTEiLCJ0ZW5hbnRJZCI6IjM5ODY2YTA2LTMwYmMtNGE4OS04MGM2LTlkZDkzNTdkZDQ1MyIsImlkIjoiNjg4OGI1ZGM2MGM3OThiMDk3ZTg2YzkxIiwiZW1haWwiOiJmYXphbGF6aW0yMzhAZ21haWwuY29tIiwidXNlclR5cGUiOiJQT1JUQUwiLCJyb2xlcyI6W3siaWQiOiI2OGM2YjRkMWU0MjMwNmE2ODM2NjIyY2MiLCJjb2RlIjoiTUVNQkVSIiwibmFtZSI6Ik1lbWJlciJ9XSwicGVybWlzc2lvbnMiOlsiTE9PS1VQX1JFQUQiLCJMT09LVVBUWVBFX1JFQUQiLCJQT1JUQUxfUkVBRCIsIlBPUlRBTF9DUkVBVEUiLCJQT1JUQUxfV1JJVEUiLCJQT1JUQUxfREVMRVRFIiwiQVBQTElDQVRJT05fUkVBRCIsIkRBU0hCT0FSRF9SRUFEIiwiRVZFTlRTX1JFQUQiLCJFVkVOVFNfQ1JFQVRFIiwiRVZFTlRTX1dSSVRFIiwiRVZFTlRTX0RFTEVURSIsIlJFU09VUkNFU19SRUFEIiwiUkVTT1VSQ0VTX0NSRUFURSIsIlJFU09VUkNFU19XUklURSIsIlJFU09VUkNFU19ERUxFVEUiLCJQUk9GSUxFX1JFQUQiLCJQUk9GSUxFX1dSSVRFIiwiUEFZTUVOVFNfUkVBRCIsIlBBWU1FTlRTX0NSRUFURSIsIlBBWU1FTlRTX1dSSVRFIiwiQ0hBTkdFT0ZDQVRFR09SWV9SRUFEIiwiQ0hBTkdFT0ZDQVRFR09SWV9DUkVBVEUiLCJDSEFOR0VPRkNBVEVHT1JZX1dSSVRFIiwiQ0hBTkdFT0ZDQVRFR09SWV9ERUxFVEUiLCJUUkFOU0ZFUlJFUVVFU1RTX1JFQUQiLCJUUkFOU0ZFUlJFUVVFU1RTX0NSRUFURSIsIlRSQU5TRkVSUkVRVUVTVFNfV1JJVEUiLCJUUkFOU0ZFUlJFUVVFU1RTX0RFTEVURSIsIlNVQlNDUklQVElPTlNfUkVBRCIsIlNVQlNDUklQVElPTlNfV1JJVEUiLCJDT01NVU5JQ0FUSU9OX1JFQUQiLCJDT01NVU5JQ0FUSU9OX0NSRUFURSIsIkNPTU1VTklDQVRJT05fV1JJVEUiLCJDT01NVU5JQ0FUSU9OX0RFTEVURSIsIlFVRVJJRVNfUkVBRCIsIlFVRVJJRVNfQ1JFQVRFIiwiUVVFUklFU19XUklURSIsIlFVRVJJRVNfREVMRVRFIiwiVk9USU5HX1JFQUQiLCJWT1RJTkdfQ1JFQVRFIiwiVk9USU5HX1dSSVRFIiwiUFJPRklMRV9DUkVBVEUiLCJQUk9GSUxFX0RFTEVURSIsIlNVQlNDUklQVElPTlNfQ1JFQVRFIiwiU1VCU0NSSVBUSU9OU19ERUxFVEUiLCJQT1JUQUxfQUNDRVNTIiwiUE9SVEFMX1BST0ZJTEVfUkVBRCIsIlBPUlRBTF9QUk9GSUxFX1dSSVRFIiwiQUNDT1VOVF9SRUFEIiwiQUNDT1VOVF9QQVlNRU5UIiwiQUNDT1VOVF9UUkFOU0FDVElPTl9SRUFEIl0sImlhdCI6MTc1ODM5MTE1NiwiZXhwIjoxNzg5OTI3MTU2fQ.vVqlqYh3MphSazNl0jyQ4FIdm76F6NlVWwfY0_O223Q');
-      setIsSignedIn(true);
-      const res = await signInWithAzureB2C();
-      if (res?.ok && res?.result?.accessToken) {
-        setIsSignedIn(true);
-      } else {
-        console.log('B2C sign-in failed', res?.error);
-      }
-    } catch (error) {
-      console.log('B2C sign-in error', error);
-    }
-  };
-
   // const handleLogin = async () => {
   //   try {
+  //     console.log('Hello world');
+  //     await setBearerToken('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODg4YjVkYzYwYzc5OGIwOTdlODZjOTEiLCJ0ZW5hbnRJZCI6IjM5ODY2YTA2LTMwYmMtNGE4OS04MGM2LTlkZDkzNTdkZDQ1MyIsImlkIjoiNjg4OGI1ZGM2MGM3OThiMDk3ZTg2YzkxIiwiZW1haWwiOiJmYXphbGF6aW0yMzhAZ21haWwuY29tIiwidXNlclR5cGUiOiJQT1JUQUwiLCJyb2xlcyI6W3siaWQiOiI2OGM2YjRkMWU0MjMwNmE2ODM2NjIyY2MiLCJjb2RlIjoiTUVNQkVSIiwibmFtZSI6Ik1lbWJlciJ9XSwicGVybWlzc2lvbnMiOlsiTE9PS1VQX1JFQUQiLCJMT09LVVBUWVBFX1JFQUQiLCJQT1JUQUxfUkVBRCIsIlBPUlRBTF9DUkVBVEUiLCJQT1JUQUxfV1JJVEUiLCJQT1JUQUxfREVMRVRFIiwiQVBQTElDQVRJT05fUkVBRCIsIkRBU0hCT0FSRF9SRUFEIiwiRVZFTlRTX1JFQUQiLCJFVkVOVFNfQ1JFQVRFIiwiRVZFTlRTX1dSSVRFIiwiRVZFTlRTX0RFTEVURSIsIlJFU09VUkNFU19SRUFEIiwiUkVTT1VSQ0VTX0NSRUFURSIsIlJFU09VUkNFU19XUklURSIsIlJFU09VUkNFU19ERUxFVEUiLCJQUk9GSUxFX1JFQUQiLCJQUk9GSUxFX1dSSVRFIiwiUEFZTUVOVFNfUkVBRCIsIlBBWU1FTlRTX0NSRUFURSIsIlBBWU1FTlRTX1dSSVRFIiwiQ0hBTkdFT0ZDQVRFR09SWV9SRUFEIiwiQ0hBTkdFT0ZDQVRFR09SWV9DUkVBVEUiLCJDSEFOR0VPRkNBVEVHT1JZX1dSSVRFIiwiQ0hBTkdFT0ZDQVRFR09SWV9ERUxFVEUiLCJUUkFOU0ZFUlJFUVVFU1RTX1JFQUQiLCJUUkFOU0ZFUlJFUVVFU1RTX0NSRUFURSIsIlRSQU5TRkVSUkVRVUVTVFNfV1JJVEUiLCJUUkFOU0ZFUlJFUVVFU1RTX0RFTEVURSIsIlNVQlNDUklQVElPTlNfUkVBRCIsIlNVQlNDUklQVElPTlNfV1JJVEUiLCJDT01NVU5JQ0FUSU9OX1JFQUQiLCJDT01NVU5JQ0FUSU9OX0NSRUFURSIsIkNPTU1VTklDQVRJT05fV1JJVEUiLCJDT01NVU5JQ0FUSU9OX0RFTEVURSIsIlFVRVJJRVNfUkVBRCIsIlFVRVJJRVNfQ1JFQVRFIiwiUVVFUklFU19XUklURSIsIlFVRVJJRVNfREVMRVRFIiwiVk9USU5HX1JFQUQiLCJWT1RJTkdfQ1JFQVRFIiwiVk9USU5HX1dSSVRFIiwiUFJPRklMRV9DUkVBVEUiLCJQUk9GSUxFX0RFTEVURSIsIlNVQlNDUklQVElPTlNfQ1JFQVRFIiwiU1VCU0NSSVBUSU9OU19ERUxFVEUiLCJQT1JUQUxfQUNDRVNTIiwiUE9SVEFMX1BST0ZJTEVfUkVBRCIsIlBPUlRBTF9QUk9GSUxFX1dSSVRFIiwiQUNDT1VOVF9SRUFEIiwiQUNDT1VOVF9QQVlNRU5UIiwiQUNDT1VOVF9UUkFOU0FDVElPTl9SRUFEIl0sImlhdCI6MTc1ODM5MTE1NiwiZXhwIjoxNzg5OTI3MTU2fQ.vVqlqYh3MphSazNl0jyQ4FIdm76F6NlVWwfY0_O223Q');
+  //     setIsSignedIn(true);
   //     const res = await signInWithAzureB2C();
   //     if (res?.ok && res?.result?.accessToken) {
   //       setIsSignedIn(true);
@@ -73,6 +60,51 @@ function App() {
   //     console.log('B2C sign-in error', error);
   //   }
   // };
+
+  const handleLogin = async () => {
+    try {
+      console.log('Login button pressed, initiating B2C flow...');
+      const res = await signInWithAzureB2C();
+      console.log('B2C response:', res);
+      
+      if (res?.ok && res?.result?.accessToken) {
+        console.log('Login successful, setting signed in state');
+        setIsSignedIn(true);
+      } else {
+        console.error('B2C sign-in failed:', res?.error);
+        
+        // Show user-friendly error message
+        let errorMessage = 'Unable to connect to authentication service. Please try again.';
+        
+        if (res?.error) {
+          console.error('Error message:', res.error.message || 'Unknown error');
+          console.error('Error code:', res.error.code || 'No code');
+          
+          // Handle specific error cases
+          if (res.error.message && res.error.message.includes('User cancelled')) {
+            errorMessage = 'Login was cancelled. Please try again when ready.';
+          } else if (res.error.message) {
+            errorMessage = res.error.message;
+          }
+        }
+        
+        Alert.alert(
+          'Login Failed',
+          errorMessage,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('B2C sign-in exception:', error);
+      console.error('Error stack:', error.stack);
+      
+      Alert.alert(
+        'Login Error',
+        'An unexpected error occurred. Please check your internet connection and try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
 
   if (isLoading) {
     return null;

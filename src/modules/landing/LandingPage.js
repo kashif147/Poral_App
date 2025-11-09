@@ -3,8 +3,6 @@ import { SafeAreaView, View, Text, Image, Alert, TouchableOpacity } from 'react-
 import LinearGradient from 'react-native-linear-gradient';
 import { Button } from '../../common/button';
 import { Colors, wp } from '../../utils/Styles';
-import { microSoftUrlRedirect } from '../../helpers/B2C.helper';
-import { signInWithAzureB2C } from '../../helpers/appAuth.helper';
 import { IMAGES } from '../../assets/images';
 import FontIcons from '../../utils/FontIcons';
 
@@ -69,14 +67,7 @@ const LandingPage = ({ onLoginPress, onFaceRecognitionPress }) => {
             <Button
               title={'Start'}
               primary
-              onPress={
-                onLoginPress || (async () => {
-                  const signIn = await signInWithAzureB2C();
-                  if (!signIn.ok) {
-                    await microSoftUrlRedirect();
-                  }
-                })
-              }
+              onPress={onLoginPress}
               style={{ width: '100%' }}
             />
           </View>

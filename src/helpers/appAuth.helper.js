@@ -10,11 +10,6 @@ const policy = 'B2C_1_projectshell';
 
 const redirectUrl = Platform.OS === 'android' ? 'com.portal://com.portal/android/callback' : 'com.portal://com.portal/ios/callback';
 
-const serviceConfiguration = {
-  authorizationEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/authorize`,
-  tokenEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`,
-};
-
 const decodeJwt = (token) => {
   try {
     const [, payload] = token.split('.');
@@ -27,48 +22,84 @@ const decodeJwt = (token) => {
   }
 };
 
-// Single default configuration for Azure AD B2C
-const defaultConfig = {
-  clientId,
-  redirectUrl,
-  scopes: ['openid', 'profile', 'offline_access'],
-  skipCodeExchange: false,
-  usePKCE: true,
-  serviceConfiguration,
-  iosPrefersEphemeralSession: false,
-};
-
 export const signInWithAzureB2C = async () => {
   try {
-    const result = await authorize({ ...defaultConfig, connectionTimeoutSeconds: 5, iosPrefersEphemeralSession: true });
-    console.log('Result=============>', result);
+    console.log('Starting Azure B2C sign-in...');
+    console.log('Client ID:', clientId);
+    console.log('Redirect URL:', redirectUrl);
+    console.log('Tenant:', tenant);
+    console.log('Policy:', policy);
+    
+    // Explicit Azure B2C configuration
+    const config = {
+      clientId,
+      redirectUrl,
+      scopes: ['openid', 'profile', 'offline_access'],
+      serviceConfiguration: {
+        authorizationEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/authorize`,
+        tokenEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`,
+      },
+      // Add explicit parameters to avoid internal boolean conversion issues
+      additionalParameters: {},
+      useNonce: true,
+      usePKCE: true,
+      // warmAndPrefetchChrome: false, // Explicitly set to false
+      // dangerouslyAllowInsecureHttpRequests: false, // Explicitly set to false
+    };
+    
+    console.log('Full Config:', JSON.stringify(config, null, 2));
+    
+    // Test the configuration first
+    await prefetchConfiguration(config);
+    console.log('Configuration prefetched successfully');
+    
+    const result = await authorize(config);
+    console.log('Authorization result:', result);
+    
     const { accessToken, refreshToken, idToken } = result || {};
 
     if (accessToken) {
+      console.log('Setting access token...');
       await setHeaders({ accessToken });
     }
+    
     if (idToken) {
       const claims = decodeJwt(idToken);
+      console.log('Decoded claims:', claims);
       const user = {
         name: claims.name || claims.given_name || '',
         email: (Array.isArray(claims.emails) ? claims.emails[0] : claims.email) || '',
         oid: claims.oid || claims.sub,
       };
       await saveUser(user);
+      console.log('User saved successfully');
     }
+    
     return { ok: true, result };
   } catch (error) {
+    console.error('Azure B2C sign-in error:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     return { ok: false, error };
   }
 };
 
 export const prefetchB2CConfiguration = async () => {
   try {
-    await prefetchConfiguration(defaultConfig);
+    const config = {
+      clientId: clientId,
+      redirectUrl: redirectUrl,
+      scopes: ['openid', 'profile'],
+      serviceConfiguration: {
+        authorizationEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/authorize`,
+        tokenEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`,
+      },
+    };
+    await prefetchConfiguration(config);
   } catch (e) {
     // no-op; prefetch is opportunistic
   }
 };
+
 
 
 

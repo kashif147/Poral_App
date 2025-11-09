@@ -20,7 +20,9 @@ target 'portal' do
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.
-    :app_path => "#{Pod::Config.instance.installation_root}/.."
+    :app_path => "#{Pod::Config.instance.installation_root}/..",
+    # Disable New Architecture to fix react-native-app-auth compatibility
+    :fabric_enabled => false
   )
 
   post_install do |installer|
@@ -28,7 +30,7 @@ target 'portal' do
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
+      :mac_catalyst_enabled => false
       # :ccache_enabled => true
     )
   end
