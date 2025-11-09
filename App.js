@@ -2,7 +2,7 @@ import 'react-native-get-random-values';
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import TabNavigator from './src/navigation/TabNavigation';
-import { StatusBar, View, Platform, Alert } from 'react-native';
+import { StatusBar, View, Platform, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { Colors } from './src/utils/Styles';
@@ -11,99 +11,186 @@ import { LookupProvider } from './src/contexts/lookupContext';
 import LandingPage from './src/modules/landing/LandingPage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setBearerToken } from './src/helpers/auth.helper';
-import { signInWithAzureB2C, prefetchB2CConfiguration } from './src/helpers/appAuth.helper';
 import { createPolicyEvaluationRequest } from './src/api/policy.evaluation.api';
+import WebViewLogin from './src/common/WebViewLogin'; 
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [showWebView, setShowWebView] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // await prefetchB2CConfiguration();
         const token = await AsyncStorage.getItem('token');
-        // if (token) {
-        //   createPolicyEvaluationRequest({
-        //     token: token,
-        //     resource: 'user',
-        //     action: 'read',
-        //     context: {
-        //       userId: '6888b5dc60c798b097e86c91'
-        //     },
-        //   }).then(res => {
-        //     console.log('res=============>', res);
-        //   }).catch(err => {
-        //     console.log('err=============>', err);
-        //   });
-        // }
         setIsSignedIn(!!token);
-        // setIsSignedIn(true);
       } finally {
         setIsLoading(false);
       }
     };
     checkAuth();
   }, []);
-  // const handleLogin = async () => {
-  //   try {
-  //     console.log('Hello world');
-  //     await setBearerToken('Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2ODg4YjVkYzYwYzc5OGIwOTdlODZjOTEiLCJ0ZW5hbnRJZCI6IjM5ODY2YTA2LTMwYmMtNGE4OS04MGM2LTlkZDkzNTdkZDQ1MyIsImlkIjoiNjg4OGI1ZGM2MGM3OThiMDk3ZTg2YzkxIiwiZW1haWwiOiJmYXphbGF6aW0yMzhAZ21haWwuY29tIiwidXNlclR5cGUiOiJQT1JUQUwiLCJyb2xlcyI6W3siaWQiOiI2OGM2YjRkMWU0MjMwNmE2ODM2NjIyY2MiLCJjb2RlIjoiTUVNQkVSIiwibmFtZSI6Ik1lbWJlciJ9XSwicGVybWlzc2lvbnMiOlsiTE9PS1VQX1JFQUQiLCJMT09LVVBUWVBFX1JFQUQiLCJQT1JUQUxfUkVBRCIsIlBPUlRBTF9DUkVBVEUiLCJQT1JUQUxfV1JJVEUiLCJQT1JUQUxfREVMRVRFIiwiQVBQTElDQVRJT05fUkVBRCIsIkRBU0hCT0FSRF9SRUFEIiwiRVZFTlRTX1JFQUQiLCJFVkVOVFNfQ1JFQVRFIiwiRVZFTlRTX1dSSVRFIiwiRVZFTlRTX0RFTEVURSIsIlJFU09VUkNFU19SRUFEIiwiUkVTT1VSQ0VTX0NSRUFURSIsIlJFU09VUkNFU19XUklURSIsIlJFU09VUkNFU19ERUxFVEUiLCJQUk9GSUxFX1JFQUQiLCJQUk9GSUxFX1dSSVRFIiwiUEFZTUVOVFNfUkVBRCIsIlBBWU1FTlRTX0NSRUFURSIsIlBBWU1FTlRTX1dSSVRFIiwiQ0hBTkdFT0ZDQVRFR09SWV9SRUFEIiwiQ0hBTkdFT0ZDQVRFR09SWV9DUkVBVEUiLCJDSEFOR0VPRkNBVEVHT1JZX1dSSVRFIiwiQ0hBTkdFT0ZDQVRFR09SWV9ERUxFVEUiLCJUUkFOU0ZFUlJFUVVFU1RTX1JFQUQiLCJUUkFOU0ZFUlJFUVVFU1RTX0NSRUFURSIsIlRSQU5TRkVSUkVRVUVTVFNfV1JJVEUiLCJUUkFOU0ZFUlJFUVVFU1RTX0RFTEVURSIsIlNVQlNDUklQVElPTlNfUkVBRCIsIlNVQlNDUklQVElPTlNfV1JJVEUiLCJDT01NVU5JQ0FUSU9OX1JFQUQiLCJDT01NVU5JQ0FUSU9OX0NSRUFURSIsIkNPTU1VTklDQVRJT05fV1JJVEUiLCJDT01NVU5JQ0FUSU9OX0RFTEVURSIsIlFVRVJJRVNfUkVBRCIsIlFVRVJJRVNfQ1JFQVRFIiwiUVVFUklFU19XUklURSIsIlFVRVJJRVNfREVMRVRFIiwiVk9USU5HX1JFQUQiLCJWT1RJTkdfQ1JFQVRFIiwiVk9USU5HX1dSSVRFIiwiUFJPRklMRV9DUkVBVEUiLCJQUk9GSUxFX0RFTEVURSIsIlNVQlNDUklQVElPTlNfQ1JFQVRFIiwiU1VCU0NSSVBUSU9OU19ERUxFVEUiLCJQT1JUQUxfQUNDRVNTIiwiUE9SVEFMX1BST0ZJTEVfUkVBRCIsIlBPUlRBTF9QUk9GSUxFX1dSSVRFIiwiQUNDT1VOVF9SRUFEIiwiQUNDT1VOVF9QQVlNRU5UIiwiQUNDT1VOVF9UUkFOU0FDVElPTl9SRUFEIl0sImlhdCI6MTc1ODM5MTE1NiwiZXhwIjoxNzg5OTI3MTU2fQ.vVqlqYh3MphSazNl0jyQ4FIdm76F6NlVWwfY0_O223Q');
-  //     setIsSignedIn(true);
-  //     const res = await signInWithAzureB2C();
-  //     if (res?.ok && res?.result?.accessToken) {
-  //       setIsSignedIn(true);
-  //     } else {
-  //       console.log('B2C sign-in failed', res?.error);
-  //     }
-  //   } catch (error) {
-  //     console.log('B2C sign-in error', error);
-  //   }
-  // };
 
-  const handleLogin = async () => {
-    try {
-      console.log('Login button pressed, initiating B2C flow...');
-      const res = await signInWithAzureB2C();
-      console.log('B2C response:', res);
+  // Enhanced deep link handling for authentication callback
+  useEffect(() => {
+    const handleDeepLink = async (event) => {
+      console.log('Deep link received:', event.url);
       
-      if (res?.ok && res?.result?.accessToken) {
-        console.log('Login successful, setting signed in state');
-        setIsSignedIn(true);
-      } else {
-        console.error('B2C sign-in failed:', res?.error);
+      if (event.url.startsWith('com.portal://com.portal/ios/callback')) {
+        console.log('Processing authentication callback...');
         
-        // Show user-friendly error message
-        let errorMessage = 'Unable to connect to authentication service. Please try again.';
-        
-        if (res?.error) {
-          console.error('Error message:', res.error.message || 'Unknown error');
-          console.error('Error code:', res.error.code || 'No code');
+        try {
+          // Close WebView if it's open
+          setShowWebView(false);
           
-          // Handle specific error cases
-          if (res.error.message && res.error.message.includes('User cancelled')) {
-            errorMessage = 'Login was cancelled. Please try again when ready.';
-          } else if (res.error.message) {
-            errorMessage = res.error.message;
+          if (event.url.includes('error=')) {
+            const errorMatch = event.url.match(/error=([^&]+)/);
+            const errorDescriptionMatch = event.url.match(/error_description=([^&]+)/);
+            const error = errorMatch ? decodeURIComponent(errorMatch[1]) : 'Authentication failed';
+            const description = errorDescriptionMatch ? decodeURIComponent(errorDescriptionMatch[1]) : 'Unknown error';
+            
+            console.error('Auth error from Azure:', error, description);
+            Alert.alert('Login Failed', `${error}: ${description}`);
+            return;
           }
+          
+          // Extract authorization code from URL
+          const codeMatch = event.url.match(/code=([^&]+)/);
+          if (codeMatch && codeMatch[1]) {
+            const code = decodeURIComponent(codeMatch[1]);
+            console.log('Authorization code received:', code);
+            
+            // Exchange code for tokens
+            const tokens = await exchangeCodeForTokens(code);
+            
+            if (tokens.accessToken) {
+              // Store the token and update auth state
+              await AsyncStorage.setItem('token', tokens.accessToken);
+              await setBearerToken(tokens.accessToken);
+              setIsSignedIn(true);
+              console.log('User authenticated successfully via deep link');
+            }
+          } else {
+            console.log('No authorization code found in URL');
+            Alert.alert('Login Failed', 'No authorization code received');
+          }
+        } catch (error) {
+          console.error('Error processing deep link:', error);
+          Alert.alert('Login Error', error.message || 'Authentication failed');
         }
-        
-        Alert.alert(
-          'Login Failed',
-          errorMessage,
-          [{ text: 'OK' }]
-        );
       }
-    } catch (error) {
-      console.error('B2C sign-in exception:', error);
-      console.error('Error stack:', error.stack);
+    };
+
+    // Add event listener for deep links
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check if app was opened with a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url && url.startsWith('com.portal://com.portal/ios/callback')) {
+        console.log('App opened with deep link:', url);
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // Token exchange function
+  const exchangeCodeForTokens = async (code) => {
+    const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309';
+    const tenant = 'projectshellAB2C.onmicrosoft.com';
+    const policy = 'B2C_1_projectshell';
+    const b2cDomain = 'projectshellAB2C.b2clogin.com';
+    const redirectUri = 'com.portal://com.portal/ios/callback';
+
+    const tokenUrl = `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`;
+    
+    console.log('Exchanging code for tokens at:', tokenUrl);
+    
+    try {
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          code: code,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+          scope: 'openid profile offline_access'
+        }).toString()
+      });
       
-      Alert.alert(
-        'Login Error',
-        'An unexpected error occurred. Please check your internet connection and try again.',
-        [{ text: 'OK' }]
-      );
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Token exchange failed:', response.status, errorText);
+        throw new Error(`Token exchange failed: ${response.status}`);
+      }
+      
+      const tokenData = await response.json();
+      console.log('Token exchange successful');
+      
+      return {
+        accessToken: tokenData.access_token,
+        idToken: tokenData.id_token,
+        refreshToken: tokenData.refresh_token,
+        expiresIn: tokenData.expires_in
+      };
+    } catch (error) {
+      console.error('Token exchange error:', error);
+      throw error;
     }
+  };
+
+  const handleLogin = () => {
+    console.log('Login button pressed, opening WebView...');
+    setShowWebView(true);
+  };
+
+  const handleLoginSuccess = async (result) => {
+    console.log('B2C login successful:', result);
+    setShowWebView(false);
+    
+    if (result.accessToken) {
+      try {
+        // Store the token and update auth state
+        await AsyncStorage.setItem('token', result.accessToken);
+        await setBearerToken(result.accessToken);
+        setIsSignedIn(true);
+        
+        console.log('User authenticated successfully');
+      } catch (error) {
+        console.error('Error storing auth data:', error);
+        Alert.alert('Error', 'Failed to save authentication data');
+      }
+    }
+  };
+
+  const handleLoginError = (error) => {
+    console.error('B2C login failed:', error);
+    setShowWebView(false);
+    
+    let errorMessage = 'Authentication failed. Please try again.';
+    
+    if (error && typeof error === 'string') {
+      errorMessage = error;
+    } else if (error?.message) {
+      errorMessage = error.message;
+    }
+    
+    Alert.alert(
+      'Login Failed',
+      errorMessage,
+      [{ text: 'OK' }]
+    );
+  };
+
+  const handleWebViewClose = () => {
+    console.log('WebView closed by user');
+    setShowWebView(false);
   };
 
   if (isLoading) {
@@ -130,8 +217,16 @@ function App() {
               </ApplicationProvider>
             </LookupProvider>
           ) : (
-            <LandingPage onLoginPress={handleLogin} />)
-          }
+            <LandingPage onLoginPress={handleLogin} />
+          )}
+          
+          {/* WebView Login Modal */}
+          <WebViewLogin
+            visible={showWebView}
+            onClose={handleWebViewClose}
+            onSuccess={handleLoginSuccess}
+            onError={handleLoginError}
+          />
         </StripeProvider>
       </SafeAreaView>
     </View>

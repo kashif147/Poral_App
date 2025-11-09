@@ -30,7 +30,7 @@ export const signInWithAzureB2C = async () => {
     console.log('Tenant:', tenant);
     console.log('Policy:', policy);
     
-    // Explicit Azure B2C configuration
+    // FIXED: Remove useNonce and usePKCE parameters
     const config = {
       clientId,
       redirectUrl,
@@ -39,12 +39,9 @@ export const signInWithAzureB2C = async () => {
         authorizationEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/authorize`,
         tokenEndpoint: `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`,
       },
-      // Add explicit parameters to avoid internal boolean conversion issues
       additionalParameters: {},
-      useNonce: true,
-      usePKCE: true,
-      // warmAndPrefetchChrome: false, // Explicitly set to false
-      // dangerouslyAllowInsecureHttpRequests: false, // Explicitly set to false
+      // REMOVED: useNonce and usePKCE - these are causing the BOOL conversion error
+      // PKCE is enabled by default in newer versions anyway
     };
     
     console.log('Full Config:', JSON.stringify(config, null, 2));
@@ -99,7 +96,3 @@ export const prefetchB2CConfiguration = async () => {
     // no-op; prefetch is opportunistic
   }
 };
-
-
-
-
