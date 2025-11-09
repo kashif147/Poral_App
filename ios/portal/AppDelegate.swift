@@ -38,15 +38,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
+    // React Native's Linking module will handle this automatically
+    // Returning true allows the URL to be processed
     return true
   }
-  
+ 
   // Handle universal links
   func application(
     _ application: UIApplication,
     continue userActivity: NSUserActivity,
     restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
   ) -> Bool {
+    // React Native's Linking module will handle this automatically
     return true
   }
 }
@@ -64,3 +67,5 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
 #endif
   }
 }
+
+

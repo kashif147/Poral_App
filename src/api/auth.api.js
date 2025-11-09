@@ -1,5 +1,5 @@
 import request from './request';
 
 export const signInMicrosoftRequest = data => {
-  return request.post('/auth/microsoft', data);
+  return request.post('/auth/azure-portal', data);
 };
