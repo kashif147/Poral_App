@@ -22,12 +22,12 @@ const DashBoard = () => {
   const insets = useSafeAreaInsets();
   const { personalDetail } = useApplication();
   const [applicationStatus, setApplicationStatus] = useState(null);
-
+x
   // Fetch user name from token or storage
   useEffect(() => {
     const fetchUserName = async () => {
       try {
-        const token = await AsyncStorage.getItem('token');
+        const token = await AsyncStorage.getItem('token');xq
         if (token) {
           // Decode JWT token to get user info
           const base64Url = token.split('.')[1];
