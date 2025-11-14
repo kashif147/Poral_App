@@ -10,11 +10,16 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import CustomSwitch from '../../common/switch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// import { useDispatch } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
+import { signOut } from '../../services/auth.services';
 
 const Profile = () => {
   const { personalDetail, getPersonalDetail } = useApplication();
   const applicationId = personalDetail?.ApplicationId;
   const insets = useSafeAreaInsets();
+  // const dispatch = useDispatch();
+  const navigation = useNavigation();
 
   const [loading, setLoading] = useState(false);
   const [personalInfo, setPersonalInfo] = useState({});
@@ -112,6 +117,27 @@ const Profile = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Confirm Logout',
+      'Are you sure you want to log out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: () => {
+            // dispatch(signOut(navigation.navigate));
+          },
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   return (
@@ -278,7 +304,7 @@ const Profile = () => {
           </View>
 
           {/* Log Out Button */}
-          <TouchableOpacity style={styles.logoutButton} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.logoutButton} activeOpacity={0.7} onPress={handleLogout}>
             <MaterialCommunityIcons name="logout" size={20} color="#EF4444" />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>

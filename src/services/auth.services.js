@@ -6,6 +6,7 @@ import { deleteHeaders, deleteUser, getHeaders, getUser, saveUser, setHeaders } 
 import { deleteVerifier } from '../helpers/verifier.helper';
 import { setSignedIn, setUser } from '../store/slice/auth.slice';
 import { microSoftUrlRedirect } from '../helpers/B2C.helper';
+import { signOutFromAzureB2C } from '../helpers/webviewAuth.helper';
 
 export const validation = () => {
   return async (dispatch) => {
@@ -49,14 +50,26 @@ export const signInMicrosoft = data => {
 export const signOut = (navigate) => {
   return async (dispatch) => {
     try {
+      // Clear Redux state
       dispatch(setSignedIn(false));
       dispatch(setUser({}));
-      deleteHeaders();
-      deleteUser();
-      navigate('/')
-      // await microSoftUrlRedirect();
+      
+      // Clear local storage (tokens and user data)
+      await deleteHeaders();
+      await deleteUser();
+      await deleteVerifier();
+      
+      // Navigate to home screen
+      navigate('/');
+      
+      // Sign out from Azure B2C to end the session
+      await signOutFromAzureB2C();
     } catch (error) {
-      toast.error('Something went wrong');
+      console.error('Sign out error:', error);
+      // Still navigate to home even if Azure B2C logout fails
+      navigate('/');
+      // Uncomment if you have toast configured
+      // toast.error('Something went wrong during sign out');
     }
   };
 };

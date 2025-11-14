@@ -9,6 +9,7 @@ import { Colors } from './src/utils/Styles';
 import { ApplicationProvider } from './src/contexts/applicationContext';
 import { LookupProvider } from './src/contexts/lookupContext';
 import LandingPage from './src/modules/landing/LandingPage';
+import SplashScreen from './src/modules/splash/SplashScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setBearerToken, saveUser, setHeaders } from './src/helpers/auth.helper';
 import { deleteVerifier } from './src/helpers/verifier.helper';
@@ -32,7 +33,10 @@ function App() {
         console.error('Error checking auth:', error);
         setIsSignedIn(false);
       } finally {
-        setIsLoading(false);
+        // Ensure splash screen shows for minimum 2.5 seconds
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 2500);
       }
     };
     checkAuth();
@@ -431,7 +435,7 @@ function App() {
   };
 
   if (isLoading) {
-    return null;
+    return <SplashScreen />;
   }
 
   console.log('App rendering:', { isSignedIn, showWebView, isLoading });

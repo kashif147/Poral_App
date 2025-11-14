@@ -126,3 +126,29 @@ export const signInWithAzureB2C = () => {
   console.log('Opening auth URL:', authUrl);
   Linking.openURL(authUrl);
 };
+
+export const getLogoutUrl = () => {
+  const logoutUrl = new URL(`https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/logout`);
+  
+  const params = {
+    post_logout_redirect_uri: redirectUri,
+  };
+  
+  Object.keys(params).forEach(key => 
+    logoutUrl.searchParams.append(key, params[key])
+  );
+  
+  return logoutUrl.toString();
+};
+
+export const signOutFromAzureB2C = async () => {
+  try {
+    const logoutUrl = getLogoutUrl();
+    console.log('Opening logout URL:', logoutUrl);
+    await Linking.openURL(logoutUrl);
+    return { success: true };
+  } catch (error) {
+    console.error('Error signing out from Azure B2C:', error);
+    return { success: false, error };
+  }
+};

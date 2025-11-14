@@ -1,8 +1,8 @@
 import React from 'react';
-import { SafeAreaView, View, Text, Image, Alert, TouchableOpacity } from 'react-native';
+import { SafeAreaView, View, Text, Image, Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Button } from '../../common/button';
-import { Colors, wp } from '../../utils/Styles';
+import { Colors, wp, hp } from '../../utils/Styles';
 import { IMAGES } from '../../assets/images';
 import FontIcons from '../../utils/FontIcons';
 
@@ -10,31 +10,49 @@ const LandingPage = ({ onLoginPress, onFaceRecognitionPress }) => {
   const MCI = FontIcons.MATERIAL_COMMUNITY_ICONS;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.white }}>
-      {/* Decorative bottom-to-top gradient occupying half screen */}
+    <View style={{ flex: 1 }}>
+      {/* Blue Radial Gradient Background */}
       <LinearGradient
-        colors={[Colors.lightsky, 'rgba(212,255,242,0)']}
-        start={{ x: 0.5, y: 1 }}
-        end={{ x: 0.5, y: 0 }}
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }}
+        colors={['#1E3A8A', '#3B82F6', '#1E293B']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
       />
+      
+      <SafeAreaView style={{ flex: 1 }}>
+        <View style={{ flex: 1, padding: wp(6), alignItems: 'center', justifyContent: 'space-between' }}>
+          
+          {/* Top Section - Logo and Welcome */}
+          <View style={{ width: '100%', alignItems: 'center', marginTop: hp(8) }}>
+            <View style={styles.logoContainer}>
+              <Image source={IMAGES.LOGO} style={{ width: wp(18), height: wp(18) }} resizeMode="contain" />
+            </View>
+            
+            <Text style={styles.welcomeTitle}>
+              Welcome to Members Portal
+            </Text>
+            <Text style={styles.welcomeSubtitle}>
+              Sign in to access your membership services and continue your application
+            </Text>
+          </View>
 
-      <View style={{ flex: 1, padding: wp(6), alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ width: '100%', alignItems: 'center', marginTop: 0, marginBottom: wp(6) }}>
-          <Image source={IMAGES.LOGO} style={{ width: wp(18), height: wp(18) }} resizeMode="contain" />
-        </View>
+          {/* Bottom Section - Authentication Options */}
+          <View style={{ alignItems: 'center', width: '100%', maxWidth: 600, marginBottom: hp(4) }}>
+            
+            {/* Microsoft Logo */}
+            <View style={styles.microsoftLogoContainer}>
+              <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+                <View style={[styles.microsoftSquare, { backgroundColor: '#F25022', marginRight: 4 }]} />
+                <View style={[styles.microsoftSquare, { backgroundColor: '#7FBA00' }]} />
+              </View>
+              <View style={{ flexDirection: 'row' }}>
+                <View style={[styles.microsoftSquare, { backgroundColor: '#00A4EF', marginRight: 4 }]} />
+                <View style={[styles.microsoftSquare, { backgroundColor: '#FFB900' }]} />
+              </View>
+            </View>
 
-        <View style={{ alignItems: 'center', width: '100%', maxWidth: 600 }}>
-          <Text style={{ fontWeight: '700', fontSize: 24, marginBottom: wp(2), color: Colors.black }}>
-            Welcome back!
-          </Text>
-          <Text style={{ color: Colors.grey700, marginBottom: wp(6), fontSize: 14, textAlign: 'center' }}>
-            Sign in securely to continue
-          </Text>
-
-          <View style={{ width: '100%', gap: wp(4), alignItems: 'center' }}>
-
-            <View style={{ alignItems: 'center' }}>
+            {/* Face Recognition Option */}
+            <View style={{ alignItems: 'center', marginBottom: wp(6) }}>
               <TouchableOpacity
                 onPress={() => {
                   if (onFaceRecognitionPress) {
@@ -44,38 +62,100 @@ const LandingPage = ({ onLoginPress, onFaceRecognitionPress }) => {
                   }
                 }}
                 activeOpacity={0.85}
-                style={{
-                  width: wp(16),
-                  height: wp(16),
-                  borderRadius: wp(8),
-                  backgroundColor: Colors.ligthWhite,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderWidth: 1,
-                  borderColor: Colors.lightgray,
-                  shadowColor: Colors.black,
-                  shadowOffset: { width: 0, height: 6 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 10,
-                  elevation: 6,
-                }}
+                style={styles.faceRecognitionButton}
               >
                 <MCI name="face-recognition" size={wp(8)} color={Colors.primary} />
               </TouchableOpacity>
-              <Text style={{ color: Colors.grey700, marginTop: wp(2), fontSize: 12 }}>Face Recognition</Text>
+              <Text style={styles.faceRecognitionText}>Face Recognition</Text>
             </View>
+
+            {/* Login Button */}
             <Button
-              title={'Start'}
+              title={'Continue with Microsoft'}
               primary
               onPress={onLoginPress}
-              style={{ width: '100%' }}
+              style={{ width: '100%', marginBottom: wp(3) }}
             />
+            
+            <Text style={styles.footerText}>
+              Secure authentication powered by Microsoft
+            </Text>
           </View>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  logoContainer: {
+    width: wp(22),
+    height: wp(22),
+    borderRadius: wp(11),
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: wp(6),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  welcomeTitle: {
+    fontWeight: '700',
+    fontSize: 28,
+    marginBottom: wp(3),
+    color: Colors.white,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  welcomeSubtitle: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    marginBottom: wp(6),
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: wp(8),
+    lineHeight: 20,
+  },
+  microsoftLogoContainer: {
+    marginBottom: wp(6),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  microsoftSquare: {
+    width: 24,
+    height: 24,
+    borderRadius: 2,
+  },
+  faceRecognitionButton: {
+    width: wp(18),
+    height: wp(18),
+    borderRadius: wp(9),
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  faceRecognitionText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: wp(2),
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  footerText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: wp(2),
+  },
+});
 
 export default LandingPage;
 
