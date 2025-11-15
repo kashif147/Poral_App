@@ -6,48 +6,53 @@ import {
   Modal,
   StyleSheet,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import { Colors, wp, hp } from '../../utils/Styles';
-import { IMAGES } from '../../assets/images';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const PopupMenu = ({ visible, onClose, onNavigate }) => {
+  const insets = useSafeAreaInsets();
+  
   const menuItems = [
     {
-      id: 'event',
-      label: 'Event',
-      icon: '🎉',
-      route: 'Event',
-    },
-    {
       id: 'category',
-      label: 'Transper of Request',
-      icon: '📂',
+      label: 'Transfer of Request',
+      icon: 'swap-horizontal',
+      iconType: 'Ionicons',
+      color: '#4ECDC4',
+      bgColor: '#E0F7F5',
       route: 'Category',
-    },
-    {
-      id: 'courses',
-      label: 'Courses',
-      icon: '📚',
-      route: 'Courses',
     },
     {
       id: 'membership',
       label: 'Change of Category',
-      icon: '👑',
+      icon: 'star-outline',
+      iconType: 'Ionicons',
+      color: '#FFD93D',
+      bgColor: '#FFF9E6',
       route: 'Membership',
     },
     {
       id: 'resources',
       label: 'Resources',
-      icon: '📑',
+      icon: 'document-text-outline',
+      iconType: 'Ionicons',
+      color: '#6C5CE7',
+      bgColor: '#EDEBF7',
       route: 'Resources',
     },
     {
       id: 'profile',
       label: 'Profile',
-      icon: '👤',
+      icon: 'person-outline',
+      iconType: 'Ionicons',
+      color: '#74B9FF',
+      bgColor: '#E3F2FD',
       route: 'Profile',
     },
   ];
@@ -69,22 +74,46 @@ const PopupMenu = ({ visible, onClose, onNavigate }) => {
         activeOpacity={1}
         onPress={onClose}
       >
-        <View style={styles.menuContainer}>
+        <View 
+          style={[styles.menuContainer, { paddingBottom: insets.bottom + 20 }]}
+          onStartShouldSetResponder={() => true}
+        >
           {/* Handle bar */}
           <View style={styles.handleBar} />
-          <View style={styles.menuGrid}>
-            {menuItems.map((item, index) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.menuItem}
-                onPress={() => handleItemPress(item)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.menuIcon}>{item.icon}</Text>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-              </TouchableOpacity>
-            ))}
+          
+          {/* Header */}
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>More Options</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
           </View>
+
+          {/* Menu Grid */}
+          <ScrollView 
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            <View style={styles.menuGrid}>
+              {menuItems.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.menuItem}
+                  onPress={() => handleItemPress(item)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
+                    {item.iconType === 'Ionicons' ? (
+                      <Ionicons name={item.icon} size={28} color={item.color} />
+                    ) : (
+                      <MaterialCommunityIcons name={item.icon} size={28} color={item.color} />
+                    )}
+                  </View>
+                  <Text style={styles.menuLabel} numberOfLines={2}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
         </View>
       </TouchableOpacity>
     </Modal>
@@ -98,20 +127,44 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   menuContainer: {
-    backgroundColor: Colors.darkCharcoal,
-    borderTopLeftRadius: wp(4),
-    borderTopRightRadius: wp(4),
-    padding: wp(4),
-    width: '100%',
-    paddingBottom: hp(8), // Extra padding for safe area
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
   },
   handleBar: {
-    width: wp(15),
+    width: 40,
     height: 4,
-    backgroundColor: Colors.gray,
+    backgroundColor: '#E5E7EB',
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: hp(2),
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  closeButton: {
+    padding: 4,
+  },
+  scrollContent: {
+    padding: 20,
   },
   menuGrid: {
     flexDirection: 'row',
@@ -119,21 +172,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   menuItem: {
-    width: '18%',
+    width: (width - 40) / 4, 
     alignItems: 'center',
-    paddingVertical: hp(2),
-    marginBottom: hp(1),
   },
-  menuIcon: {
-    fontSize: wp(6),
-    marginBottom: hp(1),
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   menuLabel: {
-    color: Colors.white,
-    fontSize: wp(2.5),
+    color: Colors.textPrimary,
+    fontSize: 13,
     textAlign: 'center',
-    fontWeight: '500',
-    lineHeight: wp(3),
+    fontWeight: '600',
+    lineHeight: 18,
   },
 });
 

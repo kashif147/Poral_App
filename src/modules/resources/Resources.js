@@ -7,11 +7,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Image,
 } from 'react-native';
 import { Colors, hp, wp } from '../../utils/Styles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import ScreenHeader from '../../common/screenHeader';
 
 const FILTER_TABS = ['All', 'Articles', 'Case Studies', 'Webinars'];
 
@@ -24,6 +26,7 @@ const RESOURCES_DATA = [
     badgeColor: '#DCFCE7',
     badgeTextColor: '#16A34A',
     gradient: ['#667EEA', '#764BA2'],
+    image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=300&fit=crop',
   },
   {
     id: 2,
@@ -33,6 +36,7 @@ const RESOURCES_DATA = [
     badgeColor: '#FEF3C7',
     badgeTextColor: '#D97706',
     gradient: ['#2C3E50', '#4CA1AF'],
+    image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop',
   },
   {
     id: 3,
@@ -42,6 +46,7 @@ const RESOURCES_DATA = [
     badgeColor: '#DCFCE7',
     badgeTextColor: '#16A34A',
     gradient: ['#000000', '#434343'],
+    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=300&fit=crop',
   },
   {
     id: 4,
@@ -49,6 +54,7 @@ const RESOURCES_DATA = [
     type: 'Article',
     badge: null,
     gradient: ['#B2DFDB', '#E0F7FA'],
+    image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400&h=300&fit=crop',
   },
   {
     id: 5,
@@ -58,6 +64,7 @@ const RESOURCES_DATA = [
     badgeColor: '#FEF3C7',
     badgeTextColor: '#D97706',
     gradient: ['#4A6741', '#78A665'],
+    image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=400&h=300&fit=crop',
   },
   {
     id: 6,
@@ -65,6 +72,7 @@ const RESOURCES_DATA = [
     type: 'Podcast',
     badge: null,
     gradient: ['#000000', '#2C2C2C'],
+    image: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=400&h=300&fit=crop',
   },
 ];
 
@@ -98,18 +106,8 @@ const Resources = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
-      {/* Header - Matching Application.js */}
-      <View
-        style={[
-          styles.header,
-          { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 },
-        ]}
-      >
-        <Text style={styles.headerTitle}>Resources</Text>
-        <View style={styles.headerAvatarContainer}>
-          <Ionicons name="person" size={20} color={Colors.white} />
-        </View>
-      </View>
+      {/* Header */}
+      <ScreenHeader title="Resources" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -168,17 +166,20 @@ const Resources = () => {
             <View key={resource.id} style={styles.resourceCard}>
               {/* Card Image/Thumbnail */}
               <View style={styles.cardImageContainer}>
+                <Image
+                  source={{ uri: resource.image }}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
+                {/* Gradient Overlay */}
                 <View
                   style={[
-                    styles.cardImagePlaceholder,
+                    styles.imageOverlay,
                     resource.gradient && {
-                      backgroundColor: resource.gradient[0],
+                      backgroundColor: resource.gradient[0] + '80',
                     },
                   ]}
-                >
-                  {/* Placeholder for actual image */}
-                  <View style={styles.imagePlaceholder} />
-                </View>
+                />
 
                 {/* Bookmark Icon */}
                 <TouchableOpacity
@@ -357,17 +358,19 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: 120,
+    overflow: 'hidden',
   },
-  cardImagePlaceholder: {
+  cardImage: {
     width: '100%',
     height: '100%',
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
+  imageOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   bookmarkButton: {
     position: 'absolute',

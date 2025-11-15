@@ -11,6 +11,7 @@ import Membership from '../modules/membership/Membership';
 import Payment from '../modules/payment/Payment';
 import Profile from '../modules/profile/Profile';
 import Resources from '../modules/resources/Resources';
+import Notifications from '../modules/notifications/Notifications';
 import { STACKS } from '../enums/ScreenEnums';
 import { IMAGES } from '../assets/images';
 import { TabBarIcon } from '../common/tabBarIcon';
@@ -28,14 +29,19 @@ const TAB_ICONS = [
     icon: IMAGES.HOME,
   },
   {
+    name: STACKS.EVENTS_STACK,
+    label: 'Event',
+    icon: IMAGES.EVENT,
+  },
+  {
+    name: STACKS.COURSES_STACK,
+    label: 'Courses',
+    icon: IMAGES.COURSES,
+  },
+  {
     name: STACKS.PAYMENT_STACK,
     label: 'Payment',
     icon: IMAGES.PAYMENT,
-  },
-  {
-    name: STACKS.APPLICATION_STACK,
-    label: 'Application',
-    icon: IMAGES.PEN,
   },
   {
     name: 'menu',
@@ -214,17 +220,18 @@ const TabNavigator = () => {
         }}
       >
         <Tab.Screen name={STACKS.DASHBOARD_STACK} component={DashBoard} />
+        <Tab.Screen name={STACKS.EVENTS_STACK} component={Event} />
+        <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
         <Tab.Screen name={STACKS.PAYMENT_STACK} component={Payment} />
-        <Tab.Screen name={STACKS.APPLICATION_STACK} component={Application} />
         <Tab.Screen name="Menu" component={DashBoard} />
         {/* Hidden screens for popup navigation */}
-        <Tab.Screen name={STACKS.EVENTS_STACK} component={Event} />
+        <Tab.Screen name={STACKS.APPLICATION_STACK} component={Application} />
         <Tab.Screen name={STACKS.CATEGORIES_STACK} component={Categories} />
-        <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
         <Tab.Screen name="Profile" component={Profile} />
         <Tab.Screen name="Resources" component={Resources} />
         <Tab.Screen name="Directory" component={Profile} />
+        <Tab.Screen name="Notifications" component={Notifications} />
       </Tab.Navigator>
   );
 };

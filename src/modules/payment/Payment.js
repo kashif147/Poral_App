@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createPaymentIntentRequest } from '../../api/payment.api';
 import { fetchCategoryByCategoryId } from '../../api/category.api';
 import { useApplication } from '../../contexts/applicationContext';
+import ScreenHeader from '../../common/screenHeader';
 
 const Payment = () => {
   const insets = useSafeAreaInsets();
@@ -193,12 +194,7 @@ const Payment = () => {
       <StatusBar backgroundColor={Colors.background} barStyle="dark-content" />
       
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
-        <Text style={styles.headerTitle}>Payment</Text>
-        <View style={styles.headerAvatarContainer}>
-          <Ionicons name="person" size={20} color={Colors.white} />
-        </View>
-      </View>
+      <ScreenHeader title="Payment" />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}

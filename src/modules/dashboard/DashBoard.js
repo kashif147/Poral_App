@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Dimensions, StyleSheet, TouchableOpacity, Image, Text, ImageBackground, Platform } from 'react-native';
 import { Label } from '../../common/text/label';
 import { Wrapper } from '../../common/wrapper';
-import { SVG } from '../../assets/svg';
 import { DashboardCard } from '../../common/DashboardCard';
 import { useNavigation } from '@react-navigation/native';
 import { STACKS } from '../../enums/ScreenEnums';
@@ -12,7 +11,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LocalSvg } from 'react-native-svg/css';
 import { useApplication } from '../../contexts/applicationContext';
 import { applicationConfirmationRequest } from '../../api/application.api';
 
@@ -208,9 +206,11 @@ const DashBoard = () => {
           </View>
           <Text style={styles.greetingText}>Hello, {userName}!</Text>
         </View>
-        <TouchableOpacity style={styles.notificationButton}>
-        <LocalSvg width={26} height={26} asset={SVG.NOTIFICATION} fill={Colors.textPrimary} />
-          {/* <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} /> */}
+        <TouchableOpacity 
+          style={styles.notificationButton}
+          onPress={() => navigation.navigate('Notifications')}
+        >
+          <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
           <View style={styles.notificationBadge} />
         </TouchableOpacity>
       </View>
@@ -219,76 +219,101 @@ const DashBoard = () => {
         {/* Application Status Card */}
         {applicationStatus && (
           <View style={styles.statusCard}>
-            <Text style={styles.statusCardTitle}>Your Application Status</Text>
-            <Text style={{ fontSize: 10, color: '#999', marginBottom: 8 }}>Status: {applicationStatus}</Text>
+            <View style={styles.statusCardHeader}>
+              <Text style={styles.statusCardTitle}>Application Status</Text>
+              <View style={[
+                styles.statusBadge,
+                { backgroundColor: applicationStatus === 'approved' ? '#D1FAE5' : applicationStatus === 'in_review' ? '#FEF3C7' : '#DBEAFE' }
+              ]}>
+                <Text style={[
+                  styles.statusBadgeText,
+                  { color: applicationStatus === 'approved' ? '#059669' : applicationStatus === 'in_review' ? '#D97706' : '#2563EB' }
+                ]}>
+                  {applicationStatus === 'approved' ? 'Approved' : applicationStatus === 'in_review' ? 'In Review' : 'Submitted'}
+                </Text>
+              </View>
+            </View>
             
-            {/* Status Timeline */}
+            {/* Compact Status Timeline */}
             <View style={styles.statusTimeline}>
               {/* Submitted */}
-              <View style={styles.statusRow}>
-                <View style={styles.statusIconContainer}>
-                  <View style={[styles.statusIcon, { backgroundColor: '#E8F0FE' }]}>
-                    <Text style={styles.statusEmoji}>✓</Text>
-                  </View>
-                  {applicationStatus !== 'submitted' && <View style={styles.statusConnector} />}
+              <View style={styles.statusStep}>
+                <View style={[
+                  styles.statusIcon,
+                  { backgroundColor: '#E8F0FE', borderColor: Colors.primary, borderWidth: 2 }
+                ]}>
+                  <Ionicons name="checkmark" size={14} color={Colors.primary} />
                 </View>
-                <View style={styles.statusContent}>
-                  <Text style={styles.statusLabel}>Submitted</Text>
-                  <Text style={styles.statusSublabel}>Completed on Jan 12, 2024</Text>
+                <View style={styles.statusStepContent}>
+                  <Text style={styles.statusStepLabel}>Submitted</Text>
                 </View>
+              </View>
+
+              {/* Connector 1 */}
+              <View style={styles.statusConnectorContainer}>
+                <View style={[
+                  styles.statusConnector,
+                  { backgroundColor: (applicationStatus === 'in_review' || applicationStatus === 'approved') ? Colors.primary : '#E5E7EB' }
+                ]} />
               </View>
 
               {/* In Review */}
-              <View style={styles.statusRow}>
-                <View style={styles.statusIconContainer}>
-                  <View style={[
-                    styles.statusIcon,
-                    { backgroundColor: applicationStatus === 'in_review' || applicationStatus === 'approved' ? '#FFF4E6' : '#F1F5F9' }
-                  ]}>
-                    <Text style={[
-                      styles.statusEmoji,
-                      { color: applicationStatus === 'in_review' || applicationStatus === 'approved' ? '#FFA500' : '#94A3B8' }
-                    ]}>⟳</Text>
-                  </View>
-                  {applicationStatus !== 'in_review' && applicationStatus !== 'approved' && (
-                    <View style={[styles.statusConnector, { backgroundColor: '#E5E5E5' }]} />
-                  )}
-                  {(applicationStatus === 'in_review' || applicationStatus === 'approved') && (
-                    <View style={styles.statusConnector} />
-                  )}
+              <View style={styles.statusStep}>
+                <View style={[
+                  styles.statusIcon,
+                  { 
+                    backgroundColor: applicationStatus === 'in_review' || applicationStatus === 'approved' ? '#FFF4E6' : '#F1F5F9',
+                    borderColor: applicationStatus === 'in_review' || applicationStatus === 'approved' ? '#FFA500' : '#E5E7EB',
+                    borderWidth: applicationStatus === 'in_review' || applicationStatus === 'approved' ? 2 : 1
+                  }
+                ]}>
+                  <Ionicons 
+                    name="time-outline" 
+                    size={14} 
+                    color={applicationStatus === 'in_review' || applicationStatus === 'approved' ? '#FFA500' : '#94A3B8'} 
+                  />
                 </View>
-                <View style={styles.statusContent}>
-                  <Text style={[styles.statusLabel, applicationStatus === 'in_review' && { color: Colors.primary }]}>
+                <View style={styles.statusStepContent}>
+                  <Text style={[
+                    styles.statusStepLabel,
+                    (applicationStatus === 'in_review' || applicationStatus === 'approved') && { color: '#FFA500', fontWeight: '600' }
+                  ]}>
                     In Review
                   </Text>
-                  {applicationStatus === 'in_review' && (
-                    <Text style={[styles.statusSublabel, { color: Colors.primary, fontWeight: '600' }]}>
-                      Current Step
-                    </Text>
-                  )}
                 </View>
               </View>
 
+              {/* Connector 2 */}
+              <View style={styles.statusConnectorContainer}>
+                <View style={[
+                  styles.statusConnector,
+                  { backgroundColor: applicationStatus === 'approved' ? Colors.primary : '#E5E7EB' }
+                ]} />
+              </View>
+
               {/* Approved */}
-              <View style={styles.statusRow}>
-                <View style={styles.statusIconContainer}>
-                  <View style={[
-                    styles.statusIcon,
-                    { backgroundColor: applicationStatus === 'approved' ? '#10B981' : '#F1F5F9' }
-                  ]}>
-                    <Text style={[
-                      styles.statusEmoji,
-                      { color: applicationStatus === 'approved' ? '#FFFFFF' : '#94A3B8' }
-                    ]}>{applicationStatus === 'approved' ? '✓' : '🔒'}</Text>
-                  </View>
-                </View>
-                <View style={styles.statusContent}>
-                  <Text style={[styles.statusLabel, applicationStatus === 'approved' && { color: '#10B981' }]}>
-                    {applicationStatus === 'approved' ? 'Approved' : 'Approved'}
-                  </Text>
-                  {applicationStatus !== 'approved' && (
-                    <Text style={styles.statusSublabel}>Pending</Text>
+              <View style={styles.statusStep}>
+                <View style={[
+                  styles.statusIcon,
+                  { 
+                    backgroundColor: applicationStatus === 'approved' ? '#D1FAE5' : '#F1F5F9',
+                    borderColor: applicationStatus === 'approved' ? '#10B981' : '#E5E7EB',
+                    borderWidth: applicationStatus === 'approved' ? 2 : 1
+                  }
+                ]}>
+                  {applicationStatus === 'approved' ? (
+                    <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  ) : (
+                    <Ionicons name="lock-closed-outline" size={14} color="#94A3B8" />
                   )}
+                </View>
+                <View style={styles.statusStepContent}>
+                  <Text style={[
+                    styles.statusStepLabel,
+                    applicationStatus === 'approved' && { color: '#10B981', fontWeight: '600' }
+                  ]}>
+                    Approved
+                  </Text>
                 </View>
               </View>
             </View>
@@ -371,6 +396,15 @@ const DashBoard = () => {
           ))}
         </View>
       </ScrollView>
+
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: insets.bottom }]}
+        onPress={() => navigation.navigate(STACKS.APPLICATION_STACK)}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={28} color={Colors.white} />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -428,7 +462,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.surface,
   },
   featuredCard: {
-    margin: 20,
+    marginHorizontal: 20,
+    marginBottom: 20,
     backgroundColor: Colors.cardBackground,
     borderRadius: 16,
     overflow: 'hidden',
@@ -575,63 +610,87 @@ const styles = StyleSheet.create({
     margin: 20,
     marginTop: 16,
     backgroundColor: Colors.cardBackground,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
+  statusCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   statusCardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 20,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   statusTimeline: {
-    paddingLeft: 8,
-  },
-  statusRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
-  statusIconContainer: {
     alignItems: 'center',
-    marginRight: 16,
+    paddingHorizontal: 4,
+  },
+  statusStep: {
+    flex: 1,
+    alignItems: 'center',
   },
   statusIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 6,
   },
-  statusEmoji: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.primary,
+  statusStepContent: {
+    alignItems: 'center',
+  },
+  statusStepLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  statusConnectorContainer: {
+    width: 20,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: -4,
   },
   statusConnector: {
-    width: 2,
-    height: 32,
+    width: '100%',
+    height: 2,
     backgroundColor: Colors.primary,
-    marginTop: 4,
   },
-  statusContent: {
-    flex: 1,
-    paddingTop: 4,
-  },
-  statusLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  statusSublabel: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
 

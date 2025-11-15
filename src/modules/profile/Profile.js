@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { signOut } from '../../services/auth.services';
+import ScreenHeader from '../../common/screenHeader';
 
 const Profile = () => {
   const { personalDetail, getPersonalDetail } = useApplication();
@@ -143,13 +144,8 @@ const Profile = () => {
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
-        {/* Header - Matching Application.js */}
-        <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <View style={styles.headerAvatarContainer}>
-            <Ionicons name="person" size={20} color={Colors.white} />
-          </View>
-        </View>
+        {/* Header */}
+        <ScreenHeader title="Profile" />
 
         <ScrollView contentContainerStyle={{ paddingBottom: hp(12) }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           

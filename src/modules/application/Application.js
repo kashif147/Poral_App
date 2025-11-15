@@ -10,6 +10,7 @@ import SubscriptionPaymentModal from './components/SubscriptionPaymentModal';
 import { useApplication } from '../../contexts/applicationContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import ScreenHeader from '../../common/screenHeader';
 import {
   fetchPersonalDetail,
   fetchProfessionalDetail,
@@ -747,12 +748,7 @@ const Application = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {/* Header */}
-        <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
-          <Text style={styles.headerTitle}>Application</Text>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person" size={20} color={Colors.white} />
-          </View>
-        </View>
+        <ScreenHeader title="Application" />
 
         {/* Stepper */}
         <View style={[styles.stepperRow, { width: '100%', marginBottom: width * 0.04, paddingHorizontal: 20 }]}>
