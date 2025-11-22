@@ -15,6 +15,7 @@ import { useEffect, useMemo } from 'react';
 import { useLookup } from '../../contexts/lookupContext';
 import { fetchCategoryByCategoryId } from '../../api/category.api';
 
+// Fallback payment types if lookups not loaded yet
 const paymentTypes = ['Deduction at Source', 'Credit Card'];
 const membershipStatuses = [
   { value: 'new', label: 'You are a new member' },
@@ -34,8 +35,12 @@ const SubscriptionDetails = ({
   showValidation,
   membershipCategory,
 }) => {
-  const { primarySectionLookups, secondarySectionLookups, fetchLookups } =
-    useLookup();
+  const { 
+    primarySectionLookups, 
+    secondarySectionLookups, 
+    paymentTypeLookups,
+    fetchLookups 
+  } = useLookup();
   const [categoryData, setCategoryData] = useState(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
@@ -44,10 +49,12 @@ const SubscriptionDetails = ({
       !primarySectionLookups || primarySectionLookups.length === 0;
     const needSecondary =
       !secondarySectionLookups || secondarySectionLookups.length === 0;
-    if (needPrimary || needSecondary) {
+    const needPaymentType =
+      !paymentTypeLookups || paymentTypeLookups.length === 0;
+    if (needPrimary || needSecondary || needPaymentType) {
       fetchLookups?.();
     }
-  }, [primarySectionLookups, secondarySectionLookups, fetchLookups]);
+  }, [primarySectionLookups, secondarySectionLookups, paymentTypeLookups, fetchLookups]);
 
   // Fetch category pricing data
   useEffect(() => {
@@ -96,6 +103,21 @@ const SubscriptionDetails = ({
     [secondarySectionLookups],
   );
 
+  // Map payment type lookups to picker options (matching web version)
+  const paymentOptions = useMemo(() => {
+    return (paymentTypeLookups || []).map(l => ({
+      value: l?.DisplayName || l?.lookupname || '',
+      label: l?.DisplayName || l?.lookupname || '',
+      code: l?.code,
+    })).filter(option => option.value); // Filter out empty values
+  }, [paymentTypeLookups]);
+
+  // Helper function to check if payment type requires payroll number (matching web version)
+  const requiresPayrollNo = (paymentType) => {
+    const paymentTypesRequiringPayroll = ['Direct Debit', 'Salary Deduction', 'Deduction at Source'];
+    return paymentTypesRequiringPayroll.includes(paymentType);
+  };
+
   return (
     <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
       {membershipCategory && (
@@ -133,32 +155,50 @@ const SubscriptionDetails = ({
         <Text style={styles.label}>Payment Type *</Text>
         <View style={styles.pickerField}>
           <Picker
-            selectedValue={formData.paymentType || paymentTypes[0]}
+            selectedValue={formData.paymentType || ''}
             onValueChange={val => {
-              const shouldClear =
-                formData?.paymentType === 'Deduction at Source' &&
-                val === 'Credit Card';
-              onFormDataChange({
-                ...formData,
-                paymentType: val,
-                ...(shouldClear ? { payrollNo: '' } : {}),
-              });
+              if (val) {
+                const oldPaymentType = formData?.paymentType;
+                const newPaymentType = val;
+                
+                // Clear payrollNo when switching from a payment type that requires it to one that doesn't (matching web version)
+                if (requiresPayrollNo(oldPaymentType) && !requiresPayrollNo(newPaymentType)) {
+                  onFormDataChange({
+                    ...formData,
+                    paymentType: newPaymentType,
+                    payrollNo: '',
+                  });
+                } else {
+                  onFormDataChange({
+                    ...formData,
+                    paymentType: newPaymentType,
+                  });
+                }
+              }
             }}
           >
-            {paymentTypes.map(t => (
-              <Picker.Item key={t} label={t} value={t} />
-            ))}
+            <Picker.Item label="Select payment type" value="" />
+            {paymentOptions.length > 0 ? (
+              paymentOptions.map(option => (
+                <Picker.Item key={option.value} label={option.label} value={option.value} />
+              ))
+            ) : (
+              // Fallback to hardcoded options if lookups not loaded yet
+              paymentTypes.map(t => (
+                <Picker.Item key={t} label={t} value={t} />
+              ))
+            )}
           </Picker>
         </View>
 
         {/* Payroll No */}
         <Text style={styles.label}>
-          Payroll No {formData.paymentType === 'Deduction at Source' && '*'}
+          Payroll No {requiresPayrollNo(formData.paymentType) && '*'}
         </Text>
         <View style={styles.inputField}>
           <InputField
             value={formData.payrollNo}
-            editable={formData.paymentType === 'Deduction at Source'}
+            editable={requiresPayrollNo(formData.paymentType)}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({ ...formData, payrollNo: text })

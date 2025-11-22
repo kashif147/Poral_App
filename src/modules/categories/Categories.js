@@ -110,7 +110,7 @@ const workLocationDetails = {
 const Categories = () => {
   const { personalDetail, professionalDetail } = useApplication();
   const existing = professionalDetail?.professionalDetails || {};
-  const applicationId = personalDetail?.ApplicationId;
+  const applicationId = personalDetail?.applicationId;
 
   const [form, setForm] = useState({ workLocation: '', otherWorkLocation: '', branch: '', region: '' });
 

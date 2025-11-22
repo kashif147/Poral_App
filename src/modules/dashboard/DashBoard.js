@@ -54,10 +54,10 @@ const DashBoard = () => {
   // Fetch application status
   useEffect(() => {
     const checkApplicationStatus = async () => {
-      if (personalDetail?.ApplicationId) {
+      if (personalDetail?.applicationId) {
         try {
-          console.log('📋 Checking application status for:', personalDetail.ApplicationId);
-          const response = await applicationConfirmationRequest(personalDetail.ApplicationId);
+          console.log('📋 Checking application status for:', personalDetail.applicationId);
+          const response = await applicationConfirmationRequest(personalDetail.applicationId);
           console.log('Application Status Response:', response);
           
           if (response?.status === 200 || response?.data?.status === 'success') {
@@ -75,14 +75,14 @@ const DashBoard = () => {
           setApplicationStatus('submitted');
         }
       } else {
-        // For testing: show card even without ApplicationId
-        console.log('⚠️ No ApplicationId, setting default status for testing');
+        // For testing: show card even without applicationId
+        console.log('⚠️ No applicationId, setting default status for testing');
         setApplicationStatus('submitted');
       }
     };
 
     checkApplicationStatus();
-  }, [personalDetail?.ApplicationId]);
+  }, [personalDetail?.applicationId]);
 
   // Get application status display info
   const getStatusInfo = (status) => {

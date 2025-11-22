@@ -17,7 +17,7 @@ import ScreenHeader from '../../common/screenHeader';
 
 const Profile = () => {
   const { personalDetail, getPersonalDetail } = useApplication();
-  const applicationId = personalDetail?.ApplicationId;
+  const applicationId = personalDetail?.applicationId;
   const insets = useSafeAreaInsets();
   // const dispatch = useDispatch();
   const navigation = useNavigation();
@@ -53,7 +53,7 @@ const Profile = () => {
       addressLine4: personalDetail?.contactInfo?.countyCityOrPostCode || '',
       eircode: personalDetail?.contactInfo?.eircode || '',
       preferredAddress: personalDetail?.contactInfo?.preferredAddress || '',
-      correspondenceCountry: personalDetail?.contactInfo?.country || '',
+      country: personalDetail?.contactInfo?.country || '',
       
       // Contact Information
       mobileNo: personalDetail?.contactInfo?.mobileNumber || '',
@@ -88,16 +88,16 @@ const Profile = () => {
       Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfoPayload.personalInfo[k] = v; });
 
       const contactFields = {
-        preferredAddress: personalInfo.preferredAddress,
+        preferredAddress: personalInfo.preferredAddress ? personalInfo.preferredAddress.toLowerCase() : personalInfo.preferredAddress,
         eircode: personalInfo.eircode,
         buildingOrHouse: personalInfo.addressLine1,
         streetOrRoad: personalInfo.addressLine2,
         areaOrTown: personalInfo.addressLine3,
         countyCityOrPostCode: personalInfo.addressLine4,
-        country: personalInfo.correspondenceCountry,
+        country: personalInfo.country,
         mobileNumber: personalInfo.mobileNo,
         telephoneNumber: personalInfo.workTel,
-        preferredEmail: personalInfo.preferredEmail,
+        preferredEmail: personalInfo.preferredEmail ? personalInfo.preferredEmail.toLowerCase() : personalInfo.preferredEmail,
         personalEmail: personalInfo.personalEmail,
         workEmail: personalInfo.workEmail,
         consent: personalInfo.consent,

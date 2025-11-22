@@ -39,9 +39,9 @@ export const ApplicationProvider = ({ children }) => {
   };
 
   const getProfessionalDetail = () => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
     setLoading(true);
-    fetchProfessionalDetail(personalDetail?.ApplicationId)
+    fetchProfessionalDetail(personalDetail?.applicationId)
       .then(res => {
         if (res.status === 200) {
           setProfessionalDetail(res?.data?.data);
@@ -58,9 +58,9 @@ export const ApplicationProvider = ({ children }) => {
   };
 
   const getSubscriptionDetail = () => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
     setLoading(true);
-    fetchSubscriptionDetail(personalDetail?.ApplicationId)
+    fetchSubscriptionDetail(personalDetail?.applicationId)
       .then(res => {
         if (res.status === 200) {
           setSubscriptionDetail(res?.data?.data);
@@ -76,14 +76,14 @@ export const ApplicationProvider = ({ children }) => {
       });
   };
 
-  // Cascade fetch when we have an ApplicationId
+  // Cascade fetch when we have an applicationId
   useEffect(() => {
-    if (personalDetail?.ApplicationId) {
+    if (personalDetail?.applicationId) {
       getProfessionalDetail();
       getSubscriptionDetail();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personalDetail?.ApplicationId]);
+  }, [personalDetail?.applicationId]);
 
   // Initialize: load personal detail
   useEffect(() => {

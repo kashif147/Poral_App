@@ -14,6 +14,8 @@ const STORAGE_KEYS = {
   workLocation: 'workLocationLookups',
   countries: 'countries',
   categories: 'categories',
+  grade: 'gradeLookups',
+  paymentType: 'paymentTypeLookups',
 };
 
 const LookupContext = createContext();
@@ -72,6 +74,8 @@ export const LookupProvider = ({ children }) => {
   const [workLocationLookups, setWorkLocationLookups] = useState([]);
   const [countryLookups, setCountryLookups] = useState([]);
   const [categoryLookups, setCategoryLookups] = useState([]);
+  const [gradeLookups, setGradeLookups] = useState([]);
+  const [paymentTypeLookups, setPaymentTypeLookups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -94,7 +98,8 @@ export const LookupProvider = ({ children }) => {
         const titleData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Title');
         const secondarySectionData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Secondary Section');
         const sectionData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Section');
-
+        const gradeData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Grade');
+        const paymentTypeData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Payment Type');
         console.log('✅ Lookups filtered:', {
           gender: genderData.length,
           city: cityData.length,
@@ -102,13 +107,16 @@ export const LookupProvider = ({ children }) => {
           secondarySection: secondarySectionData.length,
           primarySection: sectionData.length
         });
-
+await saveLocal(STORAGE_KEYS.paymentType, paymentTypeData);
+await saveLocal(STORAGE_KEYS.grade, gradeData);
         await saveLocal(STORAGE_KEYS.gender, genderData);
         await saveLocal(STORAGE_KEYS.city, cityData);
         await saveLocal(STORAGE_KEYS.title, titleData);
         await saveLocal(STORAGE_KEYS.secondarySection, secondarySectionData);
         await saveLocal(STORAGE_KEYS.primarySection, sectionData);
 
+        setPaymentTypeLookups(paymentTypeData);
+        setGradeLookups(gradeData);
         setGenderLookups(genderData);
         setCityLookups(cityData);
         setTitleLookups(titleData);
@@ -216,6 +224,9 @@ export const LookupProvider = ({ children }) => {
       const cachedWorkLocation = await fetchLocal(STORAGE_KEYS.workLocation);
       const cachedCountries = await fetchLocal(STORAGE_KEYS.countries);
       const cachedCategories = await fetchLocal(STORAGE_KEYS.categories);
+      const cachedGrade = await fetchLocal(STORAGE_KEYS.grade);
+      const cachedPaymentType = await fetchLocal(STORAGE_KEYS.paymentType);
+
       if (cachedGender) setGenderLookups(cachedGender);
       if (cachedCity) setCityLookups(cachedCity);
       if (cachedTitle) setTitleLookups(cachedTitle);
@@ -224,6 +235,8 @@ export const LookupProvider = ({ children }) => {
       if (cachedWorkLocation) setWorkLocationLookups(cachedWorkLocation);
       if (cachedCountries) setCountryLookups(cachedCountries);
       if (cachedCategories) setCategoryLookups(cachedCategories);
+      if (cachedGrade) setGradeLookups(cachedGrade);
+      if (cachedPaymentType) setPaymentTypeLookups(cachedPaymentType);
     };
     loadCached();
   }, []);
@@ -278,6 +291,8 @@ export const LookupProvider = ({ children }) => {
     workLocationLookups,
     countryLookups,
     categoryLookups,
+    gradeLookups,
+    paymentTypeLookups,
     loading,
     error,
     fetchLookups,
@@ -294,6 +309,8 @@ export const LookupProvider = ({ children }) => {
     workLocationLookups,
     countryLookups,
     categoryLookups,
+    gradeLookups,
+    paymentTypeLookups,
     loading,
     error,
   ]);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard } from 'react-native';
+import { View, Text, Modal, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
@@ -67,6 +67,7 @@ const Application = () => {
   const [formData, setFormData] = useState(initialFormData);
   const [showValidation, setShowValidation] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [stepLoading, setStepLoading] = useState(false);
   const [personalDetail, setPersonalDetail] = useState(null);
   const [professionalDetail, setProfessionalDetail] = useState(null);
   const [subscriptionDetail, setSubscriptionDetail] = useState(null);
@@ -344,15 +345,15 @@ const Application = () => {
     loadFromApi();
   }, []);
 
-  // When we have ApplicationId, fetch other details
+  // When we have applicationId, fetch other details
   useEffect(() => {
     const loadMore = async () => {
-      if (!personalDetail?.ApplicationId) return;
+      if (!personalDetail?.applicationId) return;
       setLoading(true);
       try {
         const [profRes, subRes] = await Promise.all([
-          fetchProfessionalDetail(personalDetail.ApplicationId),
-          fetchSubscriptionDetail(personalDetail.ApplicationId),
+          fetchProfessionalDetail(personalDetail.applicationId),
+          fetchSubscriptionDetail(personalDetail.applicationId),
         ]);
         if (profRes?.status === 200) setProfessionalDetail(profRes?.data?.data);
         if (subRes?.status === 200) setSubscriptionDetail(subRes?.data?.data);
@@ -360,7 +361,7 @@ const Application = () => {
       setLoading(false);
     };
     loadMore();
-  }, [personalDetail?.ApplicationId]);
+  }, [personalDetail?.applicationId]);
 
   // Hydrate form from fetched details
   useEffect(() => {
@@ -452,6 +453,7 @@ const Application = () => {
 
   // API create/update helpers
   const createPersonalDetail = data => {
+    setStepLoading(true);
     const personalInfo = {};
     const personalFields = {
       title: data.title,
@@ -464,7 +466,7 @@ const Application = () => {
     personalInfo.personalInfo = {};
     Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.personalInfo[k] = v; });
     const contactFields = {
-      preferredAddress: data.preferredAddress,
+      preferredAddress: data.preferredAddress ? data.preferredAddress.toLowerCase() : data.preferredAddress,
       eircode: data.eircode,
       buildingOrHouse: data.addressLine1,
       streetOrRoad: data.addressLine2,
@@ -473,7 +475,7 @@ const Application = () => {
       country: data.country,
       mobileNumber: data.mobileNo,
       telephoneNumber: data.homeWorkTelNo,
-      preferredEmail: data.preferredEmail,
+      preferredEmail: data.preferredEmail ? data.preferredEmail.toLowerCase() : data.preferredEmail,
       personalEmail: data.personalEmail,
       workEmail: data.workEmail,
       consent: data.consent,
@@ -481,17 +483,22 @@ const Application = () => {
     personalInfo.contactInfo = {};
     Object.entries(contactFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.contactInfo[k] = v; });
     createPersonalDetailRequest(personalInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
         setPersonalDetail(res?.data?.data);
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add personal detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(() => {
+      setStepLoading(false);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const updatePersonalDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
+    setStepLoading(true);
     const personalInfo = {};
     const personalFields = {
       title: data.title,
@@ -504,7 +511,7 @@ const Application = () => {
     personalInfo.personalInfo = {};
     Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.personalInfo[k] = v; });
     const contactFields = {
-      preferredAddress: data.preferredAddress,
+      preferredAddress: data.preferredAddress ? data.preferredAddress.toLowerCase() : data.preferredAddress,
       eircode: data.eircode,
       buildingOrHouse: data.addressLine1,
       streetOrRoad: data.addressLine2,
@@ -513,25 +520,31 @@ const Application = () => {
       country: data.country,
       mobileNumber: data.mobileNo,
       telephoneNumber: data.homeWorkTelNo,
-      preferredEmail: data.preferredEmail,
+      preferredEmail: data.preferredEmail ? data.preferredEmail.toLowerCase() : data.preferredEmail,
       personalEmail: data.personalEmail,
       workEmail: data.workEmail,
       consent: data.consent,
     };
     personalInfo.contactInfo = {};
     Object.entries(contactFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.contactInfo[k] = v; });
-    updatePersonalDetailRequest(personalDetail.ApplicationId, personalInfo).then(res => {
+    updatePersonalDetailRequest(personalDetail.applicationId, personalInfo).then(res => {
+      setStepLoading(false);
+      console.log('🔄 Updating personal detail with:', res);
       if (res?.status === 200) {
         setPersonalDetail(res?.data?.data);
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update personal detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(() => {
+      setStepLoading(false);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const createProfessionalDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
+    setStepLoading(true);
     const professionalFields = {
       membershipCategory: data.membershipCategory,
       workLocation: data.workLocation,
@@ -551,18 +564,23 @@ const Application = () => {
     };
     const professionalInfo = { professionalDetails: {} };
     Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
-    createProfessionalDetailRequest(personalDetail.ApplicationId, professionalInfo).then(res => {
+    createProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
         setProfessionalDetail(res?.data?.data);
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add professional detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(() => {
+      setStepLoading(false);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const updateProfessionalDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
+    setStepLoading(true);
     const professionalFields = {
       membershipCategory: data.membershipCategory,
       workLocation: data.workLocation,
@@ -582,18 +600,22 @@ const Application = () => {
     };
     const professionalInfo = { professionalDetails: {} };
     Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
-    updateProfessionalDetailRequest(personalDetail.ApplicationId, professionalInfo).then(res => {
+    updateProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
         setProfessionalDetail(res?.data?.data);
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update professional detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(() => {
+      setStepLoading(false);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const createSubscriptionDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
     const defaultFields = {
       membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
     };
@@ -619,7 +641,9 @@ const Application = () => {
     const subscriptionDetails = {};
     Object.entries(subscriptionFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') subscriptionDetails[k] = v; });
     const subscriptionInfo = { subscriptionDetails };
-    createSubscriptionDetailRequest(personalDetail.ApplicationId, subscriptionInfo).then(res => {
+    setStepLoading(true);
+    createSubscriptionDetailRequest(personalDetail.applicationId, subscriptionInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
         console.log('✅ Subscription detail created successfully');
         setSubscriptionDetail(res?.data?.data);
@@ -639,13 +663,14 @@ const Application = () => {
         Alert.alert('Error', res?.data?.message || 'Unable to add subscription detail');
       }
     }).catch(err => {
+      setStepLoading(false);
       console.error('❌ Subscription creation failed:', err);
       Alert.alert('Error', 'Something went wrong');
     });
   };
 
   const updateSubscriptionDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
     const defaultFields = {
       membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
     };
@@ -671,7 +696,9 @@ const Application = () => {
     const subscriptionDetails = {};
     Object.entries(subscriptionFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') subscriptionDetails[k] = v; });
     const subscriptionInfo = { subscriptionDetails };
-    updateSubscriptionDetailRequest(personalDetail.ApplicationId, subscriptionInfo).then(res => {
+    setStepLoading(true);
+    updateSubscriptionDetailRequest(personalDetail.applicationId, subscriptionInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
         console.log('✅ Subscription detail updated successfully');
         setSubscriptionDetail(res?.data?.data);
@@ -691,6 +718,7 @@ const Application = () => {
         Alert.alert('Error', res?.data?.message || 'Unable to update subscription detail');
       }
     }).catch(err => {
+      setStepLoading(false);
       console.error('❌ Subscription update failed:', err);
       Alert.alert('Error', 'Something went wrong');
     });
@@ -857,6 +885,8 @@ const Application = () => {
                         title={currentStep === steps.length ? 'Submit' : 'Next Step'}
                         onPress={currentStep === steps.length ? handleSubmit : handleNext}
                         primary
+                        isloading={stepLoading}
+                        disabled={stepLoading}
                         textStyle={{ 
                           fontSize: 16, 
                           color: Colors.white, 
@@ -882,7 +912,7 @@ const Application = () => {
                   onFailure={handlePaymentFailure}
                   formData={formData}
                   membershipCategory={professionalDetail?.professionalDetails?.membershipCategory || formData?.professionalDetails?.membershipCategory}
-                  applicationId={personalDetail?.ApplicationId}
+                  applicationId={personalDetail?.applicationId}
                 />
               </>
             )}

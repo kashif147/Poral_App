@@ -13,8 +13,6 @@ import { Colors, wp } from '../../utils/Styles';
 import { useLookup } from '../../contexts/lookupContext';
 import { DatePicker } from '../../common/DatePicker';
 
-const grades = ['Junior', 'Senior', 'Lead', 'Manager', 'Other'];
-
 const nurseTypes = [
   'General Nurse',
   'Public Health Nurse',
@@ -59,6 +57,8 @@ const ProfessionalDetails = ({
     fetchWorkLocationLookups,
     categoryLookups,
     fetchCategoryLookups,
+    gradeLookups,
+    fetchLookups,
   } = lookupContext || {};
 
   // Ensure these are always arrays
@@ -68,11 +68,15 @@ const ProfessionalDetails = ({
   const safeCategoryLookups = Array.isArray(categoryLookups)
     ? categoryLookups
     : [];
+  const safeGradeLookups = Array.isArray(gradeLookups)
+    ? gradeLookups
+    : [];
 
   useEffect(() => {
     console.log('ProfessionalDetails mounted');
     console.log('Initial work locations:', safeWorkLocationLookups?.length);
     console.log('Initial categories:', safeCategoryLookups?.length);
+    console.log('Initial grades:', safeGradeLookups?.length);
 
     if (safeWorkLocationLookups.length === 0) {
       console.log('Fetching work locations...');
@@ -81,6 +85,10 @@ const ProfessionalDetails = ({
     if (safeCategoryLookups.length === 0) {
       console.log('Fetching categories...');
       fetchCategoryLookups?.();
+    }
+    if (safeGradeLookups.length === 0) {
+      console.log('Fetching grades...');
+      fetchLookups?.();
     }
   }, []);
 
@@ -92,6 +100,10 @@ const ProfessionalDetails = ({
   useEffect(() => {
     console.log('Categories updated:', safeCategoryLookups?.length);
   }, [safeCategoryLookups]);
+
+  useEffect(() => {
+    console.log('Grades updated:', safeGradeLookups?.length);
+  }, [safeGradeLookups]);
 
   // Map category lookups to picker options (matching web version)
   const membershipCategoryOptions = useMemo(() => {
@@ -147,6 +159,20 @@ const ProfessionalDetails = ({
     console.log('Extracted work location names:', names);
     return [...names, 'Other'];
   }, [safeWorkLocationLookups]);
+
+  // Map grade lookups to picker options (matching web version)
+  const gradeOptions = useMemo(() => {
+    console.log('Grade lookups:', safeGradeLookups?.length);
+    const mapped = (safeGradeLookups || [])
+      .map(item => {
+        const name = item?.DisplayName || item?.lookupname || item?.name || item?.label || '';
+        return { value: name, label: name };
+      })
+      .filter(option => option.value); // Filter out empty values
+
+    // Add "Other" option at the end (matching web version)
+    return [...mapped, { value: 'other', label: 'Other' }];
+  }, [safeGradeLookups]);
 
   const handleWorkLocationChange = val => {
     console.log('Work location changed to:', val);
@@ -373,8 +399,8 @@ const ProfessionalDetails = ({
             }}
           >
             <Picker.Item label="Select Grade..." value="" />
-            {grades.map(g => (
-              <Picker.Item key={g} label={g} value={g} />
+            {gradeOptions.map(option => (
+              <Picker.Item key={option.value} label={option.label} value={option.value} />
             ))}
           </Picker>
         </View>
@@ -384,7 +410,7 @@ const ProfessionalDetails = ({
         <View style={styles.inputField}>
           <InputField
             value={formData.otherGrade}
-            editable={formData.grade === 'Other'}
+            editable={formData.grade === 'other'}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({ ...formData, otherGrade: text })

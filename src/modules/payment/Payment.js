@@ -119,7 +119,7 @@ const Payment = () => {
       // Step 1: Create Payment Intent with the edited price
       const amountInCents = Math.round(parseFloat(editablePrice) * 100);
       const currency = product?.currentPricing?.currency || 'eur';
-      const applicationId = personalDetail?.ApplicationId;
+      const applicationId = personalDetail?.applicationId;
       const userId = userDetail?.id || userDetail?._id;
       const tenantId = userDetail?.tenantId || userDetail?.userTenantId;
 

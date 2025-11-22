@@ -24,7 +24,7 @@ const membershipCategoryOptions = [
 const Membership = () => {
   const { personalDetail, professionalDetail } = useApplication?.() || {};
   const existing = professionalDetail?.professionalDetails || {};
-  const applicationId = personalDetail?.ApplicationId;
+  const applicationId = personalDetail?.applicationId;
 
   const [form, setForm] = useState({
     membershipCategory: '',
