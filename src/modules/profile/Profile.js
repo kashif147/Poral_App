@@ -14,6 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { signOut } from '../../services/auth.services';
 import ScreenHeader from '../../common/screenHeader';
+import { signOutFromAzureB2C } from '../../helpers/webviewAuth.helper';
+import { deleteHeaders, deleteUser } from '../../helpers/auth.helper';
+import { deleteVerifier } from '../../helpers/verifier.helper';
 
 const Profile = () => {
   const { personalDetail, getPersonalDetail } = useApplication();
@@ -132,8 +135,29 @@ const Profile = () => {
         {
           text: 'Log Out',
           style: 'destructive',
-          onPress: () => {
-            // dispatch(signOut(navigation.navigate));
+          onPress: async () => {
+            try {
+              setLoading(true);
+              
+              // Remove tokens, user data, and verifier from storage
+              await deleteHeaders();
+              await deleteUser();
+              await deleteVerifier();
+              
+              // Sign out from Azure B2C
+              await signOutFromAzureB2C();
+              
+              // Navigate to login screen
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Something went wrong during logout');
+            } finally {
+              setLoading(false);
+            }
           },
         },
       ],

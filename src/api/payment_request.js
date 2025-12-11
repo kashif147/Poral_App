@@ -8,12 +8,12 @@ const payment_request = axios.create();
 
 payment_request.interceptors.request.use(
   async config => {
-    const headers = await getHeaders();
-    console.log('💳 Payment request headers:', headers);
+    const { token } = await getHeaders();
+    console.log('💳 Payment request headers:', token);
 
-    config.headers['Authorization'] = headers.token;
+    config.headers['Authorization'] = `Bearer ${token}`;
     config.headers['Content-Type'] = 'application/json';
-    config.headers['x-idempotency-key'] = uuidv4(); // 👈 auto-generate unique key each request
+    config.headers['x-idempotency-key'] = uuidv4(); 
     config.baseURL = ACCOUNT_URL;
     console.log('💳 Payment request URL:', config.baseURL + config.url);
 

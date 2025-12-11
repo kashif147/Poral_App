@@ -698,6 +698,7 @@ const Application = () => {
     const subscriptionInfo = { subscriptionDetails };
     setStepLoading(true);
     updateSubscriptionDetailRequest(personalDetail.applicationId, subscriptionInfo).then(res => {
+      console.log('🔄 Updating subscription detail with:', res);
       setStepLoading(false);
       if (res?.status === 200) {
         console.log('✅ Subscription detail updated successfully');
