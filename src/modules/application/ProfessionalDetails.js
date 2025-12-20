@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,46 +22,21 @@ const nurseTypes = [
   'Registered Nurse for Intellectual Disability',
 ];
 
-const studyLocations = ['Location 1', 'Location 2', 'Location 3'];
-
-// Fallback categories in case API is slow or fails
-const fallbackCategories = [
-  { value: 'general', label: 'General (all grades)' },
-  { value: 'postgraduate_student', label: 'Postgraduate Student' },
-  {
-    value: 'short_term_relief',
-    label: 'Short-term/ Relief (under 15 hrs/wk average)',
-  },
-  { value: 'private_nursing_home', label: 'Private nursing home' },
-  { value: 'affiliate_members', label: 'Affiliate members (non-practicing)' },
-  {
-    value: 'lecturing',
-    label: 'Lecturing (employed in universities and IT institutes)',
-  },
-  {
-    value: 'associate',
-    label: 'Associate (not currently employed as a nurse/midwife)',
-  },
-  { value: 'retired_associate', label: 'Retired Associate' },
-  { value: 'undergraduate_student', label: 'Undergraduate Student' },
-];
+// studyLocations will be populated from lookup context
 
 const ProfessionalDetails = ({
   formData,
   onFormDataChange,
   showValidation,
 }) => {
-  const lookupContext = useLookup();
+  // Get lookups from context (matching web version - context handles all fetching centrally)
   const {
     workLocationLookups,
-    fetchWorkLocationLookups,
     categoryLookups,
-    fetchCategoryLookups,
     gradeLookups,
-    fetchLookups,
-  } = lookupContext || {};
+    studyLocationLookups,
+  } = useLookup() || {};
 
-  // Ensure these are always arrays
   const safeWorkLocationLookups = Array.isArray(workLocationLookups)
     ? workLocationLookups
     : [];
@@ -71,64 +46,43 @@ const ProfessionalDetails = ({
   const safeGradeLookups = Array.isArray(gradeLookups)
     ? gradeLookups
     : [];
-
-  useEffect(() => {
-    console.log('ProfessionalDetails mounted');
-    console.log('Initial work locations:', safeWorkLocationLookups?.length);
-    console.log('Initial categories:', safeCategoryLookups?.length);
-    console.log('Initial grades:', safeGradeLookups?.length);
-
-    if (safeWorkLocationLookups.length === 0) {
-      console.log('Fetching work locations...');
-      fetchWorkLocationLookups?.();
-    }
-    if (safeCategoryLookups.length === 0) {
-      console.log('Fetching categories...');
-      fetchCategoryLookups?.();
-    }
-    if (safeGradeLookups.length === 0) {
-      console.log('Fetching grades...');
-      fetchLookups?.();
-    }
-  }, []);
-
-  // Log when data changes
-  useEffect(() => {
-    console.log('Work locations updated:', safeWorkLocationLookups?.length);
-  }, [safeWorkLocationLookups]);
-
-  useEffect(() => {
-    console.log('Categories updated:', safeCategoryLookups?.length);
-  }, [safeCategoryLookups]);
-
-  useEffect(() => {
-    console.log('Grades updated:', safeGradeLookups?.length);
-  }, [safeGradeLookups]);
+  const safeStudyLocationLookups = Array.isArray(studyLocationLookups)
+    ? studyLocationLookups
+    : [];
+  // Map study location lookups to picker options (matching web version)
+  const studyLocationOptions = useMemo(() => {
+    console.log('Study location lookups:', safeStudyLocationLookups?.length);
+    const mapped = (safeStudyLocationLookups || [])
+      .map(item => {
+        const name = item?.DisplayName || item?.lookupname || item?.name || item?.label || '';
+        return { value: name, label: name };
+      })
+      .filter(option => option.value); // Filter out empty values
+    return mapped;
+  }, [safeStudyLocationLookups]);
 
   // Map category lookups to picker options (matching web version)
   const membershipCategoryOptions = useMemo(() => {
     if (safeCategoryLookups.length === 0) {
-      // Return fallback categories while loading or if API fails
-      console.log('Using fallback categories');
-      console.log('Fallback categories:', fallbackCategories);
-      return fallbackCategories;
+      // Return empty array - let it load from API
+      console.log('No category lookups available yet, waiting for API...');
+      return [];
     }
     console.log('Category lookups available:', safeCategoryLookups.length);
+    // Use _id as the value to store (matching web version)
     const mapped = safeCategoryLookups.map(item => {
-      const value =
-        item?.id ||
-        item?._id ||
-        item?.code ||
-        item?.value ||
-        item?.name ||
-        item?.productType?.name;
+      const id = item?._id || item?.id;
       const label =
         item?.name ||
         item?.DisplayName ||
         item?.label ||
         item?.productType?.name ||
-        value;
-      return { value: String(value || ''), label: String(label || '') };
+        item?.code;
+      return {
+        value: String(id || ''),
+        label: String(label || ''),
+        rawItem: item, // Keep reference to original item
+      };
     });
     console.log('Mapped categories:', mapped);
     return mapped;
@@ -138,7 +92,7 @@ const ProfessionalDetails = ({
     console.log('Work location lookups:', safeWorkLocationLookups?.length);
     if (safeWorkLocationLookups.length === 0) {
       console.log('No work locations available, returning default');
-      return ['Other'];
+      return ['other'];
     }
 
     // Try multiple possible data structures
@@ -157,7 +111,7 @@ const ProfessionalDetails = ({
       .filter(Boolean);
 
     console.log('Extracted work location names:', names);
-    return [...names, 'Other'];
+    return [...names, 'other'];
   }, [safeWorkLocationLookups]);
 
   // Map grade lookups to picker options (matching web version)
@@ -204,37 +158,46 @@ const ProfessionalDetails = ({
           selected?.region?.name ||
           ''
         : '',
-      ...(val !== 'Other' ? { otherWorkLocation: '' } : {}),
+      ...(val !== 'other' ? { otherWorkLocation: '' } : {}),
     });
   };
 
   const adaptationYes = formData?.nursingAdaptationProgramme === 'yes';
 
-  // Find the selected category by ID or value to get its label
-  const selectedCategory = membershipCategoryOptions.find(
-    cat => cat.value === formData?.membershipCategory,
-  );
-  const selectedCategoryLabel = (
-    selectedCategory?.label ||
-    formData?.membershipCategory ||
-    ''
-  ).toLowerCase();
+  // Helper function to check category type based on _id (matching web version)
+  const isCategoryType = categoryType => {
+    if (!formData?.membershipCategory) return false;
 
-  // More flexible checks - check both value and label, case-insensitive
-  const membershipCategoryLower = (
-    formData?.membershipCategory || ''
-  ).toLowerCase();
-  const isRetired =
-    !!formData?.isRetired ||
-    selectedCategoryLabel.includes('retired') ||
-    membershipCategoryLower.includes('retired') ||
-    formData?.membershipCategory === 'Retired Associate' ||
-    formData?.membershipCategory === 'retired_associate';
-  const isUndergraduateStudent =
-    selectedCategoryLabel.includes('undergraduate') ||
-    membershipCategoryLower.includes('undergraduate') ||
-    formData?.membershipCategory === 'undergraduate_student' ||
-    formData?.membershipCategory === 'Undergraduate Student';
+    // Find the selected category by _id
+    const selectedCategory = safeCategoryLookups.find(
+      item =>
+        String(item?._id || item?.id) === String(formData.membershipCategory),
+    );
+
+    if (!selectedCategory) return false;
+
+    const selectedCode = String(selectedCategory?.code || '').toUpperCase();
+
+    // Map category types to their actual codes
+    const categoryCodeMap = {
+      undergraduate_student: 'MEM-UG',
+      retired_associate: 'MEM-RET',
+      postgraduate_student: 'MEM-PG',
+      general: 'MEM-GEN',
+      private_nursing_home: 'MEM-PNH',
+      short_term_relief: 'MEM-STR',
+      associate: 'MEM-ASS',
+      affiliate: 'MEM-AFF',
+      lecturing: 'MEM-LEC',
+    };
+
+    const targetCode = categoryCodeMap[categoryType];
+    return targetCode ? selectedCode === targetCode : false;
+  };
+
+  // Use isCategoryType helper for category detection
+  const isRetired = isCategoryType('retired_associate');
+  const isUndergraduateStudent = isCategoryType('undergraduate_student');
 
   return (
     <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
@@ -254,15 +217,40 @@ const ProfessionalDetails = ({
             }}
           >
             <Picker.Item label="Select membership category" value="" />
-            {membershipCategoryOptions.map(c => (
-              <Picker.Item key={c.value} label={c.label} value={c.value} />
-            ))}
+            {membershipCategoryOptions.length === 0 ? (
+              <Picker.Item label="Loading categories..." value="" disabled />
+            ) : (
+              membershipCategoryOptions.map(c => (
+                <Picker.Item key={c.value} label={c.label} value={c.value} />
+              ))
+            )}
           </Picker>
         </View>
 
         {/* Conditional fields for Undergraduate Students */}
         {isUndergraduateStudent && (
           <>
+            <Text style={styles.label}>Discipline</Text>
+            <View style={styles.pickerField}>
+              <Picker
+                selectedValue={formData.discipline || ''}
+                onValueChange={val => {
+                  if (val) {
+                    onFormDataChange({ ...formData, discipline: val });
+                  }
+                }}
+              >
+                <Picker.Item label="Select your discipline" value="" />
+                <Picker.Item label="Nursing" value="nursing" />
+                <Picker.Item label="Midwifery" value="midwifery" />
+                <Picker.Item label="Public Health" value="publicHealth" />
+                <Picker.Item label="Mental Health" value="mentalHealth" />
+                <Picker.Item label="Pediatric Nursing" value="pediatric" />
+                <Picker.Item label="Adult Nursing" value="adult" />
+                <Picker.Item label="Other" value="other" />
+              </Picker>
+            </View>
+
             <Text style={styles.label}>Study Location</Text>
             <View style={styles.pickerField}>
               <Picker
@@ -274,11 +262,23 @@ const ProfessionalDetails = ({
                 }}
               >
                 <Picker.Item label="Select study location" value="" />
-                {studyLocations.map(loc => (
-                  <Picker.Item key={loc} label={loc} value={loc} />
-                ))}
+                {studyLocationOptions.length > 0 ? (
+                  studyLocationOptions.map(option => (
+                    <Picker.Item key={option.value} label={option.label} value={option.value} />
+                  ))
+                ) : (
+                  <Picker.Item label="Loading locations..." value="" disabled />
+                )}
               </Picker>
             </View>
+
+            <Text style={styles.label}>Start Date</Text>
+            <DatePicker
+              value={formData.startDate}
+              onChange={date =>
+                onFormDataChange({ ...formData, startDate: date })
+              }
+            />
 
             <Text style={styles.label}>Graduation Date</Text>
             <DatePicker
@@ -346,7 +346,7 @@ const ProfessionalDetails = ({
         <View style={styles.inputField}>
           <InputField
             value={formData.otherWorkLocation}
-            editable={formData.workLocation === 'Other'}
+            editable={formData.workLocation === 'other'}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({ ...formData, otherWorkLocation: text })
@@ -453,6 +453,8 @@ const ProfessionalDetails = ({
               onFormDataChange({
                 ...formData,
                 nursingAdaptationProgramme: 'no',
+                nmbiNo: '', // Clear nmbiNo when "no" is selected (matching web version)
+                nurseType: '', // Clear nurseType when "no" is selected (matching web version)
               })
             }
           >
@@ -472,7 +474,7 @@ const ProfessionalDetails = ({
         <View style={styles.inputField}>
           <InputField
             value={formData.nmbiNo}
-            editable={!adaptationYes}
+            editable={adaptationYes}
             holderTextColor={'#94A3B8'}
             onChange={text => onFormDataChange({ ...formData, nmbiNo: text })}
             placeholder="12344"

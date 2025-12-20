@@ -35,26 +35,16 @@ const SubscriptionDetails = ({
   showValidation,
   membershipCategory,
 }) => {
+  // Get lookups from context (matching web version - context handles all fetching centrally)
   const { 
     primarySectionLookups, 
     secondarySectionLookups, 
     paymentTypeLookups,
-    fetchLookups 
-  } = useLookup();
+  } = useLookup() || {};
   const [categoryData, setCategoryData] = useState(null);
   const [loadingPrice, setLoadingPrice] = useState(false);
 
-  useEffect(() => {
-    const needPrimary =
-      !primarySectionLookups || primarySectionLookups.length === 0;
-    const needSecondary =
-      !secondarySectionLookups || secondarySectionLookups.length === 0;
-    const needPaymentType =
-      !paymentTypeLookups || paymentTypeLookups.length === 0;
-    if (needPrimary || needSecondary || needPaymentType) {
-      fetchLookups?.();
-    }
-  }, [primarySectionLookups, secondarySectionLookups, paymentTypeLookups, fetchLookups]);
+  // Context handles fetching lookups centrally - no need to fetch here
 
   // Fetch category pricing data
   useEffect(() => {
@@ -88,28 +78,31 @@ const SubscriptionDetails = ({
     return null;
   }, [categoryData]);
 
-  const primaryNames = useMemo(
-    () =>
-      (primarySectionLookups || [])
-        .map(s => s?.DisplayName || s?.lookupname)
-        .filter(Boolean),
-    [primarySectionLookups],
-  );
-  const secondaryNames = useMemo(
-    () =>
-      (secondarySectionLookups || [])
-        .map(s => s?.DisplayName || s?.lookupname)
-        .filter(Boolean),
-    [secondarySectionLookups],
-  );
+  const primaryNames = useMemo(() => {
+    const names = (primarySectionLookups || [])
+      .map(s => s?.DisplayName || s?.lookupname)
+      .filter(Boolean);
+    console.log('📋 Primary section names:', names.length);
+    return names;
+  }, [primarySectionLookups]);
+
+  const secondaryNames = useMemo(() => {
+    const names = (secondarySectionLookups || [])
+      .map(s => s?.DisplayName || s?.lookupname)
+      .filter(Boolean);
+    console.log('📋 Secondary section names:', names.length);
+    return names;
+  }, [secondarySectionLookups]);
 
   // Map payment type lookups to picker options (matching web version)
   const paymentOptions = useMemo(() => {
-    return (paymentTypeLookups || []).map(l => ({
+    const options = (paymentTypeLookups || []).map(l => ({
       value: l?.DisplayName || l?.lookupname || '',
       label: l?.DisplayName || l?.lookupname || '',
       code: l?.code,
     })).filter(option => option.value); // Filter out empty values
+    console.log('💳 Payment options:', options.length);
+    return options;
   }, [paymentTypeLookups]);
 
   // Helper function to check if payment type requires payroll number (matching web version)

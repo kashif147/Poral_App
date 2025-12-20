@@ -51,15 +51,15 @@ const PersonalInformation = ({
 }) => {
   const ref = useRef();
   const phoneInput = useRef(null);
-  const lookupContext = useLookup();
+  // Get lookups from context (matching web version - context handles all fetching centrally)
   const {
     genderLookups = [],
     titleLookups = [],
     countryLookups = [],
-    fetchCountryLookups,
-  } = lookupContext || {};
+  } = useLookup() || {};
   
   const [phoneValue, setPhoneValue] = useState('');
+  const [phoneNationalNumber, setPhoneNationalNumber] = useState('');
   const [phoneCountryCode, setPhoneCountryCode] = useState('IE');
   const [phoneKey, setPhoneKey] = useState(0);
 
@@ -102,14 +102,77 @@ const PersonalInformation = ({
     return 'IE'; // Default to Ireland if no match
   };
 
+  // Function to extract national number from full international phone number
+  const extractNationalNumber = (fullNumber) => {
+    if (!fullNumber) {
+      return '';
+    }
+    
+    // If it doesn't start with +, assume it's already a national number
+    if (!fullNumber.startsWith('+')) {
+      return fullNumber;
+    }
+    
+    // Use the same country code mapping as getCountryCodeFromPhone
+    // to determine which prefix to remove
+    const countryCodesMap = {
+      '+1': 'US',
+      '+44': 'GB',
+      '+353': 'IE',
+      '+91': 'IN',
+      '+92': 'PK',
+      '+93': 'AF',
+      '+94': 'LK',
+      '+95': 'MM',
+      '+98': 'IR',
+      '+61': 'AU',
+      '+86': 'CN',
+      '+81': 'JP',
+      '+82': 'KR',
+      '+49': 'DE',
+      '+33': 'FR',
+      '+39': 'IT',
+      '+34': 'ES',
+      '+7': 'RU',
+    };
+    
+    // Try to match country code (1-4 digits after +)
+    // Check longer codes first (e.g., +353 before +3)
+    for (let i = 4; i >= 1; i--) {
+      const code = fullNumber.substring(0, i + 1);
+      if (countryCodesMap[code]) {
+        // Remove the country code prefix (including the +)
+        const nationalNumber = fullNumber.substring(i + 1);
+        return nationalNumber;
+      }
+    }
+    
+    // If no match found, return the number without the + as fallback
+    // This handles edge cases where country code is not in our map
+    return fullNumber.substring(1);
+  };
+
   // Initialize phone value and country code from formData
   useEffect(() => {
-    if (formData?.mobileNo && formData.mobileNo !== phoneValue) {
-      console.log('📱 Setting phone from API:', formData.mobileNo);
-      setPhoneValue(formData.mobileNo);
-      const detectedCode = getCountryCodeFromPhone(formData.mobileNo);
-      console.log('📱 Detected country code:', detectedCode);
-      setPhoneCountryCode(detectedCode);
+    if (formData?.mobileNo !== phoneValue) {
+      if (formData?.mobileNo) {
+        console.log('📱 Setting phone from API:', formData.mobileNo);
+        setPhoneValue(formData.mobileNo);
+        const detectedCode = getCountryCodeFromPhone(formData.mobileNo);
+        console.log('📱 Detected country code:', detectedCode);
+        setPhoneCountryCode(detectedCode);
+        
+        // Extract national number (without country code) for PhoneInput defaultValue
+        const nationalNumber = extractNationalNumber(formData.mobileNo);
+        console.log('📱 Extracted national number:', nationalNumber);
+        setPhoneNationalNumber(nationalNumber);
+      } else {
+        // Clear phone values when mobileNo is empty
+        setPhoneValue('');
+        setPhoneNationalNumber('');
+        setPhoneCountryCode('IE'); // Reset to default
+      }
+      
       // Force re-render by changing key
       setPhoneKey(prev => prev + 1);
     }
@@ -140,37 +203,31 @@ const PersonalInformation = ({
     }
   }, [formData?.preferredEmail]);
 
-  useEffect(() => {
-    console.log('🌍 PersonalInfo - countryLookups:', countryLookups?.length);
-    if (!countryLookups || countryLookups.length === 0) {
-      console.log('🌍 Fetching countries from PersonalInfo...');
-      fetchCountryLookups?.();
-    }
-  }, [countryLookups, fetchCountryLookups]);
+  // Context handles fetching countries centrally - no need to fetch here
 
-  // Set default value to Ireland for Country of Primary Qualification
+  // Set default value to Ireland if countryPrimaryQualification is empty (matching web version)
   useEffect(() => {
     if (
-      !formData?.primaryCountry &&
+      !formData?.countryPrimaryQualification &&
       countryLookups &&
       countryLookups.length > 0
     ) {
       const irelandCountry = countryLookups.find(
         c =>
-          c?.code === 'Ireland' ||
+          c?.code === 'IE' ||
           c?.name === 'Ireland' ||
           c?.displayname === 'Ireland',
       );
       if (irelandCountry) {
         onFormDataChange({
           ...formData,
-          primaryCountry: irelandCountry.code,
+          countryPrimaryQualification: irelandCountry.displayname,
         });
       }
     }
   }, [countryLookups]);
 
-  // Set default value to Ireland for Correspondence Country
+  // Set default value to Ireland for address country field if empty (matching web version)
   useEffect(() => {
     if (
       !formData?.country &&
@@ -179,14 +236,14 @@ const PersonalInformation = ({
     ) {
       const irelandCountry = countryLookups.find(
         c =>
-          c?.code === 'Ireland' ||
+          c?.code === 'IE' ||
           c?.name === 'Ireland' ||
           c?.displayname === 'Ireland',
       );
       if (irelandCountry) {
         onFormDataChange({
           ...formData,
-          country: irelandCountry.code,
+          country: irelandCountry.displayname,
         });
       }
     }
@@ -198,14 +255,34 @@ const PersonalInformation = ({
   const genderOptions = Array.isArray(genderLookups)
     ? genderLookups.map(i => i?.lookupname).filter(Boolean)
     : [];
+  
+  // Country options using displayname (matching web version)
   const countryOptions = Array.isArray(countryLookups)
     ? countryLookups
         .map(c => ({
-          value: c?.code,
+          value: c?.displayname,
           label: c?.displayname || c?.name || c?.code,
         }))
         .filter(c => c.value && c.label)
     : [];
+
+  // Helper function to get country display name (matching web version)
+  const getCountryDisplayName = (codeOrName) => {
+    if (!codeOrName || !countryLookups) return codeOrName;
+
+    const byDisplayName = countryLookups.find(
+      c => c?.displayname === codeOrName,
+    );
+    if (byDisplayName) return codeOrName;
+
+    const byCode = countryLookups.find(c => c?.code === codeOrName);
+    if (byCode) return byCode.displayname;
+
+    const byName = countryLookups.find(c => c?.name === codeOrName);
+    if (byName) return byName.displayname;
+
+    return codeOrName;
+  };
 
   return (
     <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
@@ -309,7 +386,7 @@ const PersonalInformation = ({
           style={[
             styles.pickerField,
             showValidation &&
-              !formData.primaryCountry && {
+              !formData.countryPrimaryQualification && {
                 borderColor: Colors.red,
                 borderWidth: 1,
                 borderRadius: 12,
@@ -318,10 +395,12 @@ const PersonalInformation = ({
         >
           <Picker
             selectedValue={
-              formData.primaryCountry || countryOptions[0]?.value || 'Ireland'
+              getCountryDisplayName(formData?.countryPrimaryQualification) || 
+              countryOptions[0]?.value || 
+              'Ireland'
             }
             onValueChange={val =>
-              onFormDataChange({ ...formData, primaryCountry: val })
+              onFormDataChange({ ...formData, countryPrimaryQualification: val })
             }
           >
             {countryOptions.length
@@ -449,8 +528,8 @@ const PersonalInformation = ({
                 const addressLine4 = `${county}`.trim();
                 const eircode = `${postalCode}`.trim();
 
-                // Find the country code from countryLookups based on the country name or code
-                let countryCode = formData?.country || 'IE'; // Default to Ireland if not found
+                // Find the country displayname from countryLookups based on the country name or code (matching web version)
+                let countryDisplayName = formData?.country || 'Ireland'; // Default to Ireland if not found
                 if (countryLongName || countryShortName) {
                   console.log(
                     'Country from API - Long Name:',
@@ -466,13 +545,10 @@ const PersonalInformation = ({
                       c?.displayname === countryLongName,
                   );
                   if (matchedCountry) {
-                    countryCode = matchedCountry.code;
+                    countryDisplayName = matchedCountry.displayname;
                     console.log('Matched country:', matchedCountry);
                   } else {
-                    console.log(
-                      'No matching country found in lookup, defaulting to IE',
-                    );
-                    countryCode = 'IE';
+                    console.log('No matching country found in lookup');
                   }
                 }
 
@@ -482,7 +558,7 @@ const PersonalInformation = ({
                   addressLine3,
                   addressLine4,
                   eircode,
-                  country: countryCode,
+                  country: countryDisplayName,
                 });
 
                 onFormDataChange({
@@ -492,7 +568,7 @@ const PersonalInformation = ({
                   addressLine3,
                   addressLine4,
                   eircode,
-                  country: countryCode,
+                  country: countryDisplayName,
                 });
               } catch (error) {
                 console.log('Error parsing address:', error);
@@ -649,8 +725,8 @@ const PersonalInformation = ({
         <View style={styles.pickerField}>
           <Picker
             selectedValue={
-              formData.country ||
-              countryOptions[0]?.value ||
+              getCountryDisplayName(formData?.country) || 
+              countryOptions[0]?.value || 
               'Ireland'
             }
             onValueChange={val =>
@@ -682,20 +758,16 @@ const PersonalInformation = ({
           <PhoneInput
             key={phoneKey}
             ref={phoneInput}
-            defaultValue={phoneValue}
+            defaultValue={phoneNationalNumber}
             defaultCode={phoneCountryCode}
             layout="first"
             withDarkTheme={false}
-            // withShadow={false}
-            // autoFocus={false}
-            // renderDropdownImage={<Ionicons name="chevron-down" size={16} color={Colors.textPrimary} />}
-            // countryPickerProps={{
-            //   withAlphaFilter: true,
-            //   withCallingCode: true,
-            //   withEmoji: true,
-            //   // withFlag: true,
-            //   withFlagButton: true,
-            // }}
+            countryPickerProps={{
+              withAlphaFilter: true,
+              withCallingCode: true,
+              withEmoji: true,
+              withFlagButton: true,
+            }}
             onChangeCountry={(country) => {
               console.log('📱 Country changed to:', country);
               setPhoneCountryCode(country.cca2);
@@ -703,6 +775,7 @@ const PersonalInformation = ({
             onChangeText={(text) => {
               // This gives just the phone number without country code
               console.log('📱 Phone number only:', text);
+              setPhoneNationalNumber(text);
             }}
             onChangeFormattedText={text => {
               // This gives the full formatted number with country code
@@ -717,8 +790,8 @@ const PersonalInformation = ({
             textContainerStyle={styles.phoneInputTextContainer}
             textInputStyle={styles.phoneInputText}
             codeTextStyle={styles.phoneInputCodeText}
-            // flagButtonStyle={styles.phoneInputFlagButton}
-            // countryPickerButtonStyle={styles.phoneInputCountryPicker}
+            flagButtonStyle={styles.phoneInputFlagButton}
+            countryPickerButtonStyle={styles.phoneInputCountryPicker}
             placeholder="345 123 4567"
             textInputProps={{
               maxLength: 20,
@@ -985,20 +1058,21 @@ const styles = StyleSheet.create({
   phoneInputFlagButton: {
     minWidth: 50,
     height: 52,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    fontSize: 24,
+    fontSize: 28,
   },
   phoneInputCountryPicker: {
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
     height: 52,
     minWidth: 100,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
+    backgroundColor: Colors.white,
   },
 });
 

@@ -1,9 +1,9 @@
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { getHeaders } from '../helpers/auth.helper';
 import { fetchAllCountry, fetchAllLookupRequest, fetchLookupHierarchyByType } from '../api/lookup.api';
-import { fetchAllCategoryRequest } from '../api/category.api';
+import { fetchAllCategoryRequest, fetchCategoryByTypeId } from '../api/category.api';
 
 const STORAGE_KEYS = {
   gender: 'genderLookups',
@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   categories: 'categories',
   grade: 'gradeLookups',
   paymentType: 'paymentTypeLookups',
+  studyLocation: 'studyLocationLookups',
 };
 
 const LookupContext = createContext();
@@ -76,12 +77,14 @@ export const LookupProvider = ({ children }) => {
   const [categoryLookups, setCategoryLookups] = useState([]);
   const [gradeLookups, setGradeLookups] = useState([]);
   const [paymentTypeLookups, setPaymentTypeLookups] = useState([]);
+  const [studyLocationLookups, setStudyLocationLookups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const hasInitializedRef = useRef(false);
 
   const WORKLOCATION_LOOKUPTYPE_ID = '68d036e2662428d1c504b3ad';
 
-  const fetchLookups = async () => {
+  const fetchLookups = useCallback(async () => {
     try {
       console.log('🔄 Starting to fetch lookups...');
       setLoading(true);
@@ -100,20 +103,25 @@ export const LookupProvider = ({ children }) => {
         const sectionData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Section');
         const gradeData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Grade');
         const paymentTypeData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Payment Type');
+        const studyLocationData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Study Location');
         console.log('✅ Lookups filtered:', {
           gender: genderData.length,
           city: cityData.length,
           title: titleData.length,
           secondarySection: secondarySectionData.length,
-          primarySection: sectionData.length
+          primarySection: sectionData.length,
+          grade: gradeData.length,
+          paymentType: paymentTypeData.length,
+          studyLocation: studyLocationData.length
         });
-await saveLocal(STORAGE_KEYS.paymentType, paymentTypeData);
-await saveLocal(STORAGE_KEYS.grade, gradeData);
+        await saveLocal(STORAGE_KEYS.paymentType, paymentTypeData);
+        await saveLocal(STORAGE_KEYS.grade, gradeData);
         await saveLocal(STORAGE_KEYS.gender, genderData);
         await saveLocal(STORAGE_KEYS.city, cityData);
         await saveLocal(STORAGE_KEYS.title, titleData);
         await saveLocal(STORAGE_KEYS.secondarySection, secondarySectionData);
         await saveLocal(STORAGE_KEYS.primarySection, sectionData);
+        await saveLocal(STORAGE_KEYS.studyLocation, studyLocationData);
 
         setPaymentTypeLookups(paymentTypeData);
         setGradeLookups(gradeData);
@@ -122,6 +130,7 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
         setTitleLookups(titleData);
         setPrimarySectionLookups(sectionData);
         setSecondarySectionLookups(secondarySectionData);
+        setStudyLocationLookups(studyLocationData);
         setLookups(lookupArray);
       } else {
         console.warn('⚠️ No lookups data received from API');
@@ -134,9 +143,9 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchWorkLocationLookups = async () => {
+  const fetchWorkLocationLookups = useCallback(async () => {
     try {
       console.log('🔄 Starting to fetch work locations...');
       setLoading(true);
@@ -157,9 +166,9 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchCountryLookups = async () => {
+  const fetchCountryLookups = useCallback(async () => {
     try {
       console.log('🔄 Starting to fetch countries...');
       setLoading(true);
@@ -189,17 +198,17 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchCategoryLookups = async () => {
+  const fetchCategoryLookups = useCallback(async () => {
     try {
       console.log('🔄 Starting to fetch categories...');
       setLoading(true);
       const { token } = await getHeaders();
       if (!token) throw new Error('No token found');
-      const response = await fetchAllCategoryRequest();
+      const response = await fetchCategoryByTypeId('68dae613c5b15073d66b891f');
       // Handle both response.data.data and response.data patterns
-      const results = response?.data?.data || response?.data || [];
+      const results = response?.data?.data?.products  || response?.data || [];
       console.log('📂 Category API response:', JSON.stringify(results, null, 2).substring(0, 500));
       console.log('📊 Category count:', results.length);
       await saveLocal(STORAGE_KEYS.categories, results);
@@ -212,7 +221,33 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Unified function to fetch all lookups in parallel (matching web version)
+  const fetchAllLookups = useCallback(async () => {
+    try {
+      console.log('🔄 Dashboard: Fetching all lookups...');
+      const { token } = await getHeaders();
+      if (!token) {
+        console.warn('⚠️ No token found, skipping lookup fetch');
+        return;
+      }
+
+      // Fetch all lookups in parallel without setting loading state
+      // (individual functions handle their own loading states)
+      await Promise.allSettled([
+        fetchLookups(),
+        fetchWorkLocationLookups(),
+        fetchCountryLookups(),
+        fetchCategoryLookups(),
+      ]);
+
+      console.log('✅ Dashboard: All lookups fetch completed');
+    } catch (error) {
+      console.error('❌ Dashboard: Error fetching all lookups:', error);
+      setError(error?.message || 'Failed to fetch all lookups');
+    }
+  }, [fetchLookups, fetchWorkLocationLookups, fetchCountryLookups, fetchCategoryLookups]);
 
   useEffect(() => {
     const loadCached = async () => {
@@ -226,6 +261,7 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
       const cachedCategories = await fetchLocal(STORAGE_KEYS.categories);
       const cachedGrade = await fetchLocal(STORAGE_KEYS.grade);
       const cachedPaymentType = await fetchLocal(STORAGE_KEYS.paymentType);
+      const cachedStudyLocation = await fetchLocal(STORAGE_KEYS.studyLocation);
 
       if (cachedGender) setGenderLookups(cachedGender);
       if (cachedCity) setCityLookups(cachedCity);
@@ -237,49 +273,84 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
       if (cachedCategories) setCategoryLookups(cachedCategories);
       if (cachedGrade) setGradeLookups(cachedGrade);
       if (cachedPaymentType) setPaymentTypeLookups(cachedPaymentType);
+      if (cachedStudyLocation) setStudyLocationLookups(cachedStudyLocation);
     };
     loadCached();
   }, []);
 
+  // Initialize lookups once on mount (prevent multiple calls)
   useEffect(() => {
+    // Only initialize once
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+
     const ensureLookups = async () => {
-      // Check if main lookups need fetching
-      const cachedGender = await fetchLocal(STORAGE_KEYS.gender);
-      if (!cachedGender || cachedGender.length === 0) {
-        console.log('No cached lookups found, fetching from API...');
-        await fetchLookups();
+      try {
+        // Check if main lookups need fetching
+        const cachedGender = await fetchLocal(STORAGE_KEYS.gender);
+        const cachedPaymentType = await fetchLocal(STORAGE_KEYS.paymentType);
+        const cachedStudyLocation = await fetchLocal(STORAGE_KEYS.studyLocation);
+        
+        if (!cachedGender || cachedGender.length === 0 || 
+            !cachedPaymentType || cachedPaymentType.length === 0 ||
+            !cachedStudyLocation || cachedStudyLocation.length === 0) {
+          console.log('🔄 No cached lookups found or incomplete, fetching from API...');
+          await fetchLookups();
+        } else {
+          console.log('✅ All main lookups are cached');
+        }
+      } catch (error) {
+        console.error('❌ Error ensuring lookups:', error);
       }
     };
     
     const ensureWorkLocations = async () => {
-      const cached = await fetchLocal(STORAGE_KEYS.workLocation);
-      if (!cached || cached.length === 0) {
-        console.log('No cached work locations found, fetching from API...');
-        await fetchWorkLocationLookups();
+      try {
+        const cached = await fetchLocal(STORAGE_KEYS.workLocation);
+        if (!cached || cached.length === 0) {
+          console.log('🔄 No cached work locations found, fetching from API...');
+          await fetchWorkLocationLookups();
+        }
+      } catch (error) {
+        console.error('❌ Error ensuring work locations:', error);
       }
     };
     
     const ensureCountries = async () => {
-      const cached = await fetchLocal(STORAGE_KEYS.countries);
-      if (!cached || cached.length === 0) {
-        console.log('No cached countries found, fetching from API...');
-        await fetchCountryLookups();
+      try {
+        const cached = await fetchLocal(STORAGE_KEYS.countries);
+        if (!cached || cached.length === 0) {
+          console.log('🔄 No cached countries found, fetching from API...');
+          await fetchCountryLookups();
+        }
+      } catch (error) {
+        console.error('❌ Error ensuring countries:', error);
       }
     };
     
     const ensureCategories = async () => {
-      const cached = await fetchLocal(STORAGE_KEYS.categories);
-      if (!cached || cached.length === 0) {
-        console.log('No cached categories found, fetching from API...');
-        await fetchCategoryLookups();
+      try {
+        const cached = await fetchLocal(STORAGE_KEYS.categories);
+        if (!cached || cached.length === 0) {
+          console.log('🔄 No cached categories found, fetching from API...');
+          await fetchCategoryLookups();
+        }
+      } catch (error) {
+        console.error('❌ Error ensuring categories:', error);
       }
     };
     
-    ensureLookups();
-    ensureWorkLocations();
-    ensureCountries();
-    ensureCategories();
-  }, []);
+    // Run all ensures in parallel but handle errors independently
+    Promise.all([
+      ensureLookups(),
+      ensureWorkLocations(),
+      ensureCountries(),
+      ensureCategories(),
+    ]).catch(error => {
+      console.error('❌ Error in lookup initialization:', error);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - ref guard ensures this only runs once
 
   const value = useMemo(() => ({
     lookups,
@@ -293,12 +364,14 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
     categoryLookups,
     gradeLookups,
     paymentTypeLookups,
+    studyLocationLookups,
     loading,
     error,
     fetchLookups,
     fetchWorkLocationLookups,
     fetchCountryLookups,
     fetchCategoryLookups,
+    fetchAllLookups, // Export unified fetch function
   }), [
     lookups,
     genderLookups,
@@ -311,8 +384,14 @@ await saveLocal(STORAGE_KEYS.grade, gradeData);
     categoryLookups,
     gradeLookups,
     paymentTypeLookups,
+    studyLocationLookups,
     loading,
     error,
+    fetchLookups,
+    fetchWorkLocationLookups,
+    fetchCountryLookups,
+    fetchCategoryLookups,
+    fetchAllLookups,
   ]);
 
   return (

@@ -12,6 +12,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApplication } from '../../contexts/applicationContext';
+import { useLookup } from '../../contexts/lookupContext';
 import { applicationConfirmationRequest } from '../../api/application.api';
 
 const DashBoard = () => {
@@ -19,6 +20,7 @@ const DashBoard = () => {
   const [userName, setUserName] = useState('User');
   const insets = useSafeAreaInsets();
   const { personalDetail } = useApplication();
+  const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
 
   // Fetch user name from token or storage
@@ -51,9 +53,31 @@ const DashBoard = () => {
     fetchUserName();
   }, []);
 
+  // Fetch all lookups when Dashboard loads
+  useEffect(() => {
+    const initializeLookups = async () => {
+      try {
+        console.log('🔄 Dashboard: Initializing lookups...');
+        await fetchAllLookups?.();
+      } catch (error) {
+        console.error('❌ Dashboard: Error initializing lookups:', error);
+      }
+    };
+
+    initializeLookups();
+  }, []);
+
   // Fetch application status
   useEffect(() => {
     const checkApplicationStatus = async () => {
+      // Fetch all lookups when checking application status (matching web version)
+      // try {
+      //   console.log('🔄 Dashboard: Fetching lookups during status check...');
+      //   await fetchAllLookups?.();
+      // } catch (error) {
+      //   console.error('❌ Dashboard: Error fetching lookups during status check:', error);
+      // }
+
       if (personalDetail?.applicationId) {
         try {
           console.log('📋 Checking application status for:', personalDetail.applicationId);

@@ -8,6 +8,7 @@ import { StripeProvider } from '@stripe/stripe-react-native';
 import { Colors } from './src/utils/Styles';
 import { ApplicationProvider } from './src/contexts/applicationContext';
 import { LookupProvider } from './src/contexts/lookupContext';
+import { ProfileProvider } from './src/contexts/profileContext';
 import LandingPage from './src/modules/landing/LandingPage';
 import SplashScreen from './src/modules/splash/SplashScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -454,9 +455,11 @@ function App() {
           {isSignedIn ? (
             <LookupProvider>
               <ApplicationProvider>
-                <NavigationContainer>
-                  <TabNavigator />
-                </NavigationContainer>
+                <ProfileProvider>
+                  <NavigationContainer>
+                    <TabNavigator />
+                  </NavigationContainer>
+                </ProfileProvider>
               </ApplicationProvider>
             </LookupProvider>
           ) : (

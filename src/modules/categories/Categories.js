@@ -6,23 +6,116 @@ import { InputField } from '../../common/inputField';
 import { Button } from '../../common/button';
 import { useApplication } from '../../contexts/applicationContext';
 import { useLookup } from '../../contexts/lookupContext';
+import { useProfile } from '../../contexts/profileContext';
 import { updateProfessionalDetailRequest } from '../../api/application.api';
+import { profileRequest, fetchTransferRequest } from '../../api/profile.api';
 import ScreenHeader from '../../common/screenHeader';
 
 const Categories = () => {
   const { personalDetail, professionalDetail, getProfessionalDetail } = useApplication();
-  const { workLocationLookups, fetchWorkLocationLookups } = useLookup();
-  const existing = professionalDetail?.professionalDetails || {};
+  const { profileByIdDetail, getProfileDetail } = useProfile();
+  // Get lookups from context (matching web version - context handles all fetching centrally)
+  const lookupContext = useLookup();
+  // Safely extract workLocationLookups with fallback to empty array
+  const workLocationLookups = Array.isArray(lookupContext?.workLocationLookups) 
+    ? lookupContext.workLocationLookups 
+    : [];
+  // Prioritize profile data over application data (matching web version)
+  const existing = profileByIdDetail?.professionalDetails || professionalDetail?.professionalDetails || {};
   const applicationId = personalDetail?.applicationId;
 
-  const [form, setForm] = useState({ workLocation: '', otherWorkLocation: '', branch: '', region: '' });
+  const [form, setForm] = useState({ workLocation: '', otherWorkLocation: '', branch: '', region: '', reasonToChange: '' });
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [transferRequest, setTransferRequest] = useState(null);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
 
-  // Fetch work location lookups on mount
+  // Fetch profile detail on mount (matching web version)
   useEffect(() => {
-    if (!workLocationLookups || workLocationLookups.length === 0) {
-      fetchWorkLocationLookups?.();
-    }
-  }, [workLocationLookups, fetchWorkLocationLookups]);
+    getProfileDetail?.();
+  }, []);
+
+  // Fetch transfer requests on mount (matching web version)
+  useEffect(() => {
+    setInitialLoading(true);
+    fetchTransferRequest()
+      .then(res => {
+        if (res?.status === 200 && res?.data?.success && res?.data?.data?.length > 0) {
+          const requests = res.data.data;
+          // Find the most recent PENDING request, or the latest request if no PENDING exists
+          const pendingRequest = requests.find(req => req.status === 'PENDING');
+          const latestRequest = requests.sort((a, b) => 
+            new Date(b.requestDate || b.createdAt) - new Date(a.requestDate || a.createdAt)
+          )[0];
+          
+          const activeRequest = pendingRequest || latestRequest;
+          
+          if (activeRequest) {
+            setTransferRequest(activeRequest);
+            setHasPendingRequest(activeRequest.status === 'PENDING');
+            
+            // Only populate form if there's a PENDING request
+            if (activeRequest.status === 'PENDING') {
+              setForm(prev => ({
+                ...prev,
+                workLocation: activeRequest.requestedWorkLocationName || '',
+                branch: activeRequest.requestedBranchName || '',
+                region: activeRequest.requestedRegionName || '',
+                reasonToChange: activeRequest.reason || '',
+              }));
+            } else {
+              // Clear form if no pending request
+              setForm({
+                workLocation: '',
+                otherWorkLocation: '',
+                branch: '',
+                region: '',
+                reasonToChange: '',
+              });
+            }
+          } else {
+            // No requests found, clear form
+            setTransferRequest(null);
+            setHasPendingRequest(false);
+            setForm({
+              workLocation: '',
+              otherWorkLocation: '',
+              branch: '',
+              region: '',
+              reasonToChange: '',
+            });
+          }
+        } else {
+          // No requests found, clear form
+          setTransferRequest(null);
+          setHasPendingRequest(false);
+          setForm({
+            workLocation: '',
+            otherWorkLocation: '',
+            branch: '',
+            region: '',
+            reasonToChange: '',
+          });
+        }
+        setInitialLoading(false);
+      })
+      .catch(error => {
+        console.error('Error fetching transfer requests:', error);
+        // On error, clear form
+        setTransferRequest(null);
+        setHasPendingRequest(false);
+        setForm({
+          workLocation: '',
+          otherWorkLocation: '',
+          branch: '',
+          region: '',
+          reasonToChange: '',
+        });
+        setInitialLoading(false);
+      });
+  }, []);
+
+  // Context handles fetching work location lookups centrally - no need to fetch here
 
   // Fetch professional detail if not loaded
   useEffect(() => {
@@ -31,22 +124,27 @@ const Categories = () => {
     }
   }, [personalDetail?.applicationId, professionalDetail, getProfessionalDetail]);
 
-  // Update form when professional detail changes
+  // Only set form from existing data if there's no transfer request data and no pending request (matching web version)
   useEffect(() => {
-    if (professionalDetail?.professionalDetails) {
-      const details = professionalDetail.professionalDetails;
+    if (!transferRequest && !hasPendingRequest) {
+      // Keep form empty - don't populate with existing data
+      // User should fill the form manually
       setForm({
-        workLocation: details.workLocation || '',
-        otherWorkLocation: details.otherWorkLocation || '',
-        branch: details.branch || '',
-        region: details.region || '',
+        workLocation: '',
+        otherWorkLocation: '',
+        branch: '',
+        region: '',
+        reasonToChange: '',
       });
     }
-  }, [professionalDetail]);
+  }, [professionalDetail, profileByIdDetail, transferRequest, hasPendingRequest]);
 
   // Map work location lookups to options (matching web version)
   const workLocationOptions = useMemo(() => {
-    return (workLocationLookups || []).map(item => {
+    if (!Array.isArray(workLocationLookups) || workLocationLookups.length === 0) {
+      return [];
+    }
+    return workLocationLookups.map(item => {
       const name = item?.lookup?.DisplayName || item?.lookup?.lookupname || '';
       return { value: name, label: name };
     }).filter(option => option.value);
@@ -54,9 +152,12 @@ const Categories = () => {
 
   // Extract branch options from lookups (matching web version)
   const branchOptions = useMemo(() => {
+    if (!Array.isArray(workLocationLookups) || workLocationLookups.length === 0) {
+      return [];
+    }
     return Array.from(
       new Set(
-        (workLocationLookups || []).map(
+        workLocationLookups.map(
           i => i?.branch?.DisplayName || i?.branch?.lookupname,
         ),
       ),
@@ -67,9 +168,12 @@ const Categories = () => {
 
   // Extract region options from lookups (matching web version)
   const regionOptions = useMemo(() => {
+    if (!Array.isArray(workLocationLookups) || workLocationLookups.length === 0) {
+      return [];
+    }
     return Array.from(
       new Set(
-        (workLocationLookups || []).map(
+        workLocationLookups.map(
           i => i?.region?.DisplayName || i?.region?.lookupname,
         ),
       ),
@@ -85,36 +189,129 @@ const Categories = () => {
       patch.region = '';
     } else {
       // Find selected work location from lookups (matching web version)
-      const selected = (workLocationLookups || []).find(
-        i => (i?.lookup?.DisplayName || i?.lookup?.lookupname) === val,
-      );
-      if (selected) {
-        patch.branch = selected?.branch?.DisplayName || selected?.branch?.lookupname || '';
-        patch.region = selected?.region?.DisplayName || selected?.region?.lookupname || '';
-        patch.otherWorkLocation = '';
+      if (Array.isArray(workLocationLookups) && workLocationLookups.length > 0) {
+        const selected = workLocationLookups.find(
+          i => (i?.lookup?.DisplayName || i?.lookup?.lookupname) === val,
+        );
+        if (selected) {
+          patch.branch = selected?.branch?.DisplayName || selected?.branch?.lookupname || '';
+          patch.region = selected?.region?.DisplayName || selected?.region?.lookupname || '';
+          patch.otherWorkLocation = '';
+        }
       }
     }
     setForm(prev => ({ ...prev, ...patch }));
   };
 
   const handleSubmit = async () => {
-    if (!applicationId) { Alert.alert('Error', 'Missing application id.'); return; }
-    const payload = { professionalDetails: {} };
-    if (form.workLocation) payload.professionalDetails.workLocation = form.workLocation;
-    if (form.otherWorkLocation) payload.professionalDetails.otherWorkLocation = form.otherWorkLocation;
-    if (form.branch) payload.professionalDetails.branch = form.branch;
-    if (form.region) payload.professionalDetails.region = form.region;
+    // Get current work location ID (matching web version)
+    let currentWorkLocationItem = null;
+    let currentWorkLocationId = null;
+    if (Array.isArray(workLocationLookups) && workLocationLookups.length > 0) {
+      currentWorkLocationItem = workLocationLookups.find(
+        item => (item?.lookup?.DisplayName || item?.lookup?.lookupname) === existing.workLocation
+      );
+      currentWorkLocationId = currentWorkLocationItem?.lookup?._id || currentWorkLocationItem?.lookup?.id;
+    }
+
+    let requestedWorkLocationId = null;
+    if (form.workLocation && form.workLocation !== 'other' && Array.isArray(workLocationLookups) && workLocationLookups.length > 0) {
+      const requestedWorkLocationItem = workLocationLookups.find(
+        item => (item?.lookup?.DisplayName || item?.lookup?.lookupname) === form.workLocation
+      );
+      requestedWorkLocationId = requestedWorkLocationItem?.lookup?._id || requestedWorkLocationItem?.lookup?.id;
+    }
+
+    if (!form.workLocation) {
+      Alert.alert('Error', 'Please select a work location');
+      return;
+    }
+
+    if (form.workLocation === 'other') {
+      Alert.alert('Error', 'Please select a work location from the list. Transfer requests require a valid work location ID.');
+      return;
+    }
+
+    if (!currentWorkLocationId) {
+      Alert.alert('Error', 'Current work location not found. Please contact support.');
+      return;
+    }
+
+    if (!requestedWorkLocationId) {
+      Alert.alert('Error', 'Requested work location not found. Please select a valid work location.');
+      return;
+    }
+
+    if (!form.reasonToChange || form.reasonToChange.trim() === '') {
+      Alert.alert('Error', 'Please provide a reason for changing your work location');
+      return;
+    }
+
+    setLoading(true);
+    const transferPayload = {
+      currentWorkLocationId,
+      requestedWorkLocationId,
+      reason: form.reasonToChange,
+    };
 
     try {
-      const res = await updateProfessionalDetailRequest(applicationId, payload);
-      if (res?.status === 200) {
-        Alert.alert('Success', 'Work location updated');
+      const res = await profileRequest(transferPayload);
+      if (res?.status === 200 || res?.status === 201) {
+        Alert.alert('Success', 'Work location transfer request submitted successfully');
+        // Refresh both profile and application data
+        getProfileDetail?.();
         getProfessionalDetail?.();
+        // Refresh transfer requests to get the new PENDING status
+        fetchTransferRequest()
+          .then(transferRes => {
+            if (transferRes?.status === 200 && transferRes?.data?.success && transferRes?.data?.data?.length > 0) {
+              const requests = transferRes.data.data;
+              const pendingRequest = requests.find(req => req.status === 'PENDING');
+              const latestRequest = requests.sort((a, b) => 
+                new Date(b.requestDate || b.createdAt) - new Date(a.requestDate || a.createdAt)
+              )[0];
+              
+              const activeRequest = pendingRequest || latestRequest;
+              
+              if (activeRequest) {
+                setTransferRequest(activeRequest);
+                setHasPendingRequest(activeRequest.status === 'PENDING');
+                
+                // Only populate form if there's a PENDING request
+                if (activeRequest.status === 'PENDING') {
+                  setForm(prev => ({
+                    ...prev,
+                    workLocation: activeRequest.requestedWorkLocationName || '',
+                    branch: activeRequest.requestedBranchName || '',
+                    region: activeRequest.requestedRegionName || '',
+                    reasonToChange: activeRequest.reason || '',
+                  }));
+                } else {
+                  // Clear form if no pending request
+                  setForm({
+                    workLocation: '',
+                    otherWorkLocation: '',
+                    branch: '',
+                    region: '',
+                    reasonToChange: '',
+                  });
+                }
+              }
+            }
+            setLoading(false);
+          })
+          .catch(error => {
+            console.error('Error refreshing transfer requests:', error);
+            setLoading(false);
+          });
       } else {
-        Alert.alert('Error', res?.data?.message || 'Update failed');
+        Alert.alert('Error', res?.data?.message || 'Transfer request failed');
+        setLoading(false);
       }
-    } catch (e) {
-      Alert.alert('Error', 'Something went wrong');
+    } catch (error) {
+      console.error('Transfer request error:', error);
+      Alert.alert('Error', error?.response?.data?.message || 'Something went wrong');
+      setLoading(false);
     }
   };
 
@@ -152,7 +349,11 @@ const Categories = () => {
           <Text style={styles.cardTitle}>Update Work Location</Text>
           <Text style={styles.label}>Work Location</Text>
           <View style={styles.pickerField}>
-            <Picker selectedValue={form.workLocation} onValueChange={onChangeWorkLocation}>
+            <Picker 
+              selectedValue={form.workLocation} 
+              onValueChange={onChangeWorkLocation}
+              enabled={!hasPendingRequest && !initialLoading}
+            >
               <Picker.Item label="Select work location" value="" />
               {workLocationOptions.length > 0 ? (
                 <>
@@ -174,7 +375,20 @@ const Categories = () => {
               onChange={(txt) => setForm(prev => ({ ...prev, otherWorkLocation: txt }))}
               placeholder="Enter your other work location"
               holderTextColor={'#94A3B8'}
-              editable={form.workLocation !== 'other'}
+              editable={form.workLocation === 'other' && !hasPendingRequest && !initialLoading}
+            />
+          </View>
+
+          <Text style={styles.label}>Reason to Change</Text>
+          <View style={styles.inputField}>
+            <InputField
+              value={form.reasonToChange}
+              onChange={(txt) => setForm(prev => ({ ...prev, reasonToChange: txt }))}
+              placeholder="Please provide a reason for changing your work location"
+              holderTextColor={'#94A3B8'}
+              multiline
+              numberOfLines={4}
+              editable={!hasPendingRequest && !initialLoading}
             />
           </View>
 
@@ -185,7 +399,7 @@ const Categories = () => {
                 <Picker
                   selectedValue={form.branch}
                   onValueChange={(val) => setForm(prev => ({ ...prev, branch: val }))}
-                  enabled={form.workLocation === 'other'}
+                  enabled={form.workLocation === 'other' && !hasPendingRequest && !initialLoading}
                 >
                   <Picker.Item 
                     label={form.workLocation === 'other' ? 'Select branch' : (form.branch || 'Auto-filled')} 
@@ -203,7 +417,7 @@ const Categories = () => {
                 <Picker
                   selectedValue={form.region}
                   onValueChange={(val) => setForm(prev => ({ ...prev, region: val }))}
-                  enabled={form.workLocation === 'other'}
+                  enabled={form.workLocation === 'other' && !hasPendingRequest && !initialLoading}
                 >
                   <Picker.Item 
                     label={form.workLocation === 'other' ? 'Select region' : (form.region || 'Auto-filled')} 
@@ -218,8 +432,21 @@ const Categories = () => {
           </View>
 
           <View style={{ marginTop: 12, marginBottom: 20 }}>
-            <Button title="Update" onPress={handleSubmit} primary />
+            <Button 
+              title={loading || initialLoading ? "Loading..." : "Update Work Location"} 
+              onPress={handleSubmit} 
+              primary 
+              disabled={hasPendingRequest || loading || initialLoading}
+            />
           </View>
+          
+          {hasPendingRequest && (
+            <View style={styles.pendingNotice}>
+              <Text style={styles.pendingNoticeText}>
+                You have a pending transfer request. Please wait for approval before submitting a new request.
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -282,6 +509,19 @@ const styles = StyleSheet.create({
   },
   inputField: { marginTop: 6 },
   pickerField: { marginTop: 6, marginBottom: 6 },
+  pendingNotice: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  pendingNoticeText: {
+    color: '#92400E',
+    fontSize: 12,
+    lineHeight: 18,
+  },
 });
 
 export default Categories;
