@@ -190,6 +190,7 @@ const Application = () => {
           grade,
           membershipCategory,
           nursingAdaptation,
+          nursingAdaptationProgramme,
           nurseType,
           nmbiNo,
         } = formData.professionalDetails || {};
@@ -205,7 +206,10 @@ const Application = () => {
           return false;
         }
         
-        if (nursingAdaptation === true) {
+        // Check nursingAdaptationProgramme (can be "yes"/"no" string or boolean)
+        const isNursingAdaptation = nursingAdaptation === true || 
+          nursingAdaptationProgramme === 'yes';
+        if (isNursingAdaptation) {
           if (!nurseType || !nmbiNo) return false;
         }
         break;
@@ -396,25 +400,49 @@ const Application = () => {
 
   useEffect(() => {
     if (professionalDetail) {
+      const apiData = professionalDetail?.professionalDetails || {};
+      
+      // Convert boolean nursingAdaptationProgramme to "yes"/"no" string
+      // Only convert if value exists, otherwise leave undefined (no default selection)
+      let nursingAdaptationProgramme = undefined;
+      if (apiData.nursingAdaptationProgramme !== undefined && apiData.nursingAdaptationProgramme !== null) {
+        if (typeof apiData.nursingAdaptationProgramme === 'boolean') {
+          nursingAdaptationProgramme = apiData.nursingAdaptationProgramme ? 'yes' : 'no';
+        } else if (typeof apiData.nursingAdaptationProgramme === 'string') {
+          const lowerValue = apiData.nursingAdaptationProgramme.toLowerCase();
+          if (lowerValue === 'yes' || lowerValue === 'true') {
+            nursingAdaptationProgramme = 'yes';
+          } else if (lowerValue === 'no' || lowerValue === 'false') {
+            nursingAdaptationProgramme = 'no';
+          } else {
+            nursingAdaptationProgramme = apiData.nursingAdaptationProgramme;
+          }
+        }
+      }
+
       setFormData(prev => ({
         ...prev,
         professionalDetails: {
           ...prev.professionalDetails,
-          membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
-          workLocation: professionalDetail?.professionalDetails?.workLocation,
-          otherWorkLocation: professionalDetail?.professionalDetails?.otherWorkLocation ?? '',
-          grade: professionalDetail?.professionalDetails?.grade,
-          otherGrade: professionalDetail?.professionalDetails?.otherGrade ?? '',
-          nmbiNo: professionalDetail?.professionalDetails?.nmbiNumber ?? '',
-          nurseType: professionalDetail?.professionalDetails?.nurseType ?? '',
-          nursingAdaptation: professionalDetail?.professionalDetails?.nursingAdaptationProgramme ? true : false,
-          region: professionalDetail?.professionalDetails?.region ?? '',
-          branch: professionalDetail?.professionalDetails?.branch ?? '',
-          pensionNo: professionalDetail?.professionalDetails?.pensionNo ?? '',
-          isRetired: professionalDetail?.professionalDetails?.isRetired ?? false,
-          retiredDate: professionalDetail?.professionalDetails?.retiredDate ?? '',
-          studyLocation: professionalDetail?.professionalDetails?.studyLocation ?? '',
-          graduationDate: professionalDetail?.professionalDetails?.graduationDate ?? '',
+          membershipCategory: apiData.membershipCategory || '',
+          workLocation: apiData.workLocation || '',
+          otherWorkLocation: apiData.otherWorkLocation ?? '',
+          grade: apiData.grade || '',
+          otherGrade: apiData.otherGrade ?? '',
+          nmbiNo: apiData.nmbiNumber ?? '',
+          nmbiNumber: apiData.nmbiNumber ?? '', // Keep both for compatibility
+          nurseType: apiData.nurseType || '',
+          nursingAdaptationProgramme: nursingAdaptationProgramme !== undefined ? nursingAdaptationProgramme : undefined,
+          nursingAdaptation: apiData.nursingAdaptationProgramme ? true : false, // Keep for backward compatibility
+          region: apiData.region ?? '',
+          branch: apiData.branch ?? '',
+          pensionNo: apiData.pensionNo ?? '',
+          isRetired: apiData.isRetired ?? false,
+          retiredDate: apiData.retiredDate ?? '',
+          studyLocation: apiData.studyLocation ?? '',
+          startDate: apiData.startDate ?? '',
+          graduationDate: apiData.graduationDate ?? '',
+          discipline: apiData.discipline ?? '',
         },
       }));
     }
@@ -542,18 +570,52 @@ const Application = () => {
     });
   };
 
+  // Helper function to convert nurseType from display format to API format
+  const mapNurseTypeToAPI = (displayValue) => {
+    if (!displayValue) return '';
+    
+    const reverseMapping = {
+      'General Nurse': 'generalNursing',
+      'Public Health Nurse': 'publicHealthNursing',
+      'Mental health nurse': 'mentalHealthNursing',
+      'Midwife': 'midwifery',
+      "Sick Children's Nurse": 'sickChildrenNursing',
+      'Registered Nurse for Intellectual Disability': 'intellectualDisabilityNursing',
+    };
+    
+    // If exact match found, return API value
+    if (reverseMapping[displayValue]) {
+      return reverseMapping[displayValue];
+    }
+    
+    // If already in API format, return as is
+    const apiValues = Object.values(reverseMapping);
+    if (apiValues.includes(displayValue)) {
+      return displayValue;
+    }
+    
+    return displayValue; // Return original if no match found
+  };
+
   const createProfessionalDetail = data => {
     if (!personalDetail?.applicationId) return;
     setStepLoading(true);
+    
+    // Convert nursingAdaptationProgramme from "yes"/"no" string to boolean
+    const nursingAdaptationProgramme = data?.nursingAdaptationProgramme === 'yes' || data?.nursingAdaptation === true;
+    
+    // Convert nurseType from display format to API format
+    const nurseTypeAPI = data.nurseType ? mapNurseTypeToAPI(data.nurseType) : '';
+    
     const professionalFields = {
       membershipCategory: data.membershipCategory,
       workLocation: data.workLocation,
       otherWorkLocation: data.otherWorkLocation,
       grade: data.grade,
       otherGrade: data.otherGrade,
-      nmbiNumber: data.nmbiNo,
-      nurseType: data.nurseType,
-      nursingAdaptationProgramme: data?.nursingAdaptation === true,
+      nmbiNumber: data.nmbiNo || data.nmbiNumber || '', // Use nmbiNo first, fallback to nmbiNumber
+      nurseType: nurseTypeAPI,
+      nursingAdaptationProgramme: nursingAdaptationProgramme,
       region: data.region,
       branch: data.branch,
       pensionNo: data.pensionNo,
@@ -581,15 +643,22 @@ const Application = () => {
   const updateProfessionalDetail = data => {
     if (!personalDetail?.applicationId) return;
     setStepLoading(true);
+    
+    // Convert nursingAdaptationProgramme from "yes"/"no" string to boolean
+    const nursingAdaptationProgramme = data?.nursingAdaptationProgramme === 'yes' || data?.nursingAdaptation === true;
+    
+    // Convert nurseType from display format to API format
+    const nurseTypeAPI = data.nurseType ? mapNurseTypeToAPI(data.nurseType) : '';
+    
     const professionalFields = {
       membershipCategory: data.membershipCategory,
       workLocation: data.workLocation,
       otherWorkLocation: data.otherWorkLocation,
       grade: data.grade,
       otherGrade: data.otherGrade,
-      nmbiNumber: data.nmbiNo,
-      nurseType: data.nurseType,
-      nursingAdaptationProgramme: data?.nursingAdaptation === true,
+      nmbiNumber: data.nmbiNo || data.nmbiNumber || '', // Use nmbiNo first, fallback to nmbiNumber
+      nurseType: nurseTypeAPI,
+      nursingAdaptationProgramme: nursingAdaptationProgramme,
       region: data.region,
       branch: data.branch,
       pensionNo: data.pensionNo,

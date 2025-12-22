@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,67 @@ const nurseTypes = [
   "Sick Children's Nurse",
   'Registered Nurse for Intellectual Disability',
 ];
+
+// Map API nurseType values to component display values
+const mapNurseTypeFromAPI = (apiValue) => {
+  if (!apiValue) return '';
+  
+  const mapping = {
+    'generalNursing': 'General Nurse',
+    'publicHealthNurse': 'Public Health Nurse',
+    'mentalHealthNurse': 'Mental health nurse',
+    'midwifery': 'Midwife',
+    'sickChildrenNurse': "Sick Children's Nurse",
+    'intellectualDisability': 'Registered Nurse for Intellectual Disability',
+  };
+  
+  // If exact match found, return mapped value
+  if (mapping[apiValue]) {
+    return mapping[apiValue];
+  }
+  
+  // If already in display format, return as is
+  if (nurseTypes.includes(apiValue)) {
+    return apiValue;
+  }
+  
+  // Try case-insensitive match
+  const lowerApiValue = apiValue.toLowerCase();
+  for (const [key, value] of Object.entries(mapping)) {
+    if (key.toLowerCase() === lowerApiValue) {
+      return value;
+    }
+  }
+  
+  return apiValue; // Return original if no match found
+};
+
+// Map component display values back to API format
+const mapNurseTypeToAPI = (displayValue) => {
+  if (!displayValue) return '';
+  
+  const reverseMapping = {
+    'General Nurse': 'generalNursing',
+    'Public Health Nurse': 'publicHealthNursing',
+    'Mental health nurse': 'mentalHealthNursing',
+    'Midwife': 'midwifery',
+    "Sick Children's Nurse": 'sickChildrenNursing',
+    'Registered Nurse for Intellectual Disability': 'intellectualDisabilityNursing',
+  };
+  
+  // If exact match found, return API value
+  if (reverseMapping[displayValue]) {
+    return reverseMapping[displayValue];
+  }
+  
+  // If already in API format, return as is
+  const apiValues = Object.values(reverseMapping);
+  if (apiValues.includes(displayValue)) {
+    return displayValue;
+  }
+  
+  return displayValue; // Return original if no match found
+};
 
 // studyLocations will be populated from lookup context
 
@@ -162,7 +223,9 @@ const ProfessionalDetails = ({
     });
   };
 
+  // Only consider "yes" as selected, everything else (including undefined/null/'no') is not selected
   const adaptationYes = formData?.nursingAdaptationProgramme === 'yes';
+  const adaptationNo = formData?.nursingAdaptationProgramme === 'no';
 
   // Helper function to check category type based on _id (matching web version)
   const isCategoryType = categoryType => {
@@ -198,6 +261,110 @@ const ProfessionalDetails = ({
   // Use isCategoryType helper for category detection
   const isRetired = isCategoryType('retired_associate');
   const isUndergraduateStudent = isCategoryType('undergraduate_student');
+
+  // Normalize API data when it loads (handle field name differences and type conversions)
+  useEffect(() => {
+    if (!formData) return;
+
+    const updates = {};
+    let hasUpdates = false;
+
+    // Map nmbiNumber from API to nmbiNo in component (handle both field names)
+    if (formData.nmbiNumber !== undefined && formData.nmbiNumber !== formData.nmbiNo) {
+      updates.nmbiNo = formData.nmbiNumber || '';
+      hasUpdates = true;
+    }
+
+    // Convert boolean nursingAdaptationProgramme to "yes"/"no" string
+    // Only normalize if there's an actual value (don't set default to 'no')
+    // Also handle nursingAdaptation boolean field for backward compatibility
+    const currentAdaptationValue = formData.nursingAdaptationProgramme !== undefined 
+      ? formData.nursingAdaptationProgramme 
+      : (formData.nursingAdaptation !== undefined ? formData.nursingAdaptation : undefined);
+
+    if (currentAdaptationValue !== undefined && currentAdaptationValue !== null && currentAdaptationValue !== '') {
+      let normalizedValue;
+      
+      if (typeof currentAdaptationValue === 'boolean') {
+        normalizedValue = currentAdaptationValue ? 'yes' : 'no';
+      } else if (typeof currentAdaptationValue === 'string') {
+        const lowerValue = currentAdaptationValue.toLowerCase();
+        if (lowerValue === 'yes' || lowerValue === 'true') {
+          normalizedValue = 'yes';
+        } else if (lowerValue === 'no' || lowerValue === 'false') {
+          normalizedValue = 'no';
+        } else {
+          // If it's already a valid string value, keep it
+          normalizedValue = currentAdaptationValue;
+        }
+      } else {
+        // Don't set default, leave undefined
+        normalizedValue = undefined;
+      }
+
+      // Only update if we have a valid normalized value and it's different
+      if (normalizedValue !== undefined && normalizedValue !== formData.nursingAdaptationProgramme) {
+        updates.nursingAdaptationProgramme = normalizedValue;
+        hasUpdates = true;
+      }
+    }
+
+    // Map nurseType from API format to component format
+    if (formData.nurseType !== undefined && formData.nurseType) {
+      const mappedNurseType = mapNurseTypeFromAPI(formData.nurseType);
+      if (mappedNurseType !== formData.nurseType && mappedNurseType) {
+        updates.nurseType = mappedNurseType;
+        hasUpdates = true;
+      }
+    }
+
+    // Apply updates if any
+    if (hasUpdates) {
+      onFormDataChange({
+        ...formData,
+        ...updates,
+      });
+    }
+  }, [
+    formData?.nmbiNumber,
+    formData?.nursingAdaptationProgramme,
+    formData?.nursingAdaptation,
+    formData?.nurseType,
+  ]);
+
+  // Clear nmbiNo and nurseType when nursingAdaptationProgramme is set to 'no' (matching web version)
+  useEffect(() => {
+    if (formData?.nursingAdaptationProgramme === 'no') {
+      const updates = {};
+      let hasUpdates = false;
+
+      // Clear nmbiNo if it has a value
+      if (formData.nmbiNo) {
+        updates.nmbiNo = '';
+        hasUpdates = true;
+      }
+
+      // Clear nmbiNumber if it has a value (for consistency)
+      if (formData.nmbiNumber) {
+        updates.nmbiNumber = '';
+        hasUpdates = true;
+      }
+
+      // Clear nurseType if it has a value
+      if (formData.nurseType) {
+        updates.nurseType = '';
+        hasUpdates = true;
+      }
+
+      // Apply updates if any
+      if (hasUpdates) {
+        onFormDataChange({
+          ...formData,
+          ...updates,
+        });
+      }
+    }
+  }, [formData?.nursingAdaptationProgramme]);
 
   return (
     <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
@@ -430,42 +597,52 @@ const ProfessionalDetails = ({
         </Text>
         <View style={styles.radioRow}>
           <TouchableOpacity
-            style={[styles.radioButton, adaptationYes && styles.radioSelected]}
-            onPress={() =>
-              onFormDataChange({
+            style={styles.radioOption}
+            onPress={() => {
+              const updatedData = {
                 ...formData,
                 nursingAdaptationProgramme: 'yes',
-              })
-            }
+              };
+              onFormDataChange(updatedData);
+            }}
+            activeOpacity={0.7}
           >
-            <Text
+            <View
               style={[
-                styles.radioLabel,
-                adaptationYes && styles.radioLabelSelected,
+                styles.radioCircle,
+                adaptationYes && styles.radioCircleSelected,
               ]}
             >
-              Yes
-            </Text>
+              {adaptationYes && <View style={styles.radioInnerCircle} />}
+            </View>
+            <Text style={styles.radioOptionLabel}>Yes</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.radioButton, !adaptationYes && styles.radioSelected]}
-            onPress={() =>
-              onFormDataChange({
+            style={styles.radioOption}
+            onPress={() => {
+              const updatedData = {
                 ...formData,
                 nursingAdaptationProgramme: 'no',
-                nmbiNo: '', // Clear nmbiNo when "no" is selected (matching web version)
-                nurseType: '', // Clear nurseType when "no" is selected (matching web version)
-              })
-            }
+              };
+              // Clear nmbiNo and nurseType when "no" is selected (matching web version)
+              if (updatedData.nursingAdaptationProgramme === 'no') {
+                updatedData.nmbiNo = '';
+                updatedData.nmbiNumber = ''; // Also clear nmbiNumber for consistency
+                updatedData.nurseType = '';
+              }
+              onFormDataChange(updatedData);
+            }}
+            activeOpacity={0.7}
           >
-            <Text
+            <View
               style={[
-                styles.radioLabel,
-                !adaptationYes && styles.radioLabelSelected,
+                styles.radioCircle,
+                adaptationNo && styles.radioCircleSelected,
               ]}
             >
-              No
-            </Text>
+              {adaptationNo && <View style={styles.radioInnerCircle} />}
+            </View>
+            <Text style={styles.radioOptionLabel}>No</Text>
           </TouchableOpacity>
         </View>
 
@@ -473,10 +650,17 @@ const ProfessionalDetails = ({
         <Text style={styles.label}>NMBI No / An Board Altranais Number</Text>
         <View style={styles.inputField}>
           <InputField
-            value={formData.nmbiNo}
+            value={formData.nmbiNo || ''}
             editable={adaptationYes}
             holderTextColor={'#94A3B8'}
-            onChange={text => onFormDataChange({ ...formData, nmbiNo: text })}
+            onChange={text => {
+              // Update both nmbiNo and nmbiNumber for consistency
+              onFormDataChange({ 
+                ...formData, 
+                nmbiNo: text,
+                nmbiNumber: text, // Keep nmbiNumber in sync for API
+              });
+            }}
             placeholder="12344"
           />
         </View>
@@ -484,29 +668,42 @@ const ProfessionalDetails = ({
         {/* Nurse Type radio group */}
         <Text style={styles.label}>Please tick one of the following</Text>
         <View style={styles.radioGroup}>
-          {nurseTypes.map(type => (
-            <TouchableOpacity
-              key={type}
-              style={[
-                styles.radioButton,
-                formData.nurseType === type && styles.radioSelected,
-                !adaptationYes && { opacity: 0.5 },
-              ]}
-              onPress={() =>
-                adaptationYes &&
-                onFormDataChange({ ...formData, nurseType: type })
-              }
-            >
-              <Text
+          {nurseTypes.map(type => {
+            const isSelected = formData.nurseType === type;
+            return (
+              <TouchableOpacity
+                key={type}
                 style={[
-                  styles.radioLabel,
-                  formData.nurseType === type && styles.radioLabelSelected,
+                  styles.radioOption,
+                  !adaptationYes && styles.radioOptionDisabled,
                 ]}
+                disabled={!adaptationYes}
+                onPress={() =>
+                  adaptationYes &&
+                  onFormDataChange({ ...formData, nurseType: type })
+                }
+                activeOpacity={0.7}
               >
-                {type}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <View
+                  style={[
+                    styles.radioCircle,
+                    isSelected && styles.radioCircleSelected,
+                    !adaptationYes && styles.radioCircleDisabled,
+                  ]}
+                >
+                  {isSelected && <View style={styles.radioInnerCircle} />}
+                </View>
+                <Text
+                  style={[
+                    styles.radioOptionLabel,
+                    !adaptationYes && styles.radioOptionLabelDisabled,
+                  ]}
+                >
+                  {type}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -607,39 +804,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
-    gap: 12,
+    gap: 24,
   },
   radioGroup: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 8,
-    gap: 12,
+    gap: 4,
   },
-  radioButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1.5,
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    marginRight: 8,
+  },
+  radioOptionDisabled: {
+    opacity: 0.5,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
     borderColor: '#E5E5E5',
     backgroundColor: Colors.white,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  radioSelected: {
-    backgroundColor: Colors.primary,
+  radioCircleSelected: {
     borderColor: Colors.primary,
   },
-  radioLabel: {
+  radioCircleDisabled: {
+    borderColor: '#D0D0D0',
+  },
+  radioInnerCircle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+  },
+  radioOptionLabel: {
     color: Colors.textPrimary,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '400',
+    flexShrink: 1,
   },
-  radioLabelSelected: {
-    color: Colors.white,
-    fontWeight: '600',
+  radioOptionLabelDisabled: {
+    color: Colors.textSecondary,
   },
 });
 

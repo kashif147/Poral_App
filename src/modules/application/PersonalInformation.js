@@ -6,6 +6,7 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import CustomSwitch from '../../common/switch';
@@ -20,6 +21,26 @@ const preferredAddresses = ['Home', 'Work', 'Other'];
 const preferredEmails = ['Personal', 'Work'];
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCJYpj8WV5Rzof7O3jGhW9XabD0J4Yqe1o';
+
+// Section Header Component with Icon and Gradient
+const SectionHeader = ({ iconName, title, subtitle, gradientColors }) => {
+  return (
+    <View style={styles.sectionHeaderContainer}>
+      <LinearGradient
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.iconGradientBox}
+      >
+        <Ionicons name={iconName} size={24} color="#FFFFFF" />
+      </LinearGradient>
+      <View style={styles.sectionHeaderText}>
+        <Text style={styles.sectionHeader}>{title}</Text>
+        {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
+      </View>
+    </View>
+  );
+};
 
 // Normalize API values to match picker options (handle case differences)
 const normalizePreferredAddress = (value) => {
@@ -286,13 +307,14 @@ const PersonalInformation = ({
 
   return (
     <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
-      {/* Section Header */}
-      <Text style={styles.sectionHeader}>Personal Information</Text>
-      <Text style={styles.sectionSubtitle}>Let's start with the basics.</Text>
-
       {/* Basic Information Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Basic Information</Text>
+        <SectionHeader
+          iconName="person-outline"
+          title="Personal Information"
+          subtitle="Please provide your details as they appear on your official documents."
+          gradientColors={['#3B82F6', '#2563EB']}
+        />
 
         {/* Title */}
         <Text style={styles.label}>Title *</Text>
@@ -437,25 +459,32 @@ const PersonalInformation = ({
 
       {/* Address Information Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Address Information</Text>
-        <View style={styles.halfInput}>
-          <Text style={styles.label}>Preferred address *</Text>
-          <View style={styles.pickerField}>
-            <Picker
-              selectedValue={
-                normalizePreferredAddress(formData.preferredAddress) ||
-                preferredAddresses[0]
-              }
-              onValueChange={val =>
-                onFormDataChange({ ...formData, preferredAddress: val })
-              }
-            >
-              {preferredAddresses.map(a => (
-                <Picker.Item key={a} label={a} value={a} />
-              ))}
-            </Picker>
+        <SectionHeader
+          iconName="mail-outline"
+          title="Correspondence Details"
+          subtitle="Let us know the best way to send you mail."
+          gradientColors={['#10B981', '#059669']}
+        />
+        
+        
+          <View style={styles.halfInput}>
+            <Text style={styles.label}>Preferred address *</Text>
+            <View style={styles.pickerField}>
+              <Picker
+                selectedValue={
+                  normalizePreferredAddress(formData.preferredAddress) ||
+                  preferredAddresses[0]
+                }
+                onValueChange={val =>
+                  onFormDataChange({ ...formData, preferredAddress: val })
+                }
+              >
+                {preferredAddresses.map(a => (
+                  <Picker.Item key={a} label={a} value={a} />
+                ))}
+              </Picker>
+            </View>
           </View>
-        </View>
 
         <Text style={styles.label}>Search by address or Eircode</Text>
         <View
@@ -751,7 +780,12 @@ const PersonalInformation = ({
 
       {/* Contact Information Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Contact Information</Text>
+        <SectionHeader
+          iconName="call-outline"
+          title="Contact Details"
+          subtitle="Provide your phone numbers and email addresses."
+          gradientColors={['#A855F7', '#9333EA']}
+        />
 
         <View style={styles.halfInput}>
           <Text style={styles.label}>Mobile No *</Text>
@@ -880,20 +914,39 @@ const PersonalInformation = ({
 };
 
 const styles = StyleSheet.create({
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+    gap: 12,
+  },
+  iconGradientBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
   sectionHeader: {
     color: Colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 24,
-    marginBottom: 8,
+    marginBottom: 4,
     letterSpacing: 0.3,
-    // paddingHorizontal: 20,
   },
   sectionSubtitle: {
     color: Colors.textSecondary,
     fontSize: 14,
-    marginBottom: 20,
     lineHeight: 20,
-    // paddingHorizontal: 20,
+    marginTop: 4,
   },
   card: {
     backgroundColor: Colors.cardBackground,
@@ -901,9 +954,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     padding: 20,
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -985,19 +1040,42 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: '600',
   },
+  gradientContainer: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#C7D2FE',
+    marginBottom: 16,
+  },
   termsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 0,
+  },
+  termsLabelContainer: {
+    flex: 1,
+    marginRight: 12,
   },
   termsLabel: {
-    flex: 1,
     fontSize: 14,
     color: Colors.textPrimary,
-    marginRight: 12,
     fontWeight: '400',
     lineHeight: 20,
+  },
+  termsLabelBold: {
+    fontSize: 14,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  termsLabelSubtext: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '400',
+    lineHeight: 16,
+    marginTop: 4,
   },
   autocompleteContainer: {
     position: 'relative',
