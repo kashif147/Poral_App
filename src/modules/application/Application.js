@@ -22,6 +22,7 @@ import {
   createSubscriptionDetailRequest,
   updateSubscriptionDetailRequest,
 } from '../../api/application.api';
+import { fetchCategoryByCategoryId } from '../../api/category.api';
 
 const steps = [
   { number: 1, title: 'Personal' },
@@ -71,6 +72,7 @@ const Application = () => {
   const [personalDetail, setPersonalDetail] = useState(null);
   const [professionalDetail, setProfessionalDetail] = useState(null);
   const [subscriptionDetail, setSubscriptionDetail] = useState(null);
+  const [categoryData, setCategoryData] = useState(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   // Keyboard event listeners
@@ -246,8 +248,10 @@ const Application = () => {
           console.log('❌ Validation failed: paymentType missing');
           return false;
         }
-        if (paymentType === 'Deduction at Source' && !payrollNo) {
-          console.log('❌ Validation failed: payrollNo missing');
+        // Check if payment type requires payroll number (matching web version)
+        const requiresPayrollNo = ['Direct Debit', 'Salary Deduction', 'Deduction at Source'].includes(paymentType);
+        if (requiresPayrollNo && !payrollNo) {
+          console.log('❌ Validation failed: payrollNo missing for', paymentType);
           return false;
         }
         if (!memberStatus) {
@@ -267,27 +271,27 @@ const Application = () => {
           return false;
         }
         
-        // Conditional required fields
-        if (primarySection === 'Other' && !otherPrimarySection) {
+        // Conditional required fields (matching web version - check for 'other' lowercase)
+        if ((primarySection === 'other' || primarySection === 'Other') && !otherPrimarySection) {
           console.log('❌ Validation failed: otherPrimarySection missing');
           return false;
         }
-        if (secondarySection === 'Other' && !otherSecondarySection) {
+        if ((secondarySection === 'other' || secondarySection === 'Other') && !otherSecondarySection) {
           console.log('❌ Validation failed: otherSecondarySection missing');
           return false;
         }
         
         // Required for new/graduate members
-        if (memberStatus === 'new' || memberStatus === 'graduate') {
-          if (!incomeProtectionScheme) {
-            console.log('❌ Validation failed: incomeProtectionScheme missing for new/graduate');
-            return false;
-          }
-          if (!inmoRewards) {
-            console.log('❌ Validation failed: inmoRewards missing for new/graduate');
-            return false;
-          }
-        }
+        // if (memberStatus === 'new' || memberStatus === 'graduate') {
+        //   if (!incomeProtectionScheme) {
+        //     console.log('❌ Validation failed: incomeProtectionScheme missing for new/graduate');
+        //     return false;
+        //   }
+        //   // if (!inmoRewards) {
+        //   //   console.log('❌ Validation failed: inmoRewards missing for new/graduate');
+        //   //   return false;
+        //   // }
+        // }
         
         console.log('✅ Step 3 validation passed!');
         break;
@@ -401,6 +405,7 @@ const Application = () => {
   useEffect(() => {
     if (professionalDetail) {
       const apiData = professionalDetail?.professionalDetails || {};
+      const membershipCategory = apiData.membershipCategory;
       
       // Convert boolean nursingAdaptationProgramme to "yes"/"no" string
       // Only convert if value exists, otherwise leave undefined (no default selection)
@@ -420,18 +425,21 @@ const Application = () => {
         }
       }
 
+      // Map nurseType from API format to display format
+      const mappedNurseType = apiData.nurseType ? mapNurseTypeFromAPI(apiData.nurseType) : '';
+
       setFormData(prev => ({
         ...prev,
         professionalDetails: {
           ...prev.professionalDetails,
-          membershipCategory: apiData.membershipCategory || '',
+          membershipCategory: membershipCategory || '',
           workLocation: apiData.workLocation || '',
           otherWorkLocation: apiData.otherWorkLocation ?? '',
           grade: apiData.grade || '',
           otherGrade: apiData.otherGrade ?? '',
           nmbiNo: apiData.nmbiNumber ?? '',
           nmbiNumber: apiData.nmbiNumber ?? '', // Keep both for compatibility
-          nurseType: apiData.nurseType || '',
+          nurseType: mappedNurseType, // Use mapped value (API format -> display format)
           nursingAdaptationProgramme: nursingAdaptationProgramme !== undefined ? nursingAdaptationProgramme : undefined,
           nursingAdaptation: apiData.nursingAdaptationProgramme ? true : false, // Keep for backward compatibility
           region: apiData.region ?? '',
@@ -445,35 +453,71 @@ const Application = () => {
           discipline: apiData.discipline ?? '',
         },
       }));
+
+      // Fetch category data when membershipCategory is available (matching web version)
+      if (membershipCategory) {
+        fetchCategoryByCategoryId(membershipCategory)
+          .then(res => {
+            const payload = res?.data?.data || res?.data;
+            setCategoryData(payload || null);
+          })
+          .catch(error => {
+            console.error('Failed to fetch category data:', error);
+            setCategoryData(null);
+          });
+      }
     }
-  }, [professionalDetail]);
+  }, [professionalDetail, professionalDetail?.professionalDetails?.membershipCategory]);
 
   useEffect(() => {
     if (subscriptionDetail) {
       setIsSubmitted(true);
+      const subData = subscriptionDetail?.subscriptionDetails || {};
+      
+      // Convert otherIrishTradeUnion from boolean to 'yes'/'no' string (matching web version)
+      let otherIrishTradeUnion = '';
+      if (subData.otherIrishTradeUnion !== undefined && subData.otherIrishTradeUnion !== null) {
+        if (typeof subData.otherIrishTradeUnion === 'boolean') {
+          otherIrishTradeUnion = subData.otherIrishTradeUnion ? 'yes' : 'no';
+        } else if (typeof subData.otherIrishTradeUnion === 'string') {
+          otherIrishTradeUnion = subData.otherIrishTradeUnion;
+        }
+      }
+      
+      // Convert otherScheme from boolean to 'yes'/'no' string (matching web version)
+      let otherScheme = '';
+      if (subData.otherScheme !== undefined && subData.otherScheme !== null) {
+        if (typeof subData.otherScheme === 'boolean') {
+          otherScheme = subData.otherScheme ? 'yes' : 'no';
+        } else if (typeof subData.otherScheme === 'string') {
+          otherScheme = subData.otherScheme;
+        }
+      }
+      
       setFormData(prev => ({
         ...prev,
         subscriptionDetails: {
           ...prev.subscriptionDetails,
-          paymentType: subscriptionDetail?.subscriptionDetails?.paymentType,
-          payrollNo: subscriptionDetail?.subscriptionDetails?.payrollNo ?? '',
-          memberStatus: subscriptionDetail?.subscriptionDetails?.memberStatus ?? '',
-          otherIrishTradeUnion: subscriptionDetail?.subscriptionDetails?.otherIrishTradeUnion ?? '',
-          otherTradeUnionName: subscriptionDetail?.subscriptionDetails?.otherTradeUnionName ?? '',
-          otherScheme: subscriptionDetail?.subscriptionDetails?.otherScheme ?? '',
-          recuritedBy: subscriptionDetail?.subscriptionDetails?.recuritedBy ?? '',
-          recuritedByMembershipNo: subscriptionDetail?.subscriptionDetails?.recuritedByMembershipNo ?? '',
-          primarySection: subscriptionDetail?.subscriptionDetails?.primarySection,
-          otherPrimarySection: subscriptionDetail?.subscriptionDetails?.otherPrimarySection ?? '',
-          secondarySection: subscriptionDetail?.subscriptionDetails?.secondarySection,
-          otherSecondarySection: subscriptionDetail?.subscriptionDetails?.otherSecondarySection ?? '',
-          incomeProtectionScheme: subscriptionDetail?.subscriptionDetails?.incomeProtectionScheme ?? false,
-          inmoRewards: subscriptionDetail?.subscriptionDetails?.inmoRewards ?? false,
-          valueAddedServices: subscriptionDetail?.subscriptionDetails?.valueAddedServices ?? false,
-          termsAndConditions: subscriptionDetail?.subscriptionDetails?.termsAndConditions ?? false,
-          membershipCategory: subscriptionDetail?.subscriptionDetails?.membershipCategory,
-          dateJoined: subscriptionDetail?.subscriptionDetails?.dateJoined,
-          paymentFrequency: subscriptionDetail?.subscriptionDetails?.paymentFrequency,
+          paymentType: subData.paymentType || '',
+          payrollNo: subData.payrollNo ?? '',
+          memberStatus: subData.membershipStatus || subData.memberStatus || '', // API uses membershipStatus, form uses memberStatus
+          otherIrishTradeUnion: otherIrishTradeUnion,
+          otherIrishTradeUnionName: subData.otherIrishTradeUnionName ?? '', // Match web version field name
+          otherScheme: otherScheme,
+          recuritedBy: subData.recuritedBy ?? '',
+          recuritedByMembershipNo: subData.recuritedByMembershipNo ?? '',
+          primarySection: subData.primarySection || '',
+          otherPrimarySection: subData.otherPrimarySection ?? '',
+          secondarySection: subData.secondarySection || '',
+          otherSecondarySection: subData.otherSecondarySection ?? '',
+          incomeProtectionScheme: subData.incomeProtectionScheme ?? false,
+          inmoRewards: subData.inmoRewards ?? false,
+          exclusiveDiscountsAndOffers: subData.exclusiveDiscountsAndOffers ?? false, // Add missing field
+          valueAddedServices: subData.valueAddedServices ?? false,
+          termsAndConditions: subData.termsAndConditions ?? false,
+          membershipCategory: subData.membershipCategory || '',
+          dateJoined: subData.dateJoined || '',
+          paymentFrequency: subData.paymentFrequency || '',
         },
       }));
     }
@@ -568,6 +612,46 @@ const Application = () => {
       setStepLoading(false);
       Alert.alert('Error', 'Something went wrong');
     });
+  };
+
+  // Helper function to convert nurseType from API format to display format (matching ProfessionalDetails.js)
+  const mapNurseTypeFromAPI = (apiValue) => {
+    if (!apiValue) return '';
+    
+    const mapping = {
+      'generalNursing': 'General Nurse',
+      'publicHealthNurse': 'Public Health Nurse',
+      'publicHealthNursing': 'Public Health Nurse', // Handle both variations
+      'mentalHealthNurse': 'Mental health nurse',
+      'mentalHealthNursing': 'Mental health nurse', // Handle both variations
+      'midwifery': 'Midwife',
+      'midwife': 'Midwife', // Handle both variations
+      'sickChildrenNurse': "Sick Children's Nurse",
+      'sickChildrenNursing': "Sick Children's Nurse", // Handle both variations
+      'intellectualDisability': 'Registered Nurse for Intellectual Disability',
+      'intellectualDisabilityNursing': 'Registered Nurse for Intellectual Disability',
+    };
+    
+    // If exact match found, return mapped value
+    if (mapping[apiValue]) {
+      return mapping[apiValue];
+    }
+    
+    // If already in display format, return as is
+    const displayValues = Object.values(mapping);
+    if (displayValues.includes(apiValue)) {
+      return apiValue;
+    }
+    
+    // Try case-insensitive match
+    const lowerApiValue = apiValue.toLowerCase();
+    for (const [key, value] of Object.entries(mapping)) {
+      if (key.toLowerCase() === lowerApiValue) {
+        return value;
+      }
+    }
+    
+    return apiValue; // Return original if no match found
   };
 
   // Helper function to convert nurseType from display format to API format
@@ -691,10 +775,10 @@ const Application = () => {
     const subscriptionFields = {
       paymentType: data?.paymentType,
       payrollNo: data?.payrollNo,
-      memberStatus: data?.memberStatus,
-      otherIrishTradeUnion: data?.otherIrishTradeUnion,
-      otherTradeUnionName: data?.otherTradeUnionName,
-      otherScheme: data?.otherScheme,
+      membershipStatus: data?.memberStatus, // API uses membershipStatus (matching web version)
+      otherIrishTradeUnion: data?.otherIrishTradeUnion === 'yes', // Convert string to boolean (matching web version)
+      otherIrishTradeUnionName: data?.otherIrishTradeUnionName, // Match web version field name
+      otherScheme: data?.otherScheme === 'yes' || data?.otherScheme === true, // Convert string to boolean (matching web version)
       recuritedBy: data?.recuritedBy,
       recuritedByMembershipNo: data?.recuritedByMembershipNo,
       primarySection: data?.primarySection,
@@ -703,8 +787,10 @@ const Application = () => {
       otherSecondarySection: data?.otherSecondarySection,
       incomeProtectionScheme: data?.incomeProtectionScheme === true,
       inmoRewards: data?.inmoRewards === true,
+      exclusiveDiscountsAndOffers: data?.exclusiveDiscountsAndOffers === true, // Add missing field (matching web version)
       valueAddedServices: data?.valueAddedServices === true,
       termsAndConditions: data?.termsAndConditions === true,
+      paymentFrequency: data?.paymentType === 'Credit Card' ? 'Annually' : 'Monthly', // Add payment frequency (matching web version)
       ...defaultFields,
     };
     const subscriptionDetails = {};
@@ -717,8 +803,9 @@ const Application = () => {
         console.log('✅ Subscription detail created successfully');
         setSubscriptionDetail(res?.data?.data);
         
-        // Check if undergraduate student - they don't need payment
-        if (professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
+        // Check if undergraduate student - they don't need payment (matching web version)
+        if (categoryData?.name === 'Undergraduate Student' ||
+            professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
             professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
           console.log('🎓 Undergraduate student - skipping payment');
           setIsSubmitted(true);
@@ -746,10 +833,10 @@ const Application = () => {
     const subscriptionFields = {
       paymentType: data?.paymentType,
       payrollNo: data?.payrollNo,
-      memberStatus: data?.memberStatus,
-      otherIrishTradeUnion: data?.otherIrishTradeUnion,
-      otherTradeUnionName: data?.otherTradeUnionName,
-      otherScheme: data?.otherScheme,
+      membershipStatus: data?.memberStatus, // API uses membershipStatus (matching web version)
+      otherIrishTradeUnion: data?.otherIrishTradeUnion === 'yes', // Convert string to boolean (matching web version)
+      otherIrishTradeUnionName: data?.otherIrishTradeUnionName, // Match web version field name
+      otherScheme: data?.otherScheme === 'yes' || data?.otherScheme === true, // Convert string to boolean (matching web version)
       recuritedBy: data?.recuritedBy,
       recuritedByMembershipNo: data?.recuritedByMembershipNo,
       primarySection: data?.primarySection,
@@ -758,8 +845,10 @@ const Application = () => {
       otherSecondarySection: data?.otherSecondarySection,
       incomeProtectionScheme: data?.incomeProtectionScheme === true,
       inmoRewards: data?.inmoRewards === true,
+      exclusiveDiscountsAndOffers: data?.exclusiveDiscountsAndOffers === true, // Add missing field (matching web version)
       valueAddedServices: data?.valueAddedServices === true,
       termsAndConditions: data?.termsAndConditions === true,
+      paymentFrequency: data?.paymentType === 'Credit Card' ? 'Annually' : 'Monthly', // Add payment frequency (matching web version)
       ...defaultFields,
     };
     const subscriptionDetails = {};
@@ -773,8 +862,9 @@ const Application = () => {
         console.log('✅ Subscription detail updated successfully');
         setSubscriptionDetail(res?.data?.data);
         
-        // Check if undergraduate student - they don't need payment
-        if (professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
+        // Check if undergraduate student - they don't need payment (matching web version)
+        if (categoryData?.name === 'Undergraduate Student' ||
+            professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
             professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
           console.log('🎓 Undergraduate student - skipping payment');
           setIsSubmitted(true);
@@ -803,6 +893,7 @@ const Application = () => {
               formData={formData.personalInfo}
               onFormDataChange={data => handleFormDataChange('personalInfo', data)}
               showValidation={showValidation}
+              personalDetail={personalDetail}
             />
           );
         case 2:
@@ -819,7 +910,7 @@ const Application = () => {
               formData={formData.subscriptionDetails}
               onFormDataChange={data => handleFormDataChange('subscriptionDetails', data)}
               showValidation={showValidation}
-              membershipCategory={formData.professionalDetails?.membershipCategory}
+              categoryData={categoryData}
             />
           );
         default:
@@ -849,7 +940,7 @@ const Application = () => {
         <ScreenHeader title="Application" />
 
         {/* Stepper */}
-        <View style={[styles.stepperRow, { width: '100%', marginBottom: width * 0.04, paddingHorizontal: 20 }]}>
+        <View style={[styles.stepperRow, { width: '100%',  paddingHorizontal: 20 }]}>
           {steps.map((step, idx) => (
             <React.Fragment key={step.number}>
               <View style={styles.stepperItemContainer}>
@@ -953,7 +1044,7 @@ const Application = () => {
                       />
                       <Button
                         title={currentStep === steps.length ? 'Submit' : 'Next Step'}
-                        onPress={currentStep === steps.length ? handleSubmit : handleNext}
+                        onPress={handleNext}
                         primary
                         isloading={stepLoading}
                         disabled={stepLoading}
@@ -1045,7 +1136,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginTop: hp(2),
-    marginBottom: 24,
+    // marginBottom: 24,
   },
   stepperItemContainer: {
     alignItems: 'center',

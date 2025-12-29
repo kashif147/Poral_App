@@ -69,6 +69,7 @@ const PersonalInformation = ({
   formData,
   onFormDataChange,
   showValidation,
+  personalDetail,
 }) => {
   const ref = useRef();
   const phoneInput = useRef(null);
@@ -224,6 +225,25 @@ const PersonalInformation = ({
     }
   }, [formData?.preferredEmail]);
 
+  // Clear preferred address and email if personal detail doesn't exist
+  useEffect(() => {
+    if (!personalDetail) {
+      const updates = {};
+      if (formData?.preferredAddress) {
+        updates.preferredAddress = '';
+      }
+      if (formData?.preferredEmail) {
+        updates.preferredEmail = '';
+      }
+      if (Object.keys(updates).length > 0) {
+        onFormDataChange({
+          ...formData,
+          ...updates,
+        });
+      }
+    }
+  }, [personalDetail]);
+
   // Context handles fetching countries centrally - no need to fetch here
 
   // Set default value to Ireland if countryPrimaryQualification is empty (matching web version)
@@ -333,19 +353,6 @@ const PersonalInformation = ({
             ))}
           </Picker>
         </View>
-        <View style={styles.halfCol}>
-          <Text style={styles.label}>Surname *</Text>
-          <View style={styles.inputField}>
-            <InputField
-              value={formData.surname}
-              checkValue={showValidation && !formData.surname}
-              onChange={text =>
-                onFormDataChange({ ...formData, surname: text })
-              }
-              placeholder="Enter your surname"
-            />
-          </View>
-        </View>
         <View style={[styles.halfCol, { marginRight: 0 }]}>
           <Text style={styles.label}>Forename *</Text>
           <View style={styles.inputField}>
@@ -356,6 +363,19 @@ const PersonalInformation = ({
                 onFormDataChange({ ...formData, forename: text })
               }
               placeholder="Enter your forename"
+            />
+          </View>
+        </View>
+        <View style={styles.halfCol}>
+          <Text style={styles.label}>Surname *</Text>
+          <View style={styles.inputField}>
+            <InputField
+              value={formData.surname}
+              checkValue={showValidation && !formData.surname}
+              onChange={text =>
+                onFormDataChange({ ...formData, surname: text })
+              }
+              placeholder="Enter your surname"
             />
           </View>
         </View>
@@ -472,13 +492,18 @@ const PersonalInformation = ({
             <View style={styles.pickerField}>
               <Picker
                 selectedValue={
-                  normalizePreferredAddress(formData.preferredAddress) ||
-                  preferredAddresses[0]
+                  !personalDetail
+                    ? ''
+                    : normalizePreferredAddress(formData.preferredAddress) ||
+                      preferredAddresses[0]
                 }
                 onValueChange={val =>
                   onFormDataChange({ ...formData, preferredAddress: val })
                 }
               >
+                {!personalDetail && (
+                  <Picker.Item label="Select preferred address..." value="" />
+                )}
                 {preferredAddresses.map(a => (
                   <Picker.Item key={a} label={a} value={a} />
                 ))}
@@ -855,13 +880,18 @@ const PersonalInformation = ({
           <View style={styles.pickerField}>
             <Picker
               selectedValue={
-                normalizePreferredEmail(formData.preferredEmail) ||
-                preferredEmails[0]
+                !personalDetail
+                  ? ''
+                  : normalizePreferredEmail(formData.preferredEmail) ||
+                    preferredEmails[0]
               }
               onValueChange={val =>
                 onFormDataChange({ ...formData, preferredEmail: val })
               }
             >
+              {!personalDetail && (
+                <Picker.Item label="Select preferred email..." value="" />
+              )}
               {preferredEmails.map(e => (
                 <Picker.Item key={e} label={e} value={e} />
               ))}

@@ -15,11 +15,22 @@ const Categories = () => {
   const { personalDetail, professionalDetail, getProfessionalDetail } = useApplication();
   const { profileByIdDetail, getProfileDetail } = useProfile();
   // Get lookups from context (matching web version - context handles all fetching centrally)
-  const lookupContext = useLookup();
-  // Safely extract workLocationLookups with fallback to empty array
-  const workLocationLookups = Array.isArray(lookupContext?.workLocationLookups) 
-    ? lookupContext.workLocationLookups 
+  const {
+    workLocationLookups,
+    fetchWorkLocationLookups,
+    loading: lookupLoading,
+  } = useLookup() || {};
+
+  const safeWorkLocationLookups = Array.isArray(workLocationLookups)
+    ? workLocationLookups
     : [];
+
+  // Ensure work locations are fetched if not available
+  useEffect(() => {
+    if (!lookupLoading && safeWorkLocationLookups.length === 0 && fetchWorkLocationLookups) {
+      fetchWorkLocationLookups();
+    }
+  }, [lookupLoading, safeWorkLocationLookups.length, fetchWorkLocationLookups]);
   // Prioritize profile data over application data (matching web version)
   const existing = profileByIdDetail?.professionalDetails || professionalDetail?.professionalDetails || {};
   const applicationId = personalDetail?.applicationId;
@@ -141,46 +152,93 @@ const Categories = () => {
 
   // Map work location lookups to options (matching web version)
   const workLocationOptions = useMemo(() => {
-    if (!Array.isArray(workLocationLookups) || workLocationLookups.length === 0) {
+    if (safeWorkLocationLookups.length === 0) {
       return [];
     }
-    return workLocationLookups.map(item => {
-      const name = item?.lookup?.DisplayName || item?.lookup?.lookupname || '';
-      return { value: name, label: name };
-    }).filter(option => option.value);
-  }, [workLocationLookups]);
+
+    // Try multiple possible data structures (matching ProfessionalDetails.js)
+    const mapped = safeWorkLocationLookups
+      .map((item) => {
+        // Try different possible structures (check lookup object first, then top level)
+        const name =
+          item?.lookup?.DisplayName ||
+          item?.lookup?.lookupname ||
+          item?.lookup?.name ||
+          item?.DisplayName ||
+          item?.lookupname ||
+          item?.name ||
+          item?.label ||
+          '';
+        
+        return { value: name, label: name };
+      })
+      .filter(option => option.value); // Filter out empty values
+
+    return mapped;
+  }, [safeWorkLocationLookups]);
+
+  // Create picker children array (ensure flat array without Fragments)
+  const pickerChildren = useMemo(() => {
+    if (lookupLoading) {
+      return [<Picker.Item key="loading" label="Loading locations..." value="" disabled />];
+    }
+    if (workLocationOptions.length === 0) {
+      return [<Picker.Item key="no-locations" label="No locations available" value="" disabled />];
+    }
+    const validOptions = workLocationOptions
+      .filter(option => {
+        const isValid = option.value && option.label && (typeof option.value !== 'string' || option.value.trim() !== '');
+        return isValid;
+      })
+      .map((option) => {
+        const value = String(option.value).trim();
+        const label = String(option.label).trim();
+        return (
+          <Picker.Item 
+            key={`wl-${value}`} 
+            label={label} 
+            value={value} 
+          />
+        );
+      });
+    return [
+      <Picker.Item key="select" label="Select work location" value="" />,
+      ...validOptions,
+      <Picker.Item key="other" label="Other" value="other" />
+    ];
+  }, [workLocationOptions, lookupLoading]);
 
   // Extract branch options from lookups (matching web version)
   const branchOptions = useMemo(() => {
-    if (!Array.isArray(workLocationLookups) || workLocationLookups.length === 0) {
+    if (safeWorkLocationLookups.length === 0) {
       return [];
     }
     return Array.from(
       new Set(
-        workLocationLookups.map(
-          i => i?.branch?.DisplayName || i?.branch?.lookupname,
+        safeWorkLocationLookups.map(
+          i => i?.branch?.DisplayName || i?.branch?.lookupname || i?.branch?.name || i?.branch?.label,
         ),
       ),
     )
       .filter(Boolean)
       .map(name => ({ value: name, label: name }));
-  }, [workLocationLookups]);
+  }, [safeWorkLocationLookups]);
 
   // Extract region options from lookups (matching web version)
   const regionOptions = useMemo(() => {
-    if (!Array.isArray(workLocationLookups) || workLocationLookups.length === 0) {
+    if (safeWorkLocationLookups.length === 0) {
       return [];
     }
     return Array.from(
       new Set(
-        workLocationLookups.map(
-          i => i?.region?.DisplayName || i?.region?.lookupname,
+        safeWorkLocationLookups.map(
+          i => i?.region?.DisplayName || i?.region?.lookupname || i?.region?.name || i?.region?.label,
         ),
       ),
     )
       .filter(Boolean)
       .map(name => ({ value: name, label: name }));
-  }, [workLocationLookups]);
+  }, [safeWorkLocationLookups]);
 
   const onChangeWorkLocation = (val) => {
     const patch = { workLocation: val };
@@ -189,13 +247,20 @@ const Categories = () => {
       patch.region = '';
     } else {
       // Find selected work location from lookups (matching web version)
-      if (Array.isArray(workLocationLookups) && workLocationLookups.length > 0) {
-        const selected = workLocationLookups.find(
-          i => (i?.lookup?.DisplayName || i?.lookup?.lookupname) === val,
-        );
+      if (safeWorkLocationLookups.length > 0) {
+        const selected = safeWorkLocationLookups.find(i => {
+          const itemName =
+            i?.lookup?.DisplayName ||
+            i?.lookup?.lookupname ||
+            i?.DisplayName ||
+            i?.lookupname ||
+            i?.name ||
+            i?.label;
+          return itemName === val;
+        });
         if (selected) {
-          patch.branch = selected?.branch?.DisplayName || selected?.branch?.lookupname || '';
-          patch.region = selected?.region?.DisplayName || selected?.region?.lookupname || '';
+          patch.branch = selected?.branch?.DisplayName || selected?.branch?.lookupname || selected?.branch?.name || '';
+          patch.region = selected?.region?.DisplayName || selected?.region?.lookupname || selected?.region?.name || '';
           patch.otherWorkLocation = '';
         }
       }
@@ -207,18 +272,32 @@ const Categories = () => {
     // Get current work location ID (matching web version)
     let currentWorkLocationItem = null;
     let currentWorkLocationId = null;
-    if (Array.isArray(workLocationLookups) && workLocationLookups.length > 0) {
-      currentWorkLocationItem = workLocationLookups.find(
-        item => (item?.lookup?.DisplayName || item?.lookup?.lookupname) === existing.workLocation
-      );
+    if (safeWorkLocationLookups.length > 0) {
+      currentWorkLocationItem = safeWorkLocationLookups.find(item => {
+        const itemName =
+          item?.lookup?.DisplayName ||
+          item?.lookup?.lookupname ||
+          item?.DisplayName ||
+          item?.lookupname ||
+          item?.name ||
+          item?.label;
+        return itemName === existing.workLocation;
+      });
       currentWorkLocationId = currentWorkLocationItem?.lookup?._id || currentWorkLocationItem?.lookup?.id;
     }
 
     let requestedWorkLocationId = null;
-    if (form.workLocation && form.workLocation !== 'other' && Array.isArray(workLocationLookups) && workLocationLookups.length > 0) {
-      const requestedWorkLocationItem = workLocationLookups.find(
-        item => (item?.lookup?.DisplayName || item?.lookup?.lookupname) === form.workLocation
-      );
+    if (form.workLocation && form.workLocation !== 'other' && safeWorkLocationLookups.length > 0) {
+      const requestedWorkLocationItem = safeWorkLocationLookups.find(item => {
+        const itemName =
+          item?.lookup?.DisplayName ||
+          item?.lookup?.lookupname ||
+          item?.DisplayName ||
+          item?.lookupname ||
+          item?.name ||
+          item?.label;
+        return itemName === form.workLocation;
+      });
       requestedWorkLocationId = requestedWorkLocationItem?.lookup?._id || requestedWorkLocationItem?.lookup?.id;
     }
 
@@ -348,23 +427,19 @@ const Categories = () => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Update Work Location</Text>
           <Text style={styles.label}>Work Location</Text>
+          {workLocationOptions.length > 0 && (
+            <Text style={{ fontSize: 10, color: Colors.textSecondary, marginBottom: 4 }}>
+              {workLocationOptions.length} locations available
+            </Text>
+          )}
           <View style={styles.pickerField}>
             <Picker 
+              key={`workLocation-${workLocationOptions.length}-${lookupLoading}`}
               selectedValue={form.workLocation} 
               onValueChange={onChangeWorkLocation}
-              enabled={!hasPendingRequest && !initialLoading}
+              enabled={!hasPendingRequest && !initialLoading && !lookupLoading}
             >
-              <Picker.Item label="Select work location" value="" />
-              {workLocationOptions.length > 0 ? (
-                <>
-                  {workLocationOptions.map(option => (
-                    <Picker.Item key={option.value} label={option.label} value={option.value} />
-                  ))}
-                  <Picker.Item label="Other" value="other" />
-                </>
-              ) : (
-                <Picker.Item label="Loading locations..." value="" />
-              )}
+              {pickerChildren}
             </Picker>
           </View>
 

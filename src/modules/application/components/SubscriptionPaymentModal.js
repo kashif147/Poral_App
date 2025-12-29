@@ -22,6 +22,8 @@ const SubscriptionPaymentModal = ({
   const [cardComplete, setCardComplete] = useState(false);
   const [clientSecret, setClientSecret] = useState(null);
   const [categoryData, setCategoryData] = useState(null);
+  const [error, setError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
   const [customPrice, setCustomPrice] = useState('');
   const [userDetail, setUserDetail] = useState(null);
   const [cardholderName, setCardholderName] = useState('');
@@ -96,6 +98,9 @@ const SubscriptionPaymentModal = ({
       setClientSecret(null);
       setCardComplete(false);
       setIsLoading(false);
+      setCategoryData(null);
+      setError(null);
+      setRetryKey(0); // Reset retry key
     }
   }, [visible, formData]);
 
@@ -107,8 +112,9 @@ const SubscriptionPaymentModal = ({
         return;
       }
 
-      // Reset client secret when modal opens to create fresh payment intent
+      // Reset client secret and error when modal opens to create fresh payment intent
       setClientSecret(null);
+      setError(null);
       console.log('🔄 Starting payment initialization...');
       setProductLoading(true);
 
@@ -121,10 +127,20 @@ const SubscriptionPaymentModal = ({
         console.log('✅ Category data loaded:', payload?.name);
 
         const currentPricing = payload?.currentPricing || {};
-        const amountInCents = currentPricing?.price;
+        const basePrice = currentPricing?.price; // Stripe expects amount in cents
         const currency = currentPricing?.currency || 'eur';
 
-        if (!amountInCents) throw new Error('Invalid category price data');
+        if (!basePrice) throw new Error('Invalid category price data');
+
+        // Calculate amount based on payment type (matching web version)
+        const paymentType = formData?.subscriptionDetails?.paymentType;
+        // Retired Associate gets full price regardless of payment type (special offer)
+        const isRetiredAssociate = payload?.name === 'Retired Associate';
+        const amountInCents = isRetiredAssociate
+          ? basePrice // Full price for Retired Associate
+          : paymentType === 'Credit Card' 
+            ? basePrice 
+            : Math.round(basePrice / 4); // Divide by 4 for other payment types
 
         // ✅ Step 2: Get user data
         const userStr = await AsyncStorage.getItem('user');
@@ -139,7 +155,9 @@ const SubscriptionPaymentModal = ({
           currency,
           metadata: {
             applicationId,
-            description: 'Annual membership fees',
+            description: paymentType === 'Credit Card' 
+              ? 'Annual membership fees' 
+              : 'Quarterly membership fees',
             tenantId,
             userId,
             membershipCategory,
@@ -164,19 +182,23 @@ const SubscriptionPaymentModal = ({
 
         console.log('✅ Client secret received:', secret?.substring(0, 20) + '...');
         setClientSecret(secret);
+        setError(null); // Clear any previous errors
         console.log('✅ Payment initialized successfully');
       } catch (error) {
         console.error('❌ Payment initialization error:', error);
         console.error('❌ Error stack:', error.stack);
-        Alert.alert('Error', error.message || 'Payment initialization failed');
-        onFailure?.(error.message || 'Payment initialization failed');
+        const errorMessage = error.message || 'Payment initialization failed';
+        setError(errorMessage);
+        setCategoryData(null); // Clear category data on error
+        Alert.alert('Error', errorMessage);
+        onFailure?.(errorMessage);
       } finally {
         setProductLoading(false);
       }
     };
 
     initPayment();
-  }, [visible, membershipCategory, applicationId]);
+  }, [visible, membershipCategory, applicationId, formData?.subscriptionDetails?.paymentType, retryKey]);
 
   // Display price based on payment type
   const getDisplayPrice = () => {
@@ -311,10 +333,39 @@ const SubscriptionPaymentModal = ({
               </View>
 
           {/* Show loading while fetching category data */}
-          {productLoading || !categoryData ? (
+          {productLoading || (!categoryData && !error) ? (
             <View style={{ paddingVertical: 40, alignItems: 'center' }}>
               <ActivityIndicator size="large" color={Colors.primary} />
               <Text style={{ color: Colors.textPrimary, marginTop: 12 }}>Loading payment details...</Text>
+            </View>
+          ) : error ? (
+            <View style={{ paddingVertical: 40, alignItems: 'center', paddingHorizontal: 20 }}>
+              <Text style={{ color: Colors.textPrimary, fontSize: 16, fontWeight: '600', marginBottom: 8, textAlign: 'center' }}>
+                Payment Initialization Failed
+              </Text>
+              <Text style={{ color: Colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 }}>
+                {error}
+              </Text>
+              <Button 
+                title="Retry" 
+                onPress={() => {
+                  setError(null);
+                  setRetryKey(prev => prev + 1); // Trigger useEffect to re-run
+                }} 
+                primary 
+                style={{ 
+                  minWidth: 120,
+                  height: 44, 
+                  borderRadius: 12,
+                }} 
+                textStyle={{ fontSize: 15, fontWeight: '600' }} 
+              />
+              <TouchableOpacity 
+                onPress={onClose} 
+                style={{ marginTop: 12 }}
+              >
+                <Text style={{ color: Colors.primary, fontSize: 14, fontWeight: '500' }}>Close</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <View>

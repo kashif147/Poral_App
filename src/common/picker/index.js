@@ -16,8 +16,8 @@ const Picker = forwardRef(({ style, itemStyle, containerStyle, enabled = true, s
   const getSelectedLabel = () => {
     if (!children) return 'Select...';
     const childArray = React.Children.toArray(children);
-    const selectedChild = childArray.find(child => child.props.value === selectedValue);
-    return selectedChild?.props.label || 'Select...';
+    const selectedChild = childArray.find(child => child?.props?.value === selectedValue);
+    return selectedChild?.props?.label || 'Select...';
   };
 
   const handleDone = () => {
@@ -110,7 +110,7 @@ const Picker = forwardRef(({ style, itemStyle, containerStyle, enabled = true, s
                 itemStyle={defaultItemStyle}
                 {...props}
               >
-                {children}
+                {React.Children.toArray(children)}
               </RNPicker>
             </View>
           </View>

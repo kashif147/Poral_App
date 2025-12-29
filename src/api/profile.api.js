@@ -15,3 +15,7 @@ export const fetchProfileByIdRequest = id => {
 export const fetchTransferRequest = () => {
   return profile_request.get('/api/transfer-request/portal');
 };
+
+export const updateProfileRequest = data => {
+  return profile_request.put('/api/profile/my-profile', data);
+};

@@ -27,7 +27,6 @@ export const ProfileProvider = ({ children }) => {
       })
       .catch(error => {
         setLoading(false);
-        console.error('Error fetching profile detail:', error);
         Alert.alert('Error', 'Something went wrong');
       });
   };
@@ -47,7 +46,6 @@ export const ProfileProvider = ({ children }) => {
       })
       .catch(error => {
         setLoading(false);
-        console.error('Error fetching profile by id:', error);
         Alert.alert('Error', 'Something went wrong');
       });
   };

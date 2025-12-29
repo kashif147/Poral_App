@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,75 +8,57 @@ import {
   Linking,
   ActivityIndicator,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import { Colors, wp } from '../../utils/Styles';
-import { useEffect, useMemo } from 'react';
 import { useLookup } from '../../contexts/lookupContext';
-import { fetchCategoryByCategoryId } from '../../api/category.api';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 // Fallback payment types if lookups not loaded yet
 const paymentTypes = ['Deduction at Source', 'Credit Card'];
-const membershipStatuses = [
-  { value: 'new', label: 'You are a new member' },
-  { value: 'graduate', label: 'You are newly graduated' },
-  {
-    value: 'rejoin',
-    label: 'You were previously a member of the INMO, and are rejoining',
-  },
-  { value: 'careerBreak', label: 'You are returning from a career break' },
-  { value: 'nursingAbroad', label: 'You are returning from nursing abroad' },
-];
-// Sections will be populated dynamically from lookup context
+
+// Section Header Component with Icon and Gradient
+const SectionHeader = ({ iconName, title, subtitle, gradientColors }) => {
+  return (
+    <View style={styles.sectionHeaderContainer}>
+      <LinearGradient
+        colors={gradientColors}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.iconGradientBox}
+      >
+        <Ionicons name={iconName} size={24} color="#FFFFFF" />
+      </LinearGradient>
+      <View style={styles.sectionHeaderText}>
+        <Text style={styles.sectionHeader}>{title}</Text>
+        {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
+      </View>
+    </View>
+  );
+};
+
+// Format price - convert from cents to currency
+const formatPrice = (priceInCents, currency = 'EUR') => {
+  if (!priceInCents || priceInCents === 0) return '€0.00';
+  const priceInEuros = priceInCents / 100;
+  const currencySymbol =
+    currency.toUpperCase() === 'EUR' ? '€' : currency.toUpperCase();
+  return `${currencySymbol}${priceInEuros.toFixed(2)}`;
+};
 
 const SubscriptionDetails = ({
   formData,
   onFormDataChange,
-  showValidation,
-  membershipCategory,
+  showValidation = false,
+  categoryData = null,
 }) => {
   // Get lookups from context (matching web version - context handles all fetching centrally)
-  const { 
-    primarySectionLookups, 
-    secondarySectionLookups, 
-    paymentTypeLookups,
-  } = useLookup() || {};
-  const [categoryData, setCategoryData] = useState(null);
-  const [loadingPrice, setLoadingPrice] = useState(false);
+  const { primarySectionLookups, secondarySectionLookups, paymentTypeLookups } =
+    useLookup() || {};
 
   // Context handles fetching lookups centrally - no need to fetch here
-
-  // Fetch category pricing data
-  useEffect(() => {
-    const fetchCategoryData = async () => {
-      if (!membershipCategory) return;
-
-      setLoadingPrice(true);
-      try {
-        console.log('📦 Fetching category pricing for:', membershipCategory);
-        const categoryRes = await fetchCategoryByCategoryId(membershipCategory);
-        const payload = categoryRes?.data?.data || categoryRes?.data;
-        setCategoryData(payload || null);
-        console.log('✅ Category pricing loaded:', payload);
-      } catch (err) {
-        console.error('❌ Error fetching category pricing:', err);
-        setCategoryData(null);
-      } finally {
-        setLoadingPrice(false);
-      }
-    };
-
-    fetchCategoryData();
-  }, [membershipCategory]);
-
-  // Calculate annual price from API data
-  const annualPrice = useMemo(() => {
-    const cents = categoryData?.currentPricing?.price;
-    if (typeof cents === 'number' && !Number.isNaN(cents)) {
-      return (cents / 100).toFixed(2);
-    }
-    return null;
-  }, [categoryData]);
+  // categoryData is now passed as prop from Application.js (matching web version)
 
   const primaryNames = useMemo(() => {
     const names = (primarySectionLookups || [])
@@ -96,53 +78,72 @@ const SubscriptionDetails = ({
 
   // Map payment type lookups to picker options (matching web version)
   const paymentOptions = useMemo(() => {
-    const options = (paymentTypeLookups || []).map(l => ({
-      value: l?.DisplayName || l?.lookupname || '',
-      label: l?.DisplayName || l?.lookupname || '',
-      code: l?.code,
-    })).filter(option => option.value); // Filter out empty values
+    const options = (paymentTypeLookups || [])
+      .map(l => ({
+        value: l?.DisplayName || l?.lookupname || '',
+        label: l?.DisplayName || l?.lookupname || '',
+        code: l?.code,
+      }))
+      .filter(option => option.value); // Filter out empty values
     console.log('💳 Payment options:', options.length);
     return options;
   }, [paymentTypeLookups]);
 
   // Helper function to check if payment type requires payroll number (matching web version)
-  const requiresPayrollNo = (paymentType) => {
-    const paymentTypesRequiringPayroll = ['Direct Debit', 'Salary Deduction', 'Deduction at Source'];
+  const requiresPayrollNo = paymentType => {
+    const paymentTypesRequiringPayroll = [
+      'Direct Debit',
+      'Salary Deduction',
+      'Deduction at Source',
+    ];
     return paymentTypesRequiringPayroll.includes(paymentType);
   };
 
+  // Get pricing from currentPricing (matching web version)
+  const currentPrice = categoryData?.currentPricing?.price;
+  const currency = categoryData?.currentPricing?.currency || 'EUR';
+
   return (
     <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
-      {membershipCategory && (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Your Subscription Fees</Text>
-
-          {loadingPrice ? (
-            <View style={styles.priceLoadingContainer}>
-              <ActivityIndicator size="small" color={Colors.primary} />
-              <Text style={styles.loadingText}>Loading pricing...</Text>
+      {/* Your Subscription Fees Section */}
+      {categoryData && (
+        <View style={styles.pricingCard}>
+          
+            <View style={styles.pricingContent}>
+              <View style={styles.pricingLeft}>
+               
+                  <Ionicons name="cash-outline" size={22} color="#FFFFFF" />
+                
+                <View style={styles.pricingTextContainer}>
+                  <Text style={styles.pricingTitle}>
+                    Your Subscription Fees
+                  </Text>
+                  <Text style={styles.pricingSubtitle}>
+                    Based on your selected membership category
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.pricingRight}>
+                <Text style={styles.pricingLabel}>Annual</Text>
+                {currentPrice ? (
+                  <Text style={styles.pricingValue}>
+                    {formatPrice(currentPrice, currency)}
+                  </Text>
+                ) : (
+                  <Text style={styles.pricingValue}>€0.00</Text>
+                )}
+              </View>
             </View>
-          ) : annualPrice ? (
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>Annual</Text>
-              <Text style={styles.priceValue}>€{annualPrice}</Text>
-            </View>
-          ) : (
-            <Text style={styles.priceLabel}>
-              Price information not available
-            </Text>
-          )}
-
-          {annualPrice && (
-            <Text style={styles.priceNote}>
-              Note: Your fees may change based on your work status.
-            </Text>
-          )}
         </View>
       )}
       {/* Payment Information Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Payment Information</Text>
+        <SectionHeader
+          iconName="card-outline"
+          title="Payment Information"
+          subtitle="Select your preferred payment method."
+          gradientColors={['#10B981', '#059669']}
+        />
 
         {/* Payment Type */}
         <Text style={styles.label}>Payment Type *</Text>
@@ -153,9 +154,12 @@ const SubscriptionDetails = ({
               if (val) {
                 const oldPaymentType = formData?.paymentType;
                 const newPaymentType = val;
-                
+
                 // Clear payrollNo when switching from a payment type that requires it to one that doesn't (matching web version)
-                if (requiresPayrollNo(oldPaymentType) && !requiresPayrollNo(newPaymentType)) {
+                if (
+                  requiresPayrollNo(oldPaymentType) &&
+                  !requiresPayrollNo(newPaymentType)
+                ) {
                   onFormDataChange({
                     ...formData,
                     paymentType: newPaymentType,
@@ -171,16 +175,18 @@ const SubscriptionDetails = ({
             }}
           >
             <Picker.Item label="Select payment type" value="" />
-            {paymentOptions.length > 0 ? (
-              paymentOptions.map(option => (
-                <Picker.Item key={option.value} label={option.label} value={option.value} />
-              ))
-            ) : (
-              // Fallback to hardcoded options if lookups not loaded yet
-              paymentTypes.map(t => (
-                <Picker.Item key={t} label={t} value={t} />
-              ))
-            )}
+            {paymentOptions.length > 0
+              ? paymentOptions.map(option => (
+                  <Picker.Item
+                    key={option.value}
+                    label={option.label}
+                    value={option.value}
+                  />
+                ))
+              : // Fallback to hardcoded options if lookups not loaded yet
+                paymentTypes.map(t => (
+                  <Picker.Item key={t} label={t} value={t} />
+                ))}
           </Picker>
         </View>
 
@@ -201,260 +207,358 @@ const SubscriptionDetails = ({
         </View>
       </View>
 
-      {/* Your Subscription Fees Card */}
-
-      {/* Membership Status Card */}
+      {/* Member Status Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Membership Status</Text>
+        <SectionHeader
+          iconName="person-outline"
+          title="Member Status"
+          subtitle="Please select the most appropriate option below."
+          gradientColors={['#3B82F6', '#2563EB']}
+        />
 
-        {/* Membership status radio group */}
-        <Text style={styles.label}>
+        <Text style={styles.radioGroupLabel}>
           Please select the most appropriate option below *
-          {showValidation && !formData.memberStatus && (
-            <Text style={{ color: 'red' }}> (Required)</Text>
-          )}
         </Text>
-        <View style={styles.radioGroup}>
-          {membershipStatuses.map(status => (
-            <TouchableOpacity
-              key={status.value}
-              style={[
-                styles.radioButton,
-                formData.memberStatus === status.value && styles.radioSelected,
-              ]}
-              onPress={() =>
-                onFormDataChange({ ...formData, memberStatus: status.value })
-              }
-            >
-              <Text
-                style={[
-                  styles.radioLabel,
-                  formData.memberStatus === status.value &&
-                    styles.radioLabelSelected,
-                ]}
+        <View style={styles.radioGroupVertical}>
+          {[
+            { value: 'new', label: 'New member' },
+            { value: 'graduate', label: 'Newly graduated' },
+            { value: 'rejoin', label: 'Rejoining' },
+            { value: 'careerBreak', label: 'Returning from career break' },
+            { value: 'nursingAbroad', label: 'Returning from nursing abroad' },
+          ].map(status => {
+            const isSelected = formData.memberStatus === status.value;
+            return (
+              <TouchableOpacity
+                key={status.value}
+                style={styles.radioOption}
+                onPress={() => {
+                  const updatedData = {
+                    ...formData,
+                    memberStatus: status.value,
+                    // Always clear checkboxes when changing member status (matching web version)
+                    exclusiveDiscountsAndOffers: false,
+                    incomeProtectionScheme: false,
+                    inmoRewards: false,
+                  };
+                  onFormDataChange(updatedData);
+                }}
+                activeOpacity={0.7}
               >
-                {status.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <View
+                  style={[
+                    styles.radioCircle,
+                    isSelected && styles.radioCircleSelected,
+                  ]}
+                >
+                  {isSelected && <View style={styles.radioInnerCircle} />}
+                </View>
+                <Text style={styles.radioOptionLabel}>{status.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
-        {/* Checkboxes for INMO schemes */}
-        <View style={styles.checkboxRow}>
-          <TouchableOpacity
-            style={[
-              styles.checkboxItem,
-              formData?.memberStatus !== 'new' &&
-                formData?.memberStatus !== 'graduate' && { opacity: 0.5 },
-            ]}
-            onPress={() => {
-              // Only allow toggle if memberStatus is 'new' or 'graduate'
-              if (
-                formData?.memberStatus === 'new' ||
-                formData?.memberStatus === 'graduate'
-              ) {
-                onFormDataChange({
-                  ...formData,
-                  incomeProtectionScheme: !formData?.incomeProtectionScheme,
-                });
-              }
-            }}
-            disabled={
-              formData?.memberStatus !== 'new' &&
-              formData?.memberStatus !== 'graduate'
-            }
-          >
-            <View
-              style={[
-                styles.checkboxBox,
-                formData?.incomeProtectionScheme && styles.checkboxBoxChecked,
-              ]}
-            >
-              {formData?.incomeProtectionScheme ? (
-                <Text style={styles.checkboxTick}>✓</Text>
-              ) : null}
-            </View>
-            <Text style={styles.checkboxLabel}>
-              INMO Income Protection Scheme
-              {(formData?.memberStatus === 'new' ||
-                formData?.memberStatus === 'graduate') &&
-                showValidation &&
-                !formData?.incomeProtectionScheme && (
-                  <Text style={{ color: 'red' }}> (Required)</Text>
-                )}
+        {/* Conditional checkboxes for new members */}
+        {formData?.memberStatus === 'new' && (
+          <View style={styles.conditionalCheckboxContainer}>
+            <Text style={styles.conditionalCheckboxTitle}>
+              Additional Options for New Members
             </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.checkboxItem,
-              formData?.memberStatus !== 'new' &&
-                formData?.memberStatus !== 'graduate' && { opacity: 0.5 },
-            ]}
-            onPress={() => {
-              // Only allow toggle if memberStatus is 'new' or 'graduate'
-              if (
-                formData?.memberStatus === 'new' ||
-                formData?.memberStatus === 'graduate'
-              ) {
+            <TouchableOpacity
+              style={styles.checkboxItem}
+              onPress={() =>
                 onFormDataChange({
                   ...formData,
                   inmoRewards: !formData?.inmoRewards,
-                });
+                })
               }
-            }}
-            disabled={
-              formData?.memberStatus !== 'new' &&
-              formData?.memberStatus !== 'graduate'
-            }
-          >
-            <View
-              style={[
-                styles.checkboxBox,
-                formData?.inmoRewards && styles.checkboxBoxChecked,
-              ]}
             >
-              {formData?.inmoRewards ? (
-                <Text style={styles.checkboxTick}>✓</Text>
-              ) : null}
-            </View>
-            <Text style={styles.checkboxLabel}>
-              Rewards for INMO members
-              {(formData?.memberStatus === 'new' ||
-                formData?.memberStatus === 'graduate') &&
-                showValidation &&
-                !formData?.inmoRewards && (
-                  <Text style={{ color: 'red' }}> (Required)</Text>
-                )}
+              <View
+                style={[
+                  styles.checkboxBox,
+                  formData?.inmoRewards && styles.checkboxBoxChecked,
+                ]}
+              >
+                {formData?.inmoRewards ? (
+                  <Text style={styles.checkboxTick}>✓</Text>
+                ) : null}
+              </View>
+              <View style={styles.checkboxLabelContainer}>
+                <Text style={styles.checkboxLabelBold}>
+                  Tick here to join{' '}
+                  <Text
+                    style={styles.link}
+                    onPress={() =>
+                      Linking.openURL('https://cornmarket.ie/rewards')
+                    }
+                  >
+                    Rewards
+                  </Text>{' '}
+                  for INMO members
+                </Text>
+                <Text style={styles.checkboxLabelSubtext}>
+                  By ticking here, you confirm that you agree to the Terms &
+                  Conditions available on{' '}
+                  <Text
+                    style={styles.link}
+                    onPress={() =>
+                      Linking.openURL(
+                        'https://cornmarket.ie/rewards-club-terms',
+                      )
+                    }
+                  >
+                    Cornmarket.ie/rewards-club-terms
+                  </Text>{' '}
+                  and the Data Protection Statement available on{' '}
+                  <Text
+                    style={styles.link}
+                    onPress={() =>
+                      Linking.openURL('https://cornmarket.ie/rewards-dps')
+                    }
+                  >
+                    Cornmarket.ie/rewards-dps
+                  </Text>
+                  . Cornmarket will contact you about your Rewards Benefits. You
+                  can opt out at any time.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Conditional checkboxes for newly graduated */}
+        {formData?.memberStatus === 'graduate' && (
+          <View style={styles.conditionalCheckboxContainer}>
+            <Text style={styles.conditionalCheckboxTitle}>
+              Additional Options for Newly Graduated Members
             </Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={styles.checkboxItem}
+              onPress={() =>
+                onFormDataChange({
+                  ...formData,
+                  exclusiveDiscountsAndOffers:
+                    !formData?.exclusiveDiscountsAndOffers,
+                })
+              }
+            >
+              <View
+                style={[
+                  styles.checkboxBox,
+                  formData?.exclusiveDiscountsAndOffers &&
+                    styles.checkboxBoxChecked,
+                ]}
+              >
+                {formData?.exclusiveDiscountsAndOffers ? (
+                  <Text style={styles.checkboxTick}>✓</Text>
+                ) : null}
+              </View>
+              <Text style={styles.checkboxLabelBold}>
+                Would you like to hear about exclusive discounts and offers for
+                INMO members?
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.checkboxItem}
+              onPress={() =>
+                onFormDataChange({
+                  ...formData,
+                  incomeProtectionScheme: !formData?.incomeProtectionScheme,
+                })
+              }
+            >
+              <View
+                style={[
+                  styles.checkboxBox,
+                  formData?.incomeProtectionScheme && styles.checkboxBoxChecked,
+                ]}
+              >
+                {formData?.incomeProtectionScheme ? (
+                  <Text style={styles.checkboxTick}>✓</Text>
+                ) : null}
+              </View>
+              <View style={styles.checkboxLabelContainer}>
+                <Text style={styles.checkboxLabelBold}>
+                  I consent to{' '}
+                  <Text
+                    style={styles.link}
+                    onPress={() =>
+                      Linking.openURL('https://cornmarket.ie/income-protection')
+                    }
+                  >
+                    INMO Income Protection Scheme
+                  </Text>
+                  .
+                </Text>
+                <Text style={styles.checkboxLabelSubtext}>
+                  By selecting 'I consent' below, you are agreeing to the INMO,
+                  sharing your Trade Union membership details with Cornmarket.
+                  Cornmarket as Scheme Administrator will process and retain
+                  details of your Trade Union membership for the purposes of
+                  assessing eligibility and admitting eligible members
+                  (automatically) to the Income Protection Scheme (with 9
+                  Months' Free Cover), and for the ongoing administration of the
+                  Scheme. Where you have also opted in to receiving marketing
+                  communications, Cornmarket will provide you with information
+                  on discounts and offers they have for INMO members. This
+                  consent can be withdrawn at any time by emailing Cornmarket at
+                  dataprotection@cornmarket.ie. Please note, if you do consent
+                  below, your data will be shared with Cornmarket, and you will
+                  be assessed for eligibility for automatic Income Protection
+                  Scheme membership. If you do not consent, your data will not
+                  be shared with Cornmarket for this purpose, you will not be
+                  assessed for automatic Scheme membership (including 9 Months'
+                  Free Cover) and you will have to contact Cornmarket separately
+                  should you wish to apply for Scheme membership. This offer
+                  will run on a pilot basis. Terms and conditions apply and are
+                  subject to change.
+                </Text>
+                <Text style={styles.checkboxLabelImportant}>
+                  Important: If you do not give your consent, your Trade union
+                  membership data will not be shared with Cornmarket for this
+                  purpose. This means you will not be assessed for Automatic
+                  Access to the Scheme.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
-      {/* Trade Union Information Card */}
+      {/* Additional Memberships Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Trade Union Information</Text>
-
-        {/* Member of another Trade Union */}
-        <Text style={styles.label}>
-          If you are a member of another Trade Union. If yes, which Union? *
-          {showValidation && !formData.otherIrishTradeUnion && (
-            <Text style={{ color: 'red' }}> (Required)</Text>
-          )}
+        <SectionHeader
+          iconName="people-outline"
+          title="Additional Memberships"
+          subtitle="Are you a member of another Trade Union?"
+          gradientColors={['#A855F7', '#9333EA']}
+        />
+        <Text style={styles.radioGroupLabel}>
+          Are you a member of another Trade Union? If yes, which Union? *
         </Text>
         <View style={styles.radioRow}>
           <TouchableOpacity
-            style={[
-              styles.radioButton,
-              formData.otherIrishTradeUnion === 'yes' && styles.radioSelected,
-            ]}
-            onPress={() =>
-              onFormDataChange({ ...formData, otherIrishTradeUnion: 'yes' })
-            }
+            style={styles.radioOption}
+            onPress={() => {
+              onFormDataChange({ ...formData, otherIrishTradeUnion: 'yes' });
+            }}
+            activeOpacity={0.7}
           >
-            <Text
+            <View
               style={[
-                styles.radioLabel,
+                styles.radioCircle,
                 formData.otherIrishTradeUnion === 'yes' &&
-                  styles.radioLabelSelected,
+                  styles.radioCircleSelected,
               ]}
             >
-              Yes
-            </Text>
+              {formData.otherIrishTradeUnion === 'yes' && (
+                <View style={styles.radioInnerCircle} />
+              )}
+            </View>
+            <Text style={styles.radioOptionLabel}>Yes</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.radioButton,
-              formData.otherIrishTradeUnion === 'no' && styles.radioSelected,
-            ]}
-            onPress={() =>
+            style={styles.radioOption}
+            onPress={() => {
               onFormDataChange({
                 ...formData,
                 otherIrishTradeUnion: 'no',
-                otherTradeUnionName: '',
-              })
-            }
+                otherIrishTradeUnionName: '', // Clear union name when "no" is selected
+              });
+            }}
+            activeOpacity={0.7}
           >
-            <Text
+            <View
               style={[
-                styles.radioLabel,
+                styles.radioCircle,
                 formData.otherIrishTradeUnion === 'no' &&
-                  styles.radioLabelSelected,
+                  styles.radioCircleSelected,
               ]}
             >
-              No
-            </Text>
+              {formData.otherIrishTradeUnion === 'no' && (
+                <View style={styles.radioInnerCircle} />
+              )}
+            </View>
+            <Text style={styles.radioOptionLabel}>No</Text>
           </TouchableOpacity>
         </View>
-
         {formData.otherIrishTradeUnion === 'yes' && (
-          <View style={[styles.inputField, { marginTop: 8 }]}>
+          <View style={styles.inputField}>
+            <Text style={styles.label}>If yes, which Union? *</Text>
             <InputField
-              value={formData.otherTradeUnionName}
+              value={formData.otherIrishTradeUnionName || ''}
               holderTextColor={'#94A3B8'}
               onChange={text =>
-                onFormDataChange({ ...formData, otherTradeUnionName: text })
+                onFormDataChange({
+                  ...formData,
+                  otherIrishTradeUnionName: text,
+                })
               }
-              placeholder="Enter union name"
+              placeholder="Enter Union Name"
             />
           </View>
         )}
 
-        {/* Member of another Irish Trade Union Protection Scheme */}
-        <Text style={styles.label}>
+        <Text style={styles.radioGroupLabel}>
           Are you or were you a member of another Irish trade Union salary or
           Income Protection Scheme? *
-          {showValidation && !formData.otherScheme && (
-            <Text style={{ color: 'red' }}> (Required)</Text>
-          )}
         </Text>
         <View style={styles.radioRow}>
           <TouchableOpacity
-            style={[
-              styles.radioButton,
-              formData.otherScheme === 'yes' && styles.radioSelected,
-            ]}
+            style={styles.radioOption}
             onPress={() =>
               onFormDataChange({ ...formData, otherScheme: 'yes' })
             }
+            activeOpacity={0.7}
           >
-            <Text
+            <View
               style={[
-                styles.radioLabel,
-                formData.otherScheme === 'yes' && styles.radioLabelSelected,
+                styles.radioCircle,
+                formData.otherScheme === 'yes' && styles.radioCircleSelected,
               ]}
             >
-              Yes
-            </Text>
+              {formData.otherScheme === 'yes' && (
+                <View style={styles.radioInnerCircle} />
+              )}
+            </View>
+            <Text style={styles.radioOptionLabel}>Yes</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.radioButton,
-              formData.otherScheme === 'no' && styles.radioSelected,
-            ]}
+            style={styles.radioOption}
             onPress={() => onFormDataChange({ ...formData, otherScheme: 'no' })}
+            activeOpacity={0.7}
           >
-            <Text
+            <View
               style={[
-                styles.radioLabel,
-                formData.otherScheme === 'no' && styles.radioLabelSelected,
+                styles.radioCircle,
+                formData.otherScheme === 'no' && styles.radioCircleSelected,
               ]}
             >
-              No
-            </Text>
+              {formData.otherScheme === 'no' && (
+                <View style={styles.radioInnerCircle} />
+              )}
+            </View>
+            <Text style={styles.radioOptionLabel}>No</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Recruitment & Section Details Card */}
+      {/* Recruitment Details Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Recruitment & Section Details</Text>
+        <SectionHeader
+          iconName="person-add-outline"
+          title="Recruitment Details"
+          subtitle="Were you recruited by another member?"
+          gradientColors={['#F97316', '#EA580C']}
+        />
 
         {/* Recruited By */}
         <Text style={styles.label}>Recruited By</Text>
         <View style={styles.inputField}>
           <InputField
-            value={formData.recuritedBy}
+            value={formData.recuritedBy || ''}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({
@@ -463,7 +567,7 @@ const SubscriptionDetails = ({
                 recruitedBy: text,
               })
             }
-            placeholder="Enter the name of the person who recruited you"
+            placeholder="Enter Name"
           />
         </View>
 
@@ -471,7 +575,7 @@ const SubscriptionDetails = ({
         <Text style={styles.label}>Recruited By (Membership No)</Text>
         <View style={styles.inputField}>
           <InputField
-            value={formData.recuritedByMembershipNo}
+            value={formData.recuritedByMembershipNo || ''}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({
@@ -480,44 +584,56 @@ const SubscriptionDetails = ({
                 recruitedByMembershipNo: text,
               })
             }
-            placeholder="Enter the membership number of the recruiter"
+            placeholder="Enter Membership No"
           />
         </View>
+      </View>
+
+      {/* Section Details Card */}
+      <View style={styles.card}>
+        <SectionHeader
+          iconName="layers-outline"
+          title="Section Details"
+          subtitle="Select your primary and secondary sections."
+          gradientColors={['#EC4899', '#DB2777']}
+        />
 
         {/* Primary Section */}
         <Text style={styles.label}>Primary Section</Text>
         <View style={styles.pickerField}>
           <Picker
-            selectedValue={
-              formData.primarySection || primaryNames[0] || 'Other'
-            }
-            onValueChange={val =>
-              onFormDataChange({
-                ...formData,
-                primarySection: val,
-                ...(val !== 'Other' ? { otherPrimarySection: '' } : {}),
-              })
-            }
+            selectedValue={formData.primarySection || ''}
+            onValueChange={val => {
+              if (val) {
+                onFormDataChange({
+                  ...formData,
+                  primarySection: val,
+                  ...(val !== 'other' ? { otherPrimarySection: '' } : {}),
+                });
+              }
+            }}
           >
-            {[...primaryNames, 'Other'].map(s => (
-              <Picker.Item key={s} label={s} value={s} />
+            <Picker.Item label="Select primary section" value="" />
+            {primaryNames.map(name => (
+              <Picker.Item key={name} label={name} value={name} />
             ))}
+            <Picker.Item label="Other" value="other" />
           </Picker>
         </View>
 
         {/* Other Primary Section */}
         <Text style={styles.label}>
-          Other Primary Section {formData.primarySection === 'Other' && '*'}
+          Other Primary Section {formData.primarySection === 'other' && '*'}
         </Text>
         <View style={styles.inputField}>
           <InputField
-            value={formData.otherPrimarySection}
-            editable={formData.primarySection === 'Other'}
+            value={formData.otherPrimarySection || ''}
+            editable={formData.primarySection === 'other'}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({ ...formData, otherPrimarySection: text })
             }
-            placeholder="Enter your other primary section"
+            placeholder="Specify primary section"
           />
         </View>
 
@@ -525,43 +641,50 @@ const SubscriptionDetails = ({
         <Text style={styles.label}>Secondary Section</Text>
         <View style={styles.pickerField}>
           <Picker
-            selectedValue={
-              formData.secondarySection || secondaryNames[0] || 'Other'
-            }
-            onValueChange={val =>
-              onFormDataChange({
-                ...formData,
-                secondarySection: val,
-                ...(val !== 'Other' ? { otherSecondarySection: '' } : {}),
-              })
-            }
+            selectedValue={formData.secondarySection || ''}
+            onValueChange={val => {
+              if (val) {
+                onFormDataChange({
+                  ...formData,
+                  secondarySection: val,
+                  ...(val !== 'other' ? { otherSecondarySection: '' } : {}),
+                });
+              }
+            }}
           >
-            {[...secondaryNames, 'Other'].map(s => (
-              <Picker.Item key={s} label={s} value={s} />
+            <Picker.Item label="Select secondary section" value="" />
+            {secondaryNames.map(name => (
+              <Picker.Item key={name} label={name} value={name} />
             ))}
+            <Picker.Item label="Other" value="other" />
           </Picker>
         </View>
 
         {/* Other Secondary Section */}
         <Text style={styles.label}>
-          Other Secondary Section {formData.secondarySection === 'Other' && '*'}
+          Other Secondary Section {formData.secondarySection === 'other' && '*'}
         </Text>
         <View style={styles.inputField}>
           <InputField
-            value={formData.otherSecondarySection}
-            editable={formData.secondarySection === 'Other'}
+            value={formData.otherSecondarySection || ''}
+            editable={formData.secondarySection === 'other'}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({ ...formData, otherSecondarySection: text })
             }
-            placeholder="Enter your other secondary section"
+            placeholder="Specify secondary section"
           />
         </View>
       </View>
 
-      {/* Agreements & Consents Card */}
+      {/* Additional Services & Terms Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Agreements & Consents</Text>
+        <SectionHeader
+          iconName="checkmark-circle-outline"
+          title="Additional Services & Terms"
+          subtitle="Select additional services and agree to terms."
+          gradientColors={['#14B8A6', '#0D9488']}
+        />
 
         <View style={styles.checkboxRow}>
           <TouchableOpacity
@@ -648,9 +771,139 @@ const SubscriptionDetails = ({
 };
 
 const styles = StyleSheet.create({
+  // Section Header Styles
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 24,
+    gap: 12,
+  },
+  iconGradientBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  sectionHeaderText: {
+    flex: 1,
+  },
+  sectionHeader: {
+    color: Colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 22,
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  sectionSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  // Pricing Card Styles
+  pricingCard: {
+    // marginTop: 16,
+    // marginBottom: 16,
+    padding: 20,
+    marginHorizontal: 0,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  pricingGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+  },
+  pricingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  pricingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 14,
+    minWidth: 0,
+  },
+  pricingIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    flexShrink: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  pricingTextContainer: {
+    flex: 1,
+    flexShrink: 1,
+    justifyContent: 'center',
+    minWidth: 0,
+    paddingRight: 8,
+  },
+  pricingTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+    letterSpacing: 0.1,
+  },
+  pricingSubtitle: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    lineHeight: 15,
+    letterSpacing: 0.1,
+  },
+  pricingRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexShrink: 0,
+    flexGrow: 0,
+    marginLeft: 10,
+    minWidth: 125, // Minimum width to guarantee space
+    paddingLeft: 6,
+  },
+  pricingLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    textAlign: 'right',
+    fontWeight: '500',
+  },
+  pricingValue: {
+    fontSize: 25,
+    fontWeight: '700',
+    color: '#2563EB',
+    lineHeight: 31,
+    textAlign: 'right',
+    includeFontPadding: false,
+    letterSpacing: 0.2,
+  },
+  // Card Styles
   card: {
     backgroundColor: Colors.cardBackground,
-    // marginHorizontal: 20,
     marginTop: 16,
     marginBottom: 16,
     padding: 20,
@@ -668,16 +921,55 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     letterSpacing: 0.3,
   },
-  sectionHeader: {
-    color: Colors.textPrimary,
-    fontWeight: 'bold',
-    fontSize: 24,
-    marginBottom: 8,
+  // Gradient Container Styles
+  gradientContainer: {
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#C7D2FE',
+    marginBottom: 16,
   },
-  sectionSubtitle: {
-    color: Colors.textSecondary,
+  radioGroupLabel: {
     fontSize: 14,
-    marginBottom: 24,
+    fontWeight: '500',
+    color: Colors.textPrimary,
+    marginBottom: 16,
+  },
+  radioGroupVertical: {
+    flexDirection: 'column',
+    gap: 12,
+  },
+  // Radio Button Styles (Circular)
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    backgroundColor: Colors.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  radioCircleSelected: {
+    borderColor: Colors.primary,
+  },
+  radioInnerCircle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+  },
+  radioOptionLabel: {
+    color: Colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '400',
+    flexShrink: 1,
   },
   sectionTitle: {
     color: Colors.textPrimary,
@@ -826,6 +1118,43 @@ const styles = StyleSheet.create({
   link: {
     color: Colors.primary,
     textDecorationLine: 'underline',
+  },
+  // Conditional Checkbox Container Styles
+  conditionalCheckboxContainer: {
+    marginTop: 16,
+    padding: 16,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+  },
+  conditionalCheckboxTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginBottom: 12,
+  },
+  checkboxLabelContainer: {
+    flex: 1,
+  },
+  checkboxLabelBold: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    lineHeight: 20,
+  },
+  checkboxLabelSubtext: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+    marginTop: 8,
+  },
+  checkboxLabelImportant: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginTop: 8,
+    lineHeight: 16,
   },
 });
 

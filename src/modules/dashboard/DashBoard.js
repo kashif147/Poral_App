@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApplication } from '../../contexts/applicationContext';
 import { useLookup } from '../../contexts/lookupContext';
 import { applicationConfirmationRequest } from '../../api/application.api';
+import { useProfile } from '../../contexts/profileContext';
 
 const DashBoard = () => {
   const navigation = useNavigation();
@@ -22,34 +23,22 @@ const DashBoard = () => {
   const { personalDetail } = useApplication();
   const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
+  const { getProfileDetail, profileDetail } = useProfile();
 
-  // Fetch user name from token or storage
+  useEffect(() => {
+    getProfileDetail();
+  }, []);
+
   useEffect(() => {
     const fetchUserName = async () => {
       try {
-        const token = await AsyncStorage.getItem('token');
-        if (token) {
-          // Decode JWT token to get user info
-          const base64Url = token.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(
-            atob(base64)
-              .split('')
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-          const decoded = JSON.parse(jsonPayload);
-          
-          // Extract name from token (adjust field names based on your token structure)
-          const name = decoded.name || decoded.given_name || decoded.email?.split('@')[0] || 'User';
-          setUserName(name.charAt(0).toUpperCase() + name.slice(1));
-        }
+        const userStr = await AsyncStorage.getItem('user');
+        const userData = userStr ? JSON.parse(userStr) : null;    
+        setUserName(userData?.userFirstName || 'User');
       } catch (error) {
-        console.log('Error fetching user name:', error);
         setUserName('User');
       }
     };
-    
     fetchUserName();
   }, []);
 
@@ -57,10 +46,9 @@ const DashBoard = () => {
   useEffect(() => {
     const initializeLookups = async () => {
       try {
-        console.log('🔄 Dashboard: Initializing lookups...');
         await fetchAllLookups?.();
       } catch (error) {
-        console.error('❌ Dashboard: Error initializing lookups:', error);
+        // Silently handle errors
       }
     };
 
@@ -70,37 +58,20 @@ const DashBoard = () => {
   // Fetch application status
   useEffect(() => {
     const checkApplicationStatus = async () => {
-      // Fetch all lookups when checking application status (matching web version)
-      // try {
-      //   console.log('🔄 Dashboard: Fetching lookups during status check...');
-      //   await fetchAllLookups?.();
-      // } catch (error) {
-      //   console.error('❌ Dashboard: Error fetching lookups during status check:', error);
-      // }
-
       if (personalDetail?.applicationId) {
         try {
-          console.log('📋 Checking application status for:', personalDetail.applicationId);
           const response = await applicationConfirmationRequest(personalDetail.applicationId);
-          console.log('Application Status Response:', response);
           
           if (response?.status === 200 || response?.data?.status === 'success') {
             const status = response?.data?.data?.applicationStatus || response?.data?.applicationStatus;
-            console.log('✅ Application status:', status);
             setApplicationStatus(status || 'submitted'); // Default to 'submitted' if no status
           } else {
-            // For testing: set default status
-            console.log('⚠️ No valid response, setting default status');
             setApplicationStatus('submitted');
           }
         } catch (error) {
-          console.error('❌ Failed to fetch application status:', error);
-          // For testing: set default status even on error
           setApplicationStatus('submitted');
         }
       } else {
-        // For testing: show card even without applicationId
-        console.log('⚠️ No applicationId, setting default status for testing');
         setApplicationStatus('submitted');
       }
     };
@@ -230,13 +201,22 @@ const DashBoard = () => {
           </View>
           <Text style={styles.greetingText}>Hello, {userName}!</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.notificationButton}
-          onPress={() => navigation.navigate('Notifications')}
-        >
-          <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
-          <View style={styles.notificationBadge} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {/* Membership Number Badge */}
+          {profileDetail?.membershipNumber && (
+            <View style={styles.membershipBadge}>
+              <Text style={styles.membershipLabel}>Membership Number</Text>
+              <Text style={styles.membershipNumber}>{profileDetail.membershipNumber}</Text>
+            </View>
+          )}
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
+            <View style={styles.notificationBadge} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
@@ -470,6 +450,31 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: Colors.textPrimary,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  membershipBadge: {
+    backgroundColor: '#D1FAE5',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  membershipLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#059669',
+    marginBottom: 2,
+  },
+  membershipNumber: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#064E3B',
   },
   notificationButton: {
     position: 'relative',

@@ -93,7 +93,7 @@ function App() {
             };
            
             const response = await signInMicrosoftRequest(data);
-           
+            console.log('Azure response===========>',response)
             console.log('signInMicrosoft API response:', {
               status: response?.status,
               hasData: !!response?.data,
@@ -287,6 +287,8 @@ function App() {
         });
        
         const response = await signInMicrosoftRequest(data);
+
+        console.log('Azure response===========>',response)
        
         console.log('📥 signInMicrosoft API response received:', {
           status: response?.status,

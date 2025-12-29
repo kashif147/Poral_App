@@ -4,7 +4,10 @@ import { Colors, wp, hp } from '../../utils/Styles';
 import PersonalInformation from '../application/PersonalInformation';
 import { Button } from '../../common/button';
 import { useApplication } from '../../contexts/applicationContext';
+import { useProfile } from '../../contexts/profileContext';
 import { updatePersonalDetailRequest } from '../../api/application.api';
+import { updateProfileRequest } from '../../api/profile.api';
+import { isDataFormat } from '../../helpers/date.helper';
 import { format } from 'date-fns';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -20,6 +23,7 @@ import { deleteVerifier } from '../../helpers/verifier.helper';
 
 const Profile = () => {
   const { personalDetail, getPersonalDetail } = useApplication();
+  const { profileByIdDetail, getProfileByIdDetail, profileDetail } = useProfile();
   const applicationId = personalDetail?.applicationId;
   const insets = useSafeAreaInsets();
   // const dispatch = useDispatch();
@@ -34,38 +38,46 @@ const Profile = () => {
   const [promotionalOffers, setPromotionalOffers] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
 
-  // Hydrate local form state from context - matching PersonalInformation field names
+  // Hydrate local form state from context - prefer profile data over application data (matching web version)
   useEffect(() => {
-    if (!personalDetail) return;
+    if (!personalDetail && !profileByIdDetail) return;
+
+    const profilePersonalInfo = profileByIdDetail?.personalInfo || {};
+    const profileContactInfo = profileByIdDetail?.contactInfo || {};
+    const profilePreferences = profileByIdDetail?.preferences || {};
+
+    const appPersonalInfo = personalDetail?.personalInfo || {};
+    const appContactInfo = personalDetail?.contactInfo || {};
+
     setPersonalInfo({
-      // Basic Information
-      title: personalDetail?.personalInfo?.title || '',
-      surname: personalDetail?.personalInfo?.surname || '',
-      forename: personalDetail?.personalInfo?.forename || '',
-      gender: personalDetail?.personalInfo?.gender || '',
-      dob: personalDetail?.personalInfo?.dateOfBirth || '',
-      primaryCountry: personalDetail?.personalInfo?.countryPrimaryQualification || '',
+      // Personal info - prefer profile, fallback to application
+      title: profilePersonalInfo.title ?? appPersonalInfo.title ?? '',
+      surname: profilePersonalInfo.surname ?? appPersonalInfo.surname ?? '',
+      forename: profilePersonalInfo.forename ?? appPersonalInfo.forename ?? '',
+      gender: profilePersonalInfo.gender ?? appPersonalInfo.gender ?? '',
+      dob: profilePersonalInfo.dateOfBirth ?? appPersonalInfo.dateOfBirth ?? '',
+      primaryCountry: profilePersonalInfo.countryPrimaryQualification ?? appPersonalInfo.countryPrimaryQualification ?? '',
       
-      // Consent
-      consent: personalDetail?.contactInfo?.consent ?? true,
+      // Consent - prefer profile preferences, fallback to application contactInfo
+      consent: profilePreferences.consent ?? appContactInfo.consent ?? true,
       
-      // Address Information
-      addressLine1: personalDetail?.contactInfo?.buildingOrHouse || '',
-      addressLine2: personalDetail?.contactInfo?.streetOrRoad || '',
-      addressLine3: personalDetail?.contactInfo?.areaOrTown || '',
-      addressLine4: personalDetail?.contactInfo?.countyCityOrPostCode || '',
-      eircode: personalDetail?.contactInfo?.eircode || '',
-      preferredAddress: personalDetail?.contactInfo?.preferredAddress || '',
-      country: personalDetail?.contactInfo?.country || '',
+      // Address Information - prefer profile, fallback to application
+      addressLine1: profileContactInfo.buildingOrHouse ?? appContactInfo.buildingOrHouse ?? '',
+      addressLine2: profileContactInfo.streetOrRoad ?? appContactInfo.streetOrRoad ?? '',
+      addressLine3: profileContactInfo.areaOrTown ?? appContactInfo.areaOrTown ?? '',
+      addressLine4: profileContactInfo.countyCityOrPostCode ?? appContactInfo.countyCityOrPostCode ?? '',
+      eircode: profileContactInfo.eircode ?? appContactInfo.eircode ?? '',
+      preferredAddress: profileContactInfo.preferredAddress ?? appContactInfo.preferredAddress ?? '',
+      country: profileContactInfo.country ?? appContactInfo.country ?? '',
       
-      // Contact Information
-      mobileNo: personalDetail?.contactInfo?.mobileNumber || '',
-      workTel: personalDetail?.contactInfo?.telephoneNumber || '',
-      preferredEmail: personalDetail?.contactInfo?.preferredEmail || '',
-      personalEmail: personalDetail?.contactInfo?.personalEmail || '',
-      workEmail: personalDetail?.contactInfo?.workEmail || '',
+      // Contact Information - prefer profile, fallback to application
+      mobileNo: profileContactInfo.mobileNumber ?? appContactInfo.mobileNumber ?? '',
+      workTel: profileContactInfo.telephoneNumber ?? appContactInfo.telephoneNumber ?? '',
+      preferredEmail: profileContactInfo.preferredEmail ?? appContactInfo.preferredEmail ?? '',
+      personalEmail: profileContactInfo.personalEmail ?? appContactInfo.personalEmail ?? '',
+      workEmail: profileContactInfo.workEmail ?? appContactInfo.workEmail ?? '',
     });
-  }, [personalDetail]);
+  }, [personalDetail, profileByIdDetail]);
 
   const handleCancel = () => {
     // Reset to server values
@@ -75,46 +87,111 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
-    if (!applicationId) { Alert.alert('Error', 'Missing application id.'); return; }
     setLoading(true);
     try {
-      const personalInfoPayload = {};
+      // Build payload for application API
+      const personalInfoData = {};
       const personalFields = {
         title: personalInfo.title,
         surname: personalInfo.surname,
         forename: personalInfo.forename,
         gender: personalInfo.gender,
-        dateOfBirth: personalInfo.dob,
-        countryPrimaryQualification: personalInfo.primaryCountry,
+        dateOfBirth: personalInfo.dob && isDataFormat(personalInfo.dob),
+        countryPrimaryQualification: personalInfo.primaryCountry ?? '',
       };
-      personalInfoPayload.personalInfo = {};
-      Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfoPayload.personalInfo[k] = v; });
+
+      personalInfoData.personalInfo = {};
+      Object.entries(personalFields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          personalInfoData.personalInfo[key] = value;
+        }
+      });
 
       const contactFields = {
-        preferredAddress: personalInfo.preferredAddress ? personalInfo.preferredAddress.toLowerCase() : personalInfo.preferredAddress,
-        eircode: personalInfo.eircode,
+        preferredAddress: personalInfo.preferredAddress,
+        eircode: personalInfo.eircode ?? '',
         buildingOrHouse: personalInfo.addressLine1,
-        streetOrRoad: personalInfo.addressLine2,
-        areaOrTown: personalInfo.addressLine3,
+        streetOrRoad: personalInfo.addressLine2 ?? '',
+        areaOrTown: personalInfo.addressLine3 ?? '',
         countyCityOrPostCode: personalInfo.addressLine4,
-        country: personalInfo.country,
+        country: personalInfo.country ?? '',
         mobileNumber: personalInfo.mobileNo,
-        telephoneNumber: personalInfo.workTel,
-        preferredEmail: personalInfo.preferredEmail ? personalInfo.preferredEmail.toLowerCase() : personalInfo.preferredEmail,
-        personalEmail: personalInfo.personalEmail,
-        workEmail: personalInfo.workEmail,
+        telephoneNumber: personalInfo.workTel ?? '',
+        preferredEmail: personalInfo.preferredEmail,
+        personalEmail: personalInfo.personalEmail ?? '',
+        workEmail: personalInfo.workEmail ?? '',
         consent: personalInfo.consent,
       };
-      personalInfoPayload.contactInfo = {};
-      Object.entries(contactFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfoPayload.contactInfo[k] = v; });
 
-      const res = await updatePersonalDetailRequest(applicationId, personalInfoPayload);
-      if (res?.status === 200) {
-        Alert.alert('Success', 'Personal detail updated');
-        getPersonalDetail?.();
+      personalInfoData.contactInfo = {};
+      Object.entries(contactFields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          personalInfoData.contactInfo[key] = value;
+        }
+      });
+
+      // Build payload for profile API (preferences.consent)
+      const profileContactFields = {
+        preferredAddress: personalInfo.preferredAddress,
+        buildingOrHouse: personalInfo.addressLine1,
+        streetOrRoad: personalInfo.addressLine2 ?? '',
+        areaOrTown: personalInfo.addressLine3 ?? '',
+        eircode: personalInfo.eircode ?? '',
+        countyCityOrPostCode: personalInfo.addressLine4,
+        country: personalInfo.country ?? '',
+        mobileNumber: personalInfo.mobileNo,
+        telephoneNumber: personalInfo.workTel ?? '',
+        preferredEmail: personalInfo.preferredEmail,
+        personalEmail: personalInfo.personalEmail ?? '',
+        workEmail: personalInfo.workEmail ?? '',
+      };
+
+      const profilePayload = {
+        personalInfo: personalInfoData.personalInfo,
+        contactInfo: {},
+        preferences: {
+          consent: !!personalInfo.consent,
+        },
+      };
+
+      Object.entries(profileContactFields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          profilePayload.contactInfo[key] = value;
+        }
+      });
+
+      // Update both APIs if they exist (matching web version)
+      const requests = [];
+
+      if (personalDetail?.applicationId) {
+        requests.push(updatePersonalDetailRequest(personalDetail.applicationId, personalInfoData));
+      }
+
+      if (profileByIdDetail) {
+        requests.push(updateProfileRequest(profilePayload));
+      }
+
+      if (!requests.length) {
+        Alert.alert('Error', 'No application or profile found to update');
+        setLoading(false);
+        return;
+      }
+
+      const responses = await Promise.all(requests);
+      const allOk = responses.every(res => res?.status === 200);
+
+      if (allOk) {
+        Alert.alert('Success', 'Personal detail updated successfully');
+        if (personalDetail?.applicationId) {
+          getPersonalDetail?.();
+        }
+        if (profileDetail?.profileId) {
+          getProfileByIdDetail(profileDetail.profileId);
+        }
         setShowPersonalInfoForm(false);
       } else {
-        Alert.alert('Error', res?.data?.message || 'Unable to update personal detail');
+        const firstError = responses.find(r => r?.status !== 200);
+        Alert.alert('Error', firstError?.data?.message ?? 'Unable to update personal detail');
       }
     } catch (e) {
       Alert.alert('Error', 'Something went wrong');
@@ -153,7 +230,6 @@ const Profile = () => {
                 routes: [{ name: 'Login' }],
               });
             } catch (error) {
-              console.error('Logout error:', error);
               Alert.alert('Error', 'Something went wrong during logout');
             } finally {
               setLoading(false);
@@ -187,7 +263,9 @@ const Profile = () => {
             <Text style={styles.profileName}>
               {`${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || 'User Name'}
             </Text>
-            <Text style={styles.profileId}>Member ID: 12345678</Text>
+            <Text style={styles.profileId}>
+              {profileDetail?.membershipNumber ? `Member ID: ${profileDetail.membershipNumber}` : profileDetail?.profileId ? 'Member' : 'Non Member'}
+            </Text>
           </View>
 
           {/* Personal Information Section */}
@@ -552,9 +630,9 @@ const styles = StyleSheet.create({
   // Form Modal
   formModal: {
     backgroundColor: Colors.white,
-    marginHorizontal: 20,
+    marginHorizontal: 16,
     marginTop: 24,
-    padding: 20,
+    padding: 16,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
