@@ -1,5 +1,5 @@
 import 'react-native-get-random-values';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import TabNavigator from './src/navigation/TabNavigation';
 import { StatusBar, View, Platform, Alert, Linking } from 'react-native';
@@ -17,11 +17,14 @@ import { deleteVerifier } from './src/helpers/verifier.helper';
 import { signInMicrosoftRequest } from './src/api/auth.api';
 import { createPolicyEvaluationRequest } from './src/api/policy.evaluation.api';
 import WebViewLogin from './src/common/WebViewLogin';
+import { getFcmToken, registerListenerWithFcm, unRegisterAppWithFcm } from './src/services/firebase.services';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [showWebView, setShowWebView] = useState(false);
+  const navigationRef = useRef(null);
+  const notificationUnsubscribeRef = useRef(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -437,6 +440,66 @@ function App() {
     setShowWebView(false);
   };
 
+  // Initialize Firebase notifications after successful login
+  useEffect(() => {
+    if (isSignedIn) {
+      const initializeNotifications = async () => {
+        try {
+          console.log('Initializing Firebase notifications...');
+          
+          // Get FCM token and store it
+          const token = await getFcmToken();
+          if (token) {
+            console.log('FCM token initialized and stored:', token);
+          }
+
+          // Register notification listeners with navigation reference
+          // Wait a bit for navigation to be ready
+          setTimeout(() => {
+            if (navigationRef.current) {
+              const unsubscribe = registerListenerWithFcm(navigationRef);
+              notificationUnsubscribeRef.current = unsubscribe;
+              console.log('Notification listeners registered');
+            } else {
+              console.log('Navigation not ready, retrying...');
+              // Retry after a longer delay
+              setTimeout(() => {
+                if (navigationRef.current) {
+                  const unsubscribe = registerListenerWithFcm(navigationRef);
+                  notificationUnsubscribeRef.current = unsubscribe;
+                  console.log('Notification listeners registered (retry)');
+                }
+              }, 1000);
+            }
+          }, 500);
+        } catch (error) {
+          console.error('Error initializing notifications:', error);
+        }
+      };
+
+      initializeNotifications();
+    } else {
+      // Clean up notifications when user logs out
+      if (notificationUnsubscribeRef.current) {
+        console.log('Cleaning up notification listeners...');
+        notificationUnsubscribeRef.current();
+        notificationUnsubscribeRef.current = null;
+      }
+      // Unregister from FCM
+      unRegisterAppWithFcm().catch(error => {
+        console.error('Error unregistering from FCM:', error);
+      });
+    }
+
+    // Cleanup function
+    return () => {
+      if (notificationUnsubscribeRef.current) {
+        notificationUnsubscribeRef.current();
+        notificationUnsubscribeRef.current = null;
+      }
+    };
+  }, [isSignedIn]);
+
   if (isLoading) {
     return <SplashScreen />;
   }
@@ -458,7 +521,7 @@ function App() {
             <LookupProvider>
               <ApplicationProvider>
                 <ProfileProvider>
-                  <NavigationContainer>
+                  <NavigationContainer ref={navigationRef}>
                     <TabNavigator />
                   </NavigationContainer>
                 </ProfileProvider>
