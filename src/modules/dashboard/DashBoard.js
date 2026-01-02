@@ -61,9 +61,10 @@ const DashBoard = () => {
       if (personalDetail?.applicationId) {
         try {
           const response = await applicationConfirmationRequest(personalDetail.applicationId);
-          
+          console.log('response status=======>',response)
           if (response?.status === 200 || response?.data?.status === 'success') {
             const status = response?.data?.data?.applicationStatus || response?.data?.applicationStatus;
+            console.log('statue=======>',status)
             setApplicationStatus(status || 'submitted'); // Default to 'submitted' if no status
           } else {
             setApplicationStatus('submitted');
@@ -190,6 +191,8 @@ const DashBoard = () => {
       onPress: () => navigation.navigate(STACKS.EVENTS_STACK)
     },
   ];
+
+  console.log('Application Status=========>',applicationStatus)
 
   return (
     <View style={styles.container}>

@@ -8,10 +8,10 @@ const application_request = axios.create();
 application_request.interceptors.request.use(
   async config => {
     try {
-      const { token } = await getHeaders();
+      const { token } = await getHeaders()
+      console.log('token==========>', token);
       if (token) {
-        // token may already include 'Bearer '
-        config.headers['Authorization'] = token;
+        config.headers['Authorization'] = `Bearer ${token}`;;
       }
     } catch {}
     config.headers['Content-Type'] = 'application/json';

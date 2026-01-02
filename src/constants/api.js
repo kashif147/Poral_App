@@ -4,10 +4,10 @@
 // const ACCOUNT_URL = `https://accountsservieshell-azezcecrecgkd6cm.northeurope-01.azurewebsites.net`;
 // const PROFILE_URL = `https://profileserviceshell-bqfmh8apf9erf0b0.northeurope-01.azurewebsites.net`;
 
-const DOMAIN = 'projectshell-vm.northeurope.cloudapp.azure.com/user-service';
-const BASE_URL = `https://${DOMAIN}`;
-const PORTAL_URL = `https://projectshell-vm.northeurope.cloudapp.azure.com/portal-service`;
-const ACCOUNT_URL = `https://projectshell-vm.northeurope.cloudapp.azure.com/account-service`;
-const PROFILE_URL = `https://projectshell-vm.northeurope.cloudapp.azure.com/profile-service`;
+const DOMAIN = 'projectshell-vm.northeurope.cloudapp.azure.com';
+const BASE_URL = `https://${DOMAIN}/user-service`;
+const PORTAL_URL = `https://${DOMAIN}/portal-service`;
+const ACCOUNT_URL = `https://${DOMAIN}/account-service`;
+const PROFILE_URL = `https://${DOMAIN}/profile-service`;
  
 export { BASE_URL, PORTAL_URL ,ACCOUNT_URL, PROFILE_URL};
