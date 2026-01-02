@@ -2,6 +2,7 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
+import Firebase
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -28,7 +29,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       in: window,
       launchOptions: launchOptions
     )
+    FirebaseApp.configure()
+    return true
+  }
 
+  // Handle deep linking for OAuth redirects
+  func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey : Any] = [:]
+  ) -> Bool {
+    // React Native's Linking module will handle this automatically
+    // Returning true allows the URL to be processed
+    return true
+  }
+ 
+  // Handle universal links
+  func application(
+    _ application: UIApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+  ) -> Bool {
+    // React Native's Linking module will handle this automatically
     return true
   }
 }
@@ -46,3 +68,5 @@ class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
 #endif
   }
 }
+
+

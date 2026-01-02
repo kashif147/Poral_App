@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { decryptToken } from './crypt.helper';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
@@ -12,6 +13,24 @@ export const setHeaders = async headers => {
 export const getHeaders = async () => {
   try {
     const token = await AsyncStorage.getItem(TOKEN_KEY);
+    if (!token) {
+      return { token: null };
+    }
+    
+    // Check if token is encrypted (format: iv:authTag:encrypted)
+    if (token.includes(':') && token.split(':').length === 3) {
+      try {
+        const decryptedToken = await decryptToken(token);
+        console.log('decrypted token=========>',decryptedToken)
+        return { token: decryptedToken };
+      } catch (error) {
+        console.error('Error decrypting token:', error);
+        // If decryption fails, return original token (might not be encrypted)
+        return { token };
+      }
+    }
+    
+    // Token is not encrypted, return as is
     return { token };
   } catch {
     return { token: null };

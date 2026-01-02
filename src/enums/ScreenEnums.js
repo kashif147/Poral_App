@@ -12,7 +12,7 @@ const STACKS = {
   DASHBOARD_STACK: "Dashboard",
   COURSES_STACK: "Courses",
   MEMBERSHIP_STACK: "Membership",
-
+  PAYMENT_STACK: "Payment",
 };
 
 const TAB = {

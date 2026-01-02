@@ -6,14 +6,14 @@ export const getStyles = ({
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.surface,
       width: '100%',
       alignSelf: 'stretch',
       ...style,
     },
     safeAreaView: {
       flex: 1,
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.surface,
       ...style,
     },
   });

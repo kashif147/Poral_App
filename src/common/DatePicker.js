@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import RNDateTimePicker from '@react-native-community/datetimepicker';
+import { Colors } from '../utils/Styles';
 
 const parseDdMmYyyy = (value) => {
   if (!value) return null;
@@ -18,6 +19,21 @@ const formatDdMmYyyy = (date) => {
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   const yyyy = String(date.getFullYear());
   return `${dd}/${mm}/${yyyy}`;
+};
+
+const parseISODate = (isoString) => {
+  if (!isoString) return null;
+  try {
+    const date = new Date(isoString);
+    return Number.isNaN(date.getTime()) ? null : date;
+  } catch (error) {
+    return null;
+  }
+};
+
+const formatToISO = (date) => {
+  if (!date) return '';
+  return date.toISOString();
 };
 
 const getAge = (date) => {
@@ -49,14 +65,22 @@ export const DatePicker = ({
 
   useEffect(() => {
     if (value) {
-      // accept "DD/MM/YYYY" or ISO "YYYY-MM-DD"
       let date = null;
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+
+      // Handle ISO date strings (e.g., "1998-08-12T19:00:00.000Z")
+      if (typeof value === 'string' && value.includes('T')) {
+        date = parseISODate(value);
+      }
+      // Handle "DD/MM/YYYY" format
+      else if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
         date = parseDdMmYyyy(value);
-      } else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      }
+      // Handle "YYYY-MM-DD" format
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
         const [y, m, d] = value.split('-').map(x => parseInt(x, 10));
         date = new Date(y, m - 1, d);
       }
+
       setDisplayValue(date ? formatDdMmYyyy(date) : '');
     } else {
       setDisplayValue('');
@@ -69,15 +93,19 @@ export const DatePicker = ({
       onChange && onChange({ target: { name, value: '' } });
       return;
     }
-    const iso = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+
+    // Save in ISO format for API compatibility
+    const isoValue = formatToISO(dateObj);
     const ddmmyyyy = formatDdMmYyyy(dateObj);
+
     if (!disableAgeValidation && getAge(dateObj) < 16) {
       setError('You must be 16 years or older to proceed');
     } else {
       setError('');
     }
+
     setDisplayValue(ddmmyyyy);
-    onChange && onChange({ target: { name, value: ddmmyyyy, iso } });
+    onChange && onChange({ target: { name, value: isoValue, displayValue: ddmmyyyy } });
   };
 
   const handleChangeText = (text) => {
@@ -98,7 +126,10 @@ export const DatePicker = ({
       }
     } else {
       setError('');
-      onChange && onChange({ target: { name, value: '' } });
+      // Only clear the value if we have no digits or if we're clearing the field
+      if (digits.length === 0) {
+        onChange && onChange({ target: { name, value: '' } });
+      }
     }
   };
 
@@ -107,7 +138,7 @@ export const DatePicker = ({
   return (
     <View style={{ marginBottom: 8 }}>
       {label ? (
-        <Text style={{ fontWeight: 'bold', marginBottom: 4, color: isEmpty ? 'red' : '#111' }}>
+        <Text style={{ fontWeight: '600', fontSize: 14, marginTop: 12, marginBottom: 8, color: isEmpty ? Colors.red : Colors.textPrimary }}>
           {label} {required ? '*' : ''} {isEmpty ? '(Required)' : ''}
         </Text>
       ) : null}
@@ -120,23 +151,34 @@ export const DatePicker = ({
           editable={!disabled}
           keyboardType="numeric"
           style={{
-            borderWidth: 1,
-            borderColor: isEmpty || error ? 'red' : '#E7E7E7',
-            borderRadius: 8,
-            paddingVertical: 10,
-            paddingHorizontal: 12,
-            color: '#111',
-            height: 48,
+            borderWidth: isEmpty || error ? 2 : 1.5,
+            borderColor: isEmpty || error ? Colors.red : '#E5E5E5',
+            borderRadius: 12,
+            paddingVertical: 14,
+            paddingHorizontal: 16,
+            paddingRight: 48,
+            color: Colors.textPrimary,
+            backgroundColor: Colors.white,
+            height: 52,
+            fontSize: 15,
+            fontWeight: '400',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
           }}
+          placeholderTextColor={Colors.textSecondary}
         />
         <Pressable
           onPress={() => !disabled && setOpen(true)}
-          style={{ position: 'absolute', right: 10, top: 10, padding: 8 }}
+          style={{ position: 'absolute', right: 12, top: 12, padding: 4 }}
+          disabled={disabled}
         >
-          <Text>📅</Text>
+          <Text style={{ fontSize: 20, opacity: disabled ? 0.5 : 1 }}>📅</Text>
         </Pressable>
       </View>
-      {!!error && <Text style={{ color: 'red', marginTop: 4 }}>{error}</Text>}
+      {!!error && <Text style={{ color: Colors.red, marginTop: 6, fontSize: 13 }}>{error}</Text>}
       {open && (
         Platform.OS === 'android' ? (
           <RNDateTimePicker

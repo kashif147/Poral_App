@@ -17,9 +17,9 @@ const wp = percentage =>
 const hp = percentage =>
   hpOriginal(percentage);
 
-const statusBarColor = '#218FB1';
-const primaryColor = '#000000';
-const secondryColor = '#FFFFFF';
+const statusBarColor = '#0F1214';
+const primaryColor = '#21C7A8';
+const secondryColor = '#1A1E21';
 const tertiaryColor = '#99999B';
 const btnBG = '#565658';
 const textColor = '#FFFFFF';
@@ -42,7 +42,11 @@ const boldTextFont = { fontFamily: boldFont };
 const styleTextFont = { fontFamily: styleFont };
 
 const Colors = {
-  primary: '#0A84FF',
+  primary: '#3A7BF6', // Blue primary color from the image
+  background: '#F5F5F5', // Light gray background
+  surface: '#FFFFFF', // White surface
+  primaryDark: '#2E62CC',
+  primaryLight: '#E8F0FE',
   white: '#FFFFFF',
   grey70: '#48484A',
   gray: '#929292',
@@ -156,6 +160,10 @@ const Colors = {
   blue100: '#4293EE',
   blue200: '#0A84FF',
   lightgray: '#E7E7E7',
+  textPrimary: '#1A1A1A', // Dark text for light theme
+  textSecondary: '#666666', // Secondary text color
+  cardBackground: '#FFFFFF', // Card background
+  divider: '#E5E5E5', // Divider color
 };
 
 const Fonts = {
@@ -328,20 +336,27 @@ const TEXT_STYLE = StyleSheet.create({
 const form = StyleSheet.create({
   inputBG: {
     flexDirection: 'row',
-    borderRadius: wp(2.5),
-    borderWidth: wp(0.3),
-    borderColor: Colors.lightgray,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: wp(3),
+    paddingHorizontal: wp(4),
     backgroundColor: Colors.white,
-    height: wp(12),
+    height: wp(13),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   inputText: {
     ...TEXT_STYLE.h14M,
     flex: 1,
     textAlignVertical: 'center',
-    fontSize: wp(3),
+    fontSize: 15,
+    color: Colors.textPrimary,
+    fontWeight: '400',
   },
 });
 
@@ -373,7 +388,7 @@ const container = StyleSheet.create({
 const Popupmenu = StyleSheet.create({
   Options: {
     ...TEXT_STYLE.h14M,
-    color: Colors.primaryColour,
+    color: Colors.primary,
     textAlign: 'center',
 
     fontWeight: '700',
@@ -396,7 +411,7 @@ const commonStyles = StyleSheet.create({
   flexRow: { flexDirection: 'row' },
   screenContainer: {
     flex: 1,
-    paddingHorizontal: wp(3.5),
+    paddingHorizontal: wp(2),
   },
   horizontalView: {
     alignItems: 'center',
@@ -591,24 +606,31 @@ const shadow = StyleSheet.create({
 });
 const btnStyle = StyleSheet.create({
   btnBG: {
-    height: wp(12),
-    paddingHorizontal: wp(8),
-    borderRadius: 1000,
-    borderWidth: wp(0.3),
+    height: 52,
+    paddingHorizontal: wp(6),
+    borderRadius: 12,
+    borderWidth: 0,
     borderColor: Colors.transparent,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
   btnText: {
     ...FontStyles.Satoshi.Bold,
-    fontSize: hp(1.8),
-    // color: Colors.black,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   btnTextCol: {
     ...FontStyles.Satoshi.Medium,
-    fontSize: hp(1.9),
-    color: Colors.black,
+    fontSize: 16,
+    color: Colors.textPrimary,
+    fontWeight: '500',
   },
 });
 

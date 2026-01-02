@@ -6,29 +6,72 @@ export const getStyles = ({
   outlined,
   isloading,
   type,
+  primary,
 }) =>
   StyleSheet.create({
     container: {
       ...(type === 'tag'
-        ? { paddingHorizontal: wp(3), paddingVertical: hp(0.6) }
-        : { height: wp(12.5) }),
-      borderRadius: hp(4),
+        ? { paddingHorizontal: wp(3), paddingVertical: hp(0.6), borderRadius: 20 }
+        : { 
+            height: 52,
+            paddingHorizontal: wp(5),
+            shadowColor: '#000',
+            shadowOffset: {
+              width: 0,
+              height: primary && !outlined ? 4 : 2,
+            },
+            shadowOpacity: primary && !outlined ? 0.2 : 0.08,
+            shadowRadius: primary && !outlined ? 8 : 4,
+            elevation: primary && !outlined ? 6 : 2,
+            borderWidth: 0,
+          }),
+      borderRadius: 12,
       backgroundColor:
         disabled || isloading
-          ? Colors.primary
+          ? '#CCCCCC'
           : outlined
-            ? Colors.grey500
-            : Colors.primary,
-      ...(outlined && { borderWidth: 1, borderColor: Colors.primary }),
+            ? 'transparent'
+            : primary
+              ? Colors.primary
+              : Colors.primary,
+      ...(outlined && { 
+        borderWidth: 2, 
+        borderColor: disabled ? '#CCCCCC' : Colors.primary,
+        backgroundColor: 'transparent',
+      }),
+      ...(!outlined && !disabled && !isloading && {
+        backgroundColor: primary ? Colors.primary : Colors.primary,
+      }),
+      ...(primary && !outlined && !disabled && !isloading && {
+        backgroundColor: Colors.primary,
+      }),
+      ...(disabled && {
+        opacity: 0.5,
+      }),
     },
     innerContainer: {
       justifyContent: 'center',
       alignItems: 'center',
+      flexDirection: 'row',
+      paddingHorizontal: wp(2),
+      flex: 1,
     },
     titleStyle: {
-      fontSize: wp(4),
-      color: outlined ? Colors.grey600 : Colors.white,
+      fontSize: 16,
+      fontWeight: '600',
+      color: outlined 
+        ? (disabled ? '#999999' : Colors.primary)
+        : (disabled ? '#666666' : Colors.white),
+      letterSpacing: 0.3,
+      textAlign: 'center',
+      textTransform: 'none',
     },
-    leftIconView: { paddingRight: wp(2) },
-    rightIconView: { paddingLeft: wp(2) },
+    leftIconView: { 
+      paddingRight: wp(2),
+      marginRight: wp(1),
+    },
+    rightIconView: { 
+      paddingLeft: wp(2),
+      marginLeft: wp(1),
+    },
   });

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, StyleSheet, ScrollView, Alert, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, Modal, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
 import { Wrapper } from '../../common/wrapper';
-import { commonStyles, hp } from '../../utils/Styles';
+import { Colors, commonStyles, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
+import SubscriptionPaymentModal from './components/SubscriptionPaymentModal';
+import { useApplication } from '../../contexts/applicationContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import ScreenHeader from '../../common/screenHeader';
 import {
   fetchPersonalDetail,
   fetchProfessionalDetail,
@@ -17,64 +22,122 @@ import {
   createSubscriptionDetailRequest,
   updateSubscriptionDetailRequest,
 } from '../../api/application.api';
+import { fetchCategoryByCategoryId } from '../../api/category.api';
 
 const steps = [
-  { number: 1, title: 'Personal Information' },
-  { number: 2, title: 'Professional Details' },
-  { number: 3, title: 'Subscription Details' },
+  { number: 1, title: 'Personal' },
+  { number: 2, title: 'Professional' },
+  { number: 3, title: 'Subscription' },
 ];
 
 const initialFormData = {
   personalInfo: {
+    title: '',
     forename: '',
     surname: '',
+    gender: '',
+    dob: '',
     personalEmail: '',
     mobileNo: '',
     country: 'Ireland',
     consent: true,
+    addressLine1: '',
+    addressLine2: '',
+    addressLine3: '',
+    addressLine4: '',
+    eircode: '',
+    workTel: '',
+    preferredEmail: '',
+    workEmail: '',
   },
-  professionalDetails: {},
+  professionalDetails: {
+    retired: false,
+    retiredDate: '',
+    pensionNo: '',
+  },
   subscriptionDetails: {},
 };
 
 const Application = () => {
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [shouldShowModal, setShouldShowModal] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [showValidation, setShowValidation] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [stepLoading, setStepLoading] = useState(false);
   const [personalDetail, setPersonalDetail] = useState(null);
   const [professionalDetail, setProfessionalDetail] = useState(null);
   const [subscriptionDetail, setSubscriptionDetail] = useState(null);
+  const [categoryData, setCategoryData] = useState(null);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
-  // Removed local storage persistence; we will hydrate only from API
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      keyboardDidShowListener?.remove();
+      keyboardDidHideListener?.remove();
+    };
+  }, []);
+
+  // Show modal after subscription detail is created/updated (matching web version)
+  useEffect(() => {
+    if (shouldShowModal) {
+      console.log('🎫 Triggering payment modal...');
+      setIsModalVisible(true);
+      setShouldShowModal(false);
+    }
+  }, [shouldShowModal]);
 
   const handleNext = () => {
+    console.log('🔄 handleNext called, currentStep:', currentStep);
     setShowValidation(true);
-    if (validateCurrentStep()) {
+    
+    const isValid = validateCurrentStep();
+    console.log('✓ Validation result:', isValid);
+    
+    if (isValid) {
       if (currentStep === 1) {
+        console.log('📝 Processing step 1...');
         if (!personalDetail) {
           createPersonalDetail(formData.personalInfo);
         } else {
           updatePersonalDetail(formData.personalInfo);
         }
       } else if (currentStep === 2) {
+        console.log('💼 Processing step 2...');
         if (!professionalDetail) {
           createProfessionalDetail(formData.professionalDetails);
         } else {
           updateProfessionalDetail(formData.professionalDetails);
         }
       } else if (currentStep === 3) {
-        // For native, submit directly then show thank-you modal
+        console.log('📋 Processing step 3...');
+        console.log('subscriptionDetail exists?', !!subscriptionDetail);
+        // Always create/update subscription detail first
         if (!subscriptionDetail) {
+          console.log('Creating new subscription detail...');
           createSubscriptionDetail(formData.subscriptionDetails);
         } else {
+          console.log('Updating existing subscription detail...');
           updateSubscriptionDetail(formData.subscriptionDetails);
         }
+        // Modal will be shown by useEffect after subscription is saved (via shouldShowModal)
       }
+      // Remove automatic step increment - it will be handled by API success callbacks
       setShowValidation(false);
+    } else {
+      console.log('❌ Validation failed for step', currentStep);
     }
   };
   const handlePrevious = () => {
@@ -83,7 +146,12 @@ const Application = () => {
   };
 
   const handleFormDataChange = (stepName, data) => {
-    const newData = { ...formData, [stepName]: data };
+    // Ensure data is properly structured
+    const sanitizedData = data || {};
+    const newData = { 
+      ...formData, 
+      [stepName]: { ...initialFormData[stepName], ...sanitizedData }
+    };
     setFormData(newData);
   };
 
@@ -98,8 +166,8 @@ const Application = () => {
           dob,
           personalEmail,
           mobileNo,
-          address1,
-          address4,
+          addressLine1,
+          addressLine4,
           preferredAddress,
         } = formData.personalInfo || {};
         if (
@@ -110,8 +178,8 @@ const Application = () => {
           !dob ||
           !personalEmail ||
           !mobileNo ||
-          !address1 ||
-          !address4 ||
+          !addressLine1 ||
+          !addressLine4 ||
           !preferredAddress
         ) {
           return false;
@@ -124,13 +192,26 @@ const Application = () => {
           grade,
           membershipCategory,
           nursingAdaptation,
+          nursingAdaptationProgramme,
           nurseType,
           nmbiNo,
         } = formData.professionalDetails || {};
-        if (!grade || !workLocation || !membershipCategory) {
+        
+        // Check required fields
+        if (!grade || !membershipCategory) {
           return false;
         }
-        if (nursingAdaptation === true) {
+        
+        // Work location is only required for non-undergraduate students
+        const isUndergraduateStudent = membershipCategory === 'undergraduate_student';
+        if (!isUndergraduateStudent && !workLocation) {
+          return false;
+        }
+        
+        // Check nursingAdaptationProgramme (can be "yes"/"no" string or boolean)
+        const isNursingAdaptation = nursingAdaptation === true || 
+          nursingAdaptationProgramme === 'yes';
+        if (isNursingAdaptation) {
           if (!nurseType || !nmbiNo) return false;
         }
         break;
@@ -139,14 +220,80 @@ const Application = () => {
         const {
           paymentType,
           payrollNo,
-          irishTradeUnion,
-          membershipStatus,
+          otherIrishTradeUnion,
+          otherScheme,
+          memberStatus,
+          termsAndConditions,
+          primarySection,
+          otherPrimarySection,
+          secondarySection,
+          otherSecondarySection,
+          incomeProtectionScheme,
+          inmoRewards,
         } = formData.subscriptionDetails || {};
-        if (!paymentType) return false;
-        if (paymentType === 'Payroll Deduction' && !payrollNo) return false;
-        if (!membershipStatus) return false;
-        if (irishTradeUnion === undefined) return false;
-        // Add more validations as needed for your business logic
+        
+        console.log('📋 Step 3 Validation Data:', {
+          paymentType,
+          payrollNo,
+          otherIrishTradeUnion,
+          otherScheme,
+          memberStatus,
+          termsAndConditions,
+          incomeProtectionScheme,
+          inmoRewards,
+        });
+        
+        // Required fields
+        if (!paymentType) {
+          console.log('❌ Validation failed: paymentType missing');
+          return false;
+        }
+        // Check if payment type requires payroll number (matching web version)
+        const requiresPayrollNo = ['Direct Debit', 'Salary Deduction', 'Deduction at Source'].includes(paymentType);
+        if (requiresPayrollNo && !payrollNo) {
+          console.log('❌ Validation failed: payrollNo missing for', paymentType);
+          return false;
+        }
+        if (!memberStatus) {
+          console.log('❌ Validation failed: memberStatus missing');
+          return false;
+        }
+        if (!otherIrishTradeUnion) {
+          console.log('❌ Validation failed: otherIrishTradeUnion missing');
+          return false;
+        }
+        if (!otherScheme) {
+          console.log('❌ Validation failed: otherScheme missing');
+          return false;
+        }
+        if (!termsAndConditions) {
+          console.log('❌ Validation failed: termsAndConditions missing');
+          return false;
+        }
+        
+        // Conditional required fields (matching web version - check for 'other' lowercase)
+        if ((primarySection === 'other' || primarySection === 'Other') && !otherPrimarySection) {
+          console.log('❌ Validation failed: otherPrimarySection missing');
+          return false;
+        }
+        if ((secondarySection === 'other' || secondarySection === 'Other') && !otherSecondarySection) {
+          console.log('❌ Validation failed: otherSecondarySection missing');
+          return false;
+        }
+        
+        // Required for new/graduate members
+        // if (memberStatus === 'new' || memberStatus === 'graduate') {
+        //   if (!incomeProtectionScheme) {
+        //     console.log('❌ Validation failed: incomeProtectionScheme missing for new/graduate');
+        //     return false;
+        //   }
+        //   // if (!inmoRewards) {
+        //   //   console.log('❌ Validation failed: inmoRewards missing for new/graduate');
+        //   //   return false;
+        //   // }
+        // }
+        
+        console.log('✅ Step 3 validation passed!');
         break;
       }
     }
@@ -159,12 +306,36 @@ const Application = () => {
       setIsSubmitted(true);
       setIsModalVisible(true);
       // Submit formData to backend here
-      Alert.alert('Form submitted!', JSON.stringify(formData, null, 2));
+      // Alert.alert('Form submitted!', JSON.stringify(formData, null, 2));
     }
   };
 
   const handleModalClose = () => {
     setIsModalVisible(false);
+  };
+
+  const handlePaymentSuccess = (paymentData) => {
+    console.log('✅ Payment Success Data:', paymentData);
+    
+    // Close the payment modal
+    setIsModalVisible(false);
+    
+    // Show success alert and mark as submitted
+    Alert.alert('Success', 'Payment completed successfully!', [
+      {
+        text: 'OK',
+        onPress: () => {
+          // Reset form state
+          setIsSubmitted(true);
+        }
+      }
+    ]);
+  };
+
+  const handlePaymentFailure = (message) => {
+    console.log('❌ Payment Failed:', message);
+    setIsModalVisible(false);
+    Alert.alert('Payment Failed', message || 'Please try again.');
   };
 
   // Load from API on mount
@@ -182,15 +353,15 @@ const Application = () => {
     loadFromApi();
   }, []);
 
-  // When we have ApplicationId, fetch other details
+  // When we have applicationId, fetch other details
   useEffect(() => {
     const loadMore = async () => {
-      if (!personalDetail?.ApplicationId) return;
+      if (!personalDetail?.applicationId) return;
       setLoading(true);
       try {
         const [profRes, subRes] = await Promise.all([
-          fetchProfessionalDetail(personalDetail.ApplicationId),
-          fetchSubscriptionDetail(personalDetail.ApplicationId),
+          fetchProfessionalDetail(personalDetail.applicationId),
+          fetchSubscriptionDetail(personalDetail.applicationId),
         ]);
         if (profRes?.status === 200) setProfessionalDetail(profRes?.data?.data);
         if (subRes?.status === 200) setSubscriptionDetail(subRes?.data?.data);
@@ -198,7 +369,7 @@ const Application = () => {
       setLoading(false);
     };
     loadMore();
-  }, [personalDetail?.ApplicationId]);
+  }, [personalDetail?.applicationId]);
 
   // Hydrate form from fetched details
   useEffect(() => {
@@ -216,10 +387,10 @@ const Application = () => {
           personalEmail: personalDetail?.contactInfo?.personalEmail || '',
           mobileNo: personalDetail?.contactInfo?.mobileNumber || '',
           consent: personalDetail?.contactInfo?.consent ?? true,
-          address1: personalDetail?.contactInfo?.buildingOrHouse || '',
-          address2: personalDetail?.contactInfo?.streetOrRoad || '',
-          address3: personalDetail?.contactInfo?.areaOrTown || '',
-          address4: personalDetail?.contactInfo?.countyCityOrPostCode || '',
+          addressLine1: personalDetail?.contactInfo?.buildingOrHouse || '',
+          addressLine2: personalDetail?.contactInfo?.streetOrRoad || '',
+          addressLine3: personalDetail?.contactInfo?.areaOrTown || '',
+          addressLine4: personalDetail?.contactInfo?.countyCityOrPostCode || '',
           eircode: personalDetail?.contactInfo?.eircode || '',
           preferredAddress: personalDetail?.contactInfo?.preferredAddress || '',
           preferredEmail: personalDetail?.contactInfo?.preferredEmail || '',
@@ -233,55 +404,120 @@ const Application = () => {
 
   useEffect(() => {
     if (professionalDetail) {
+      const apiData = professionalDetail?.professionalDetails || {};
+      const membershipCategory = apiData.membershipCategory;
+      
+      // Convert boolean nursingAdaptationProgramme to "yes"/"no" string
+      // Only convert if value exists, otherwise leave undefined (no default selection)
+      let nursingAdaptationProgramme = undefined;
+      if (apiData.nursingAdaptationProgramme !== undefined && apiData.nursingAdaptationProgramme !== null) {
+        if (typeof apiData.nursingAdaptationProgramme === 'boolean') {
+          nursingAdaptationProgramme = apiData.nursingAdaptationProgramme ? 'yes' : 'no';
+        } else if (typeof apiData.nursingAdaptationProgramme === 'string') {
+          const lowerValue = apiData.nursingAdaptationProgramme.toLowerCase();
+          if (lowerValue === 'yes' || lowerValue === 'true') {
+            nursingAdaptationProgramme = 'yes';
+          } else if (lowerValue === 'no' || lowerValue === 'false') {
+            nursingAdaptationProgramme = 'no';
+          } else {
+            nursingAdaptationProgramme = apiData.nursingAdaptationProgramme;
+          }
+        }
+      }
+
+      // Map nurseType from API format to display format
+      const mappedNurseType = apiData.nurseType ? mapNurseTypeFromAPI(apiData.nurseType) : '';
+
       setFormData(prev => ({
         ...prev,
         professionalDetails: {
           ...prev.professionalDetails,
-          membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
-          workLocation: professionalDetail?.professionalDetails?.workLocation,
-          otherWorkLocation: professionalDetail?.professionalDetails?.otherWorkLocation ?? '',
-          grade: professionalDetail?.professionalDetails?.grade,
-          otherGrade: professionalDetail?.professionalDetails?.otherGrade ?? '',
-          nmbiNo: professionalDetail?.professionalDetails?.nmbiNumber ?? '',
-          nurseType: professionalDetail?.professionalDetails?.nurseType ?? '',
-          nursingAdaptation: professionalDetail?.professionalDetails?.nursingAdaptationProgramme ? true : false,
-          region: professionalDetail?.professionalDetails?.region ?? '',
-          branch: professionalDetail?.professionalDetails?.branch ?? '',
-          pensionNo: professionalDetail?.professionalDetails?.pensionNo ?? '',
-          isRetired: professionalDetail?.professionalDetails?.isRetired ?? false,
-          retiredDate: professionalDetail?.professionalDetails?.retiredDate ?? '',
-          studyLocation: professionalDetail?.professionalDetails?.studyLocation ?? '',
-          graduationDate: professionalDetail?.professionalDetails?.graduationDate ?? '',
+          membershipCategory: membershipCategory || '',
+          workLocation: apiData.workLocation || '',
+          otherWorkLocation: apiData.otherWorkLocation ?? '',
+          grade: apiData.grade || '',
+          otherGrade: apiData.otherGrade ?? '',
+          nmbiNo: apiData.nmbiNumber ?? '',
+          nmbiNumber: apiData.nmbiNumber ?? '', // Keep both for compatibility
+          nurseType: mappedNurseType, // Use mapped value (API format -> display format)
+          nursingAdaptationProgramme: nursingAdaptationProgramme !== undefined ? nursingAdaptationProgramme : undefined,
+          nursingAdaptation: apiData.nursingAdaptationProgramme ? true : false, // Keep for backward compatibility
+          region: apiData.region ?? '',
+          branch: apiData.branch ?? '',
+          pensionNo: apiData.pensionNo ?? '',
+          isRetired: apiData.isRetired ?? false,
+          retiredDate: apiData.retiredDate ?? '',
+          studyLocation: apiData.studyLocation ?? '',
+          startDate: apiData.startDate ?? '',
+          graduationDate: apiData.graduationDate ?? '',
+          discipline: apiData.discipline ?? '',
         },
       }));
+
+      // Fetch category data when membershipCategory is available (matching web version)
+      if (membershipCategory) {
+        fetchCategoryByCategoryId(membershipCategory)
+          .then(res => {
+            const payload = res?.data?.data || res?.data;
+            setCategoryData(payload || null);
+          })
+          .catch(error => {
+            console.error('Failed to fetch category data:', error);
+            setCategoryData(null);
+          });
+      }
     }
-  }, [professionalDetail]);
+  }, [professionalDetail, professionalDetail?.professionalDetails?.membershipCategory]);
 
   useEffect(() => {
     if (subscriptionDetail) {
       setIsSubmitted(true);
+      const subData = subscriptionDetail?.subscriptionDetails || {};
+      
+      // Convert otherIrishTradeUnion from boolean to 'yes'/'no' string (matching web version)
+      let otherIrishTradeUnion = '';
+      if (subData.otherIrishTradeUnion !== undefined && subData.otherIrishTradeUnion !== null) {
+        if (typeof subData.otherIrishTradeUnion === 'boolean') {
+          otherIrishTradeUnion = subData.otherIrishTradeUnion ? 'yes' : 'no';
+        } else if (typeof subData.otherIrishTradeUnion === 'string') {
+          otherIrishTradeUnion = subData.otherIrishTradeUnion;
+        }
+      }
+      
+      // Convert otherScheme from boolean to 'yes'/'no' string (matching web version)
+      let otherScheme = '';
+      if (subData.otherScheme !== undefined && subData.otherScheme !== null) {
+        if (typeof subData.otherScheme === 'boolean') {
+          otherScheme = subData.otherScheme ? 'yes' : 'no';
+        } else if (typeof subData.otherScheme === 'string') {
+          otherScheme = subData.otherScheme;
+        }
+      }
+      
       setFormData(prev => ({
         ...prev,
         subscriptionDetails: {
           ...prev.subscriptionDetails,
-          paymentType: subscriptionDetail?.subscriptionDetails?.paymentType,
-          payrollNo: subscriptionDetail?.subscriptionDetails?.payrollNo ?? '',
-          membershipStatus: subscriptionDetail?.subscriptionDetails?.membershipStatus ?? '',
-          irishTradeUnion: subscriptionDetail?.subscriptionDetails?.otherIrishTradeUnion ?? false,
-          otherScheme: subscriptionDetail?.subscriptionDetails?.otherScheme ?? false,
-          recuritedBy: subscriptionDetail?.subscriptionDetails?.recuritedBy ?? '',
-          recuritedByMembershipNo: subscriptionDetail?.subscriptionDetails?.recuritedByMembershipNo ?? '',
-          primarySection: subscriptionDetail?.subscriptionDetails?.primarySection,
-          otherPrimarySection: subscriptionDetail?.subscriptionDetails?.otherPrimarySection ?? '',
-          secondarySection: subscriptionDetail?.subscriptionDetails?.secondarySection,
-          otherSecondarySection: subscriptionDetail?.subscriptionDetails?.otherSecondarySection ?? '',
-          incomeProtectionScheme: subscriptionDetail?.subscriptionDetails?.incomeProtectionScheme ?? false,
-          inmoRewards: subscriptionDetail?.subscriptionDetails?.inmoRewards ?? false,
-          valueAddedServices: subscriptionDetail?.subscriptionDetails?.valueAddedServices ?? false,
-          termsAndConditions: subscriptionDetail?.subscriptionDetails?.termsAndConditions ?? false,
-          membershipCategory: subscriptionDetail?.subscriptionDetails?.membershipCategory,
-          dateJoined: subscriptionDetail?.subscriptionDetails?.dateJoined,
-          paymentFrequency: subscriptionDetail?.subscriptionDetails?.paymentFrequency,
+          paymentType: subData.paymentType || '',
+          payrollNo: subData.payrollNo ?? '',
+          memberStatus: subData.membershipStatus || subData.memberStatus || '', // API uses membershipStatus, form uses memberStatus
+          otherIrishTradeUnion: otherIrishTradeUnion,
+          otherIrishTradeUnionName: subData.otherIrishTradeUnionName ?? '', // Match web version field name
+          otherScheme: otherScheme,
+          recuritedBy: subData.recuritedBy ?? '',
+          recuritedByMembershipNo: subData.recuritedByMembershipNo ?? '',
+          primarySection: subData.primarySection || '',
+          otherPrimarySection: subData.otherPrimarySection ?? '',
+          secondarySection: subData.secondarySection || '',
+          otherSecondarySection: subData.otherSecondarySection ?? '',
+          incomeProtectionScheme: subData.incomeProtectionScheme ?? false,
+          inmoRewards: subData.inmoRewards ?? false,
+          exclusiveDiscountsAndOffers: subData.exclusiveDiscountsAndOffers ?? false, // Add missing field
+          valueAddedServices: subData.valueAddedServices ?? false,
+          termsAndConditions: subData.termsAndConditions ?? false,
+          membershipCategory: subData.membershipCategory || '',
+          dateJoined: subData.dateJoined || '',
+          paymentFrequency: subData.paymentFrequency || '',
         },
       }));
     }
@@ -289,6 +525,7 @@ const Application = () => {
 
   // API create/update helpers
   const createPersonalDetail = data => {
+    setStepLoading(true);
     const personalInfo = {};
     const personalFields = {
       title: data.title,
@@ -301,16 +538,16 @@ const Application = () => {
     personalInfo.personalInfo = {};
     Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.personalInfo[k] = v; });
     const contactFields = {
-      preferredAddress: data.preferredAddress,
+      preferredAddress: data.preferredAddress ? data.preferredAddress.toLowerCase() : data.preferredAddress,
       eircode: data.eircode,
-      buildingOrHouse: data.address1,
-      streetOrRoad: data.address2,
-      areaOrTown: data.address3,
-      countyCityOrPostCode: data.address4,
+      buildingOrHouse: data.addressLine1,
+      streetOrRoad: data.addressLine2,
+      areaOrTown: data.addressLine3,
+      countyCityOrPostCode: data.addressLine4,
       country: data.country,
       mobileNumber: data.mobileNo,
       telephoneNumber: data.homeWorkTelNo,
-      preferredEmail: data.preferredEmail,
+      preferredEmail: data.preferredEmail ? data.preferredEmail.toLowerCase() : data.preferredEmail,
       personalEmail: data.personalEmail,
       workEmail: data.workEmail,
       consent: data.consent,
@@ -318,17 +555,22 @@ const Application = () => {
     personalInfo.contactInfo = {};
     Object.entries(contactFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.contactInfo[k] = v; });
     createPersonalDetailRequest(personalInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
         setPersonalDetail(res?.data?.data);
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add personal detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(() => {
+      setStepLoading(false);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const updatePersonalDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
+    setStepLoading(true);
     const personalInfo = {};
     const personalFields = {
       title: data.title,
@@ -341,43 +583,123 @@ const Application = () => {
     personalInfo.personalInfo = {};
     Object.entries(personalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.personalInfo[k] = v; });
     const contactFields = {
-      preferredAddress: data.preferredAddress,
+      preferredAddress: data.preferredAddress ? data.preferredAddress.toLowerCase() : data.preferredAddress,
       eircode: data.eircode,
-      buildingOrHouse: data.address1,
-      streetOrRoad: data.address2,
-      areaOrTown: data.address3,
-      countyCityOrPostCode: data.address4,
+      buildingOrHouse: data.addressLine1,
+      streetOrRoad: data.addressLine2,
+      areaOrTown: data.addressLine3,
+      countyCityOrPostCode: data.addressLine4,
       country: data.country,
       mobileNumber: data.mobileNo,
       telephoneNumber: data.homeWorkTelNo,
-      preferredEmail: data.preferredEmail,
+      preferredEmail: data.preferredEmail ? data.preferredEmail.toLowerCase() : data.preferredEmail,
       personalEmail: data.personalEmail,
       workEmail: data.workEmail,
       consent: data.consent,
     };
     personalInfo.contactInfo = {};
     Object.entries(contactFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.contactInfo[k] = v; });
-    updatePersonalDetailRequest(personalDetail.ApplicationId, personalInfo).then(res => {
+    updatePersonalDetailRequest(personalDetail.applicationId, personalInfo).then(res => {
+      setStepLoading(false);
+      console.log('🔄 Updating personal detail with:', res);
       if (res?.status === 200) {
         setPersonalDetail(res?.data?.data);
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update personal detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(() => {
+      setStepLoading(false);
+      Alert.alert('Error', 'Something went wrong');
+    });
+  };
+
+  // Helper function to convert nurseType from API format to display format (matching ProfessionalDetails.js)
+  const mapNurseTypeFromAPI = (apiValue) => {
+    if (!apiValue) return '';
+    
+    const mapping = {
+      'generalNursing': 'General Nurse',
+      'publicHealthNurse': 'Public Health Nurse',
+      'publicHealthNursing': 'Public Health Nurse', // Handle both variations
+      'mentalHealthNurse': 'Mental health nurse',
+      'mentalHealthNursing': 'Mental health nurse', // Handle both variations
+      'midwifery': 'Midwife',
+      'midwife': 'Midwife', // Handle both variations
+      'sickChildrenNurse': "Sick Children's Nurse",
+      'sickChildrenNursing': "Sick Children's Nurse", // Handle both variations
+      'intellectualDisability': 'Registered Nurse for Intellectual Disability',
+      'intellectualDisabilityNursing': 'Registered Nurse for Intellectual Disability',
+    };
+    
+    // If exact match found, return mapped value
+    if (mapping[apiValue]) {
+      return mapping[apiValue];
+    }
+    
+    // If already in display format, return as is
+    const displayValues = Object.values(mapping);
+    if (displayValues.includes(apiValue)) {
+      return apiValue;
+    }
+    
+    // Try case-insensitive match
+    const lowerApiValue = apiValue.toLowerCase();
+    for (const [key, value] of Object.entries(mapping)) {
+      if (key.toLowerCase() === lowerApiValue) {
+        return value;
+      }
+    }
+    
+    return apiValue; // Return original if no match found
+  };
+
+  // Helper function to convert nurseType from display format to API format
+  const mapNurseTypeToAPI = (displayValue) => {
+    if (!displayValue) return '';
+    
+    const reverseMapping = {
+      'General Nurse': 'generalNursing',
+      'Public Health Nurse': 'publicHealthNursing',
+      'Mental health nurse': 'mentalHealthNursing',
+      'Midwife': 'midwifery',
+      "Sick Children's Nurse": 'sickChildrenNursing',
+      'Registered Nurse for Intellectual Disability': 'intellectualDisabilityNursing',
+    };
+    
+    // If exact match found, return API value
+    if (reverseMapping[displayValue]) {
+      return reverseMapping[displayValue];
+    }
+    
+    // If already in API format, return as is
+    const apiValues = Object.values(reverseMapping);
+    if (apiValues.includes(displayValue)) {
+      return displayValue;
+    }
+    
+    return displayValue; // Return original if no match found
   };
 
   const createProfessionalDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
+    setStepLoading(true);
+    
+    // Convert nursingAdaptationProgramme from "yes"/"no" string to boolean
+    const nursingAdaptationProgramme = data?.nursingAdaptationProgramme === 'yes' || data?.nursingAdaptation === true;
+    
+    // Convert nurseType from display format to API format
+    const nurseTypeAPI = data.nurseType ? mapNurseTypeToAPI(data.nurseType) : '';
+    
     const professionalFields = {
       membershipCategory: data.membershipCategory,
       workLocation: data.workLocation,
       otherWorkLocation: data.otherWorkLocation,
       grade: data.grade,
       otherGrade: data.otherGrade,
-      nmbiNumber: data.nmbiNo,
-      nurseType: data.nurseType,
-      nursingAdaptationProgramme: data?.nursingAdaptation === true,
+      nmbiNumber: data.nmbiNo || data.nmbiNumber || '', // Use nmbiNo first, fallback to nmbiNumber
+      nurseType: nurseTypeAPI,
+      nursingAdaptationProgramme: nursingAdaptationProgramme,
       region: data.region,
       branch: data.branch,
       pensionNo: data.pensionNo,
@@ -388,27 +710,39 @@ const Application = () => {
     };
     const professionalInfo = { professionalDetails: {} };
     Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
-    createProfessionalDetailRequest(personalDetail.ApplicationId, professionalInfo).then(res => {
+    createProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
         setProfessionalDetail(res?.data?.data);
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add professional detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(() => {
+      setStepLoading(false);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const updateProfessionalDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
+    setStepLoading(true);
+    
+    // Convert nursingAdaptationProgramme from "yes"/"no" string to boolean
+    const nursingAdaptationProgramme = data?.nursingAdaptationProgramme === 'yes' || data?.nursingAdaptation === true;
+    
+    // Convert nurseType from display format to API format
+    const nurseTypeAPI = data.nurseType ? mapNurseTypeToAPI(data.nurseType) : '';
+    
     const professionalFields = {
       membershipCategory: data.membershipCategory,
       workLocation: data.workLocation,
       otherWorkLocation: data.otherWorkLocation,
       grade: data.grade,
       otherGrade: data.otherGrade,
-      nmbiNumber: data.nmbiNo,
-      nurseType: data.nurseType,
-      nursingAdaptationProgramme: data?.nursingAdaptation === true,
+      nmbiNumber: data.nmbiNo || data.nmbiNumber || '', // Use nmbiNo first, fallback to nmbiNumber
+      nurseType: nurseTypeAPI,
+      nursingAdaptationProgramme: nursingAdaptationProgramme,
       region: data.region,
       branch: data.branch,
       pensionNo: data.pensionNo,
@@ -419,27 +753,32 @@ const Application = () => {
     };
     const professionalInfo = { professionalDetails: {} };
     Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
-    updateProfessionalDetailRequest(personalDetail.ApplicationId, professionalInfo).then(res => {
+    updateProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
         setProfessionalDetail(res?.data?.data);
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update professional detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(() => {
+      setStepLoading(false);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const createSubscriptionDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
     const defaultFields = {
       membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
     };
     const subscriptionFields = {
       paymentType: data?.paymentType,
       payrollNo: data?.payrollNo,
-      membershipStatus: data?.membershipStatus,
-      otherIrishTradeUnion: data?.irishTradeUnion === true,
-      otherScheme: data?.otherScheme === true,
+      membershipStatus: data?.memberStatus, // API uses membershipStatus (matching web version)
+      otherIrishTradeUnion: data?.otherIrishTradeUnion === 'yes', // Convert string to boolean (matching web version)
+      otherIrishTradeUnionName: data?.otherIrishTradeUnionName, // Match web version field name
+      otherScheme: data?.otherScheme === 'yes' || data?.otherScheme === true, // Convert string to boolean (matching web version)
       recuritedBy: data?.recuritedBy,
       recuritedByMembershipNo: data?.recuritedByMembershipNo,
       primarySection: data?.primarySection,
@@ -448,35 +787,56 @@ const Application = () => {
       otherSecondarySection: data?.otherSecondarySection,
       incomeProtectionScheme: data?.incomeProtectionScheme === true,
       inmoRewards: data?.inmoRewards === true,
+      exclusiveDiscountsAndOffers: data?.exclusiveDiscountsAndOffers === true, // Add missing field (matching web version)
       valueAddedServices: data?.valueAddedServices === true,
       termsAndConditions: data?.termsAndConditions === true,
+      paymentFrequency: data?.paymentType === 'Credit Card' ? 'Annually' : 'Monthly', // Add payment frequency (matching web version)
       ...defaultFields,
     };
     const subscriptionDetails = {};
     Object.entries(subscriptionFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') subscriptionDetails[k] = v; });
     const subscriptionInfo = { subscriptionDetails };
-    createSubscriptionDetailRequest(personalDetail.ApplicationId, subscriptionInfo).then(res => {
+    setStepLoading(true);
+    createSubscriptionDetailRequest(personalDetail.applicationId, subscriptionInfo).then(res => {
+      setStepLoading(false);
       if (res?.status === 200) {
+        console.log('✅ Subscription detail created successfully');
         setSubscriptionDetail(res?.data?.data);
-        setCurrentStep(prev => Math.min(prev + 1, steps.length));
-        setIsModalVisible(true);
+        
+        // Check if undergraduate student - they don't need payment (matching web version)
+        if (categoryData?.name === 'Undergraduate Student' ||
+            professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
+            professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
+          console.log('🎓 Undergraduate student - skipping payment');
+          setIsSubmitted(true);
+          Alert.alert('Success', 'Application submitted successfully!');
+        } else {
+          // Trigger payment modal for other categories (matching web version)
+          console.log('💳 Triggering payment modal...');
+          setShouldShowModal(true);
+        }
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add subscription detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(err => {
+      setStepLoading(false);
+      console.error('❌ Subscription creation failed:', err);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const updateSubscriptionDetail = data => {
-    if (!personalDetail?.ApplicationId) return;
+    if (!personalDetail?.applicationId) return;
     const defaultFields = {
       membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
     };
     const subscriptionFields = {
       paymentType: data?.paymentType,
       payrollNo: data?.payrollNo,
-      membershipStatus: data?.membershipStatus,
-      otherIrishTradeUnion: data?.irishTradeUnion === true,
-      otherScheme: data?.otherScheme === true,
+      membershipStatus: data?.memberStatus, // API uses membershipStatus (matching web version)
+      otherIrishTradeUnion: data?.otherIrishTradeUnion === 'yes', // Convert string to boolean (matching web version)
+      otherIrishTradeUnionName: data?.otherIrishTradeUnionName, // Match web version field name
+      otherScheme: data?.otherScheme === 'yes' || data?.otherScheme === true, // Convert string to boolean (matching web version)
       recuritedBy: data?.recuritedBy,
       recuritedByMembershipNo: data?.recuritedByMembershipNo,
       primarySection: data?.primarySection,
@@ -485,151 +845,298 @@ const Application = () => {
       otherSecondarySection: data?.otherSecondarySection,
       incomeProtectionScheme: data?.incomeProtectionScheme === true,
       inmoRewards: data?.inmoRewards === true,
+      exclusiveDiscountsAndOffers: data?.exclusiveDiscountsAndOffers === true, // Add missing field (matching web version)
       valueAddedServices: data?.valueAddedServices === true,
       termsAndConditions: data?.termsAndConditions === true,
+      paymentFrequency: data?.paymentType === 'Credit Card' ? 'Annually' : 'Monthly', // Add payment frequency (matching web version)
       ...defaultFields,
     };
     const subscriptionDetails = {};
     Object.entries(subscriptionFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') subscriptionDetails[k] = v; });
     const subscriptionInfo = { subscriptionDetails };
-    updateSubscriptionDetailRequest(personalDetail.ApplicationId, subscriptionInfo).then(res => {
+    setStepLoading(true);
+    updateSubscriptionDetailRequest(personalDetail.applicationId, subscriptionInfo).then(res => {
+      console.log('🔄 Updating subscription detail with:', res);
+      setStepLoading(false);
       if (res?.status === 200) {
+        console.log('✅ Subscription detail updated successfully');
         setSubscriptionDetail(res?.data?.data);
-        setCurrentStep(prev => Math.min(prev + 1, steps.length));
-        setIsModalVisible(true);
+        
+        // Check if undergraduate student - they don't need payment (matching web version)
+        if (categoryData?.name === 'Undergraduate Student' ||
+            professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
+            professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
+          console.log('🎓 Undergraduate student - skipping payment');
+          setIsSubmitted(true);
+          Alert.alert('Success', 'Application updated successfully!');
+        } else {
+          // Trigger payment modal for other categories (matching web version)
+          console.log('💳 Triggering payment modal...');
+          setShouldShowModal(true);
+        }
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update subscription detail');
       }
-    }).catch(() => Alert.alert('Error', 'Something went wrong'));
+    }).catch(err => {
+      setStepLoading(false);
+      console.error('❌ Subscription update failed:', err);
+      Alert.alert('Error', 'Something went wrong');
+    });
   };
 
   const renderStepContent = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <PersonalInformation
-            formData={formData.personalInfo}
-            onFormDataChange={data => handleFormDataChange('personalInfo', data)}
-            showValidation={showValidation}
-          />
-        );
-      case 2:
-        return (
-          <ProfessionalDetails
-            formData={formData.professionalDetails}
-            onFormDataChange={data => handleFormDataChange('professionalDetails', data)}
-            showValidation={showValidation}
-          />
-        );
-      case 3:
-        return (
-          <SubscriptionDetails
-            formData={formData.subscriptionDetails}
-            onFormDataChange={data => handleFormDataChange('subscriptionDetails', data)}
-            showValidation={showValidation}
-          />
-        );
-      default:
-        return null;
+    try {
+      switch (currentStep) {
+        case 1:
+          return (
+            <PersonalInformation
+              formData={formData.personalInfo}
+              onFormDataChange={data => handleFormDataChange('personalInfo', data)}
+              showValidation={showValidation}
+              personalDetail={personalDetail}
+            />
+          );
+        case 2:
+          return (
+            <ProfessionalDetails
+              formData={formData.professionalDetails}
+              onFormDataChange={data => handleFormDataChange('professionalDetails', data)}
+              showValidation={showValidation}
+            />
+          );
+        case 3:
+          return (
+            <SubscriptionDetails
+              formData={formData.subscriptionDetails}
+              onFormDataChange={data => handleFormDataChange('subscriptionDetails', data)}
+              showValidation={showValidation}
+              categoryData={categoryData}
+            />
+          );
+        default:
+          return null;
+      }
+    } catch (error) {
+      console.error('❌ Error rendering step content:', error);
+      return (
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <Text style={{ color: 'red', fontSize: 16 }}>Error loading form step</Text>
+        </View>
+      );
     }
   };
 
+  // Debug log for modal state (matching web version)
+  console.log('💳 Payment modal visible:', isModalVisible);
+
   return (
-    <Wrapper style={commonStyles.screenContainer} title={'Application'} showBack={false}>
-      {/* <Text style={[styles.title, { fontSize: Math.max(20, width * 0.06) }]}>Application</Text> */}
-      {/* Stepper */}
-      <View style={[styles.stepperRow, { width: '100%', marginBottom: width * 0.06 }]}>
-        {steps.map((step, idx) => (
-          <React.Fragment key={step.number}>
-            <View style={styles.stepperItemContainer}>
-              <View
-                style={[
-                  styles.stepCircle,
-                  {
-                    width: Math.max(36, width * 0.09), height: Math.max(36, width * 0.09), borderRadius: Math.max(18, width * 0.045),
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 4,
-                    elevation: 4,
-                    borderWidth: currentStep === step.number ? 3 : 1,
-                    borderColor: currentStep === step.number ? '#007bff' : '#e0e0e0',
-                    backgroundColor: currentStep === step.number
-                      ? '#fff'
-                      : currentStep > step.number
-                        ? '#28a745'
-                        : '#e0e0e0',
-                  },
-                ]}
-              >
+    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {/* Header */}
+        <ScreenHeader title="Application" />
+
+        {/* Stepper */}
+        <View style={[styles.stepperRow, { width: '100%',  paddingHorizontal: 20 }]}>
+          {steps.map((step, idx) => (
+            <React.Fragment key={step.number}>
+              <View style={styles.stepperItemContainer}>
+                <View
+                  style={[
+                    styles.stepCircle,
+                    {
+                      width: Math.max(40, width * 0.1), 
+                      height: Math.max(40, width * 0.1), 
+                      borderRadius: Math.max(20, width * 0.05),
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.08,
+                      shadowRadius: 4,
+                      elevation: 3,
+                      borderWidth: currentStep === step.number ? 2 : 0,
+                      borderColor: currentStep === step.number ? Colors.primary : 'transparent',
+                      backgroundColor: currentStep === step.number
+                        ? Colors.primary
+                        : currentStep > step.number
+                          ? Colors.primary
+                          : '#E5E5E5',
+                    },
+                  ]}
+                >
+                  <Text style={{
+                    color: (currentStep === step.number || currentStep > step.number) ? Colors.white : '#999999',
+                    fontWeight: 'bold',
+                    fontSize: Math.max(16, width * 0.04),
+                  }}>
+                    {(() => {
+                      if (isSubmitted && step.number === 3) {
+                        return '✓';
+                      } else if (currentStep > step.number) {
+                        return '✓';
+                      } else {
+                        return String(step.number);
+                      }
+                    })()}
+                  </Text>
+                </View>
                 <Text style={{
-                  color: currentStep === step.number ? '#007bff' : '#fff',
-                  fontWeight: 'bold',
-                  fontSize: Math.max(14, width * 0.038),
+                  fontSize: Math.max(10, width * 0.027),
+                  color: currentStep === step.number ? Colors.textPrimary : Colors.textSecondary,
+                  fontWeight: currentStep === step.number ? '600' : 'normal',
+                  marginTop: 6,
+                  textAlign: 'center',
+                  width: Math.max(70, width * 0.22),
                 }}>
-                  {isSubmitted && step.number === 3
-                    ? '✓'
-                    : currentStep > step.number
-                      ? '✓'
-                      : step.number}
+                  {String(step.title)}
                 </Text>
               </View>
-              <Text style={{
-                fontSize: Math.max(10, width * 0.025),
-                color: currentStep === step.number ? '#007bff' : '#888',
-                fontWeight: currentStep === step.number ? 'bold' : 'normal',
-                marginTop: 8,
-                textAlign: 'center',
-                width: Math.max(60, width * 0.18),
-              }}>{step.title}</Text>
-            </View>
-            {idx < steps.length - 1 && (
-              <View style={[
-                styles.stepConnector,
-                { backgroundColor: currentStep > step.number ? '#28a745' : '#e0e0e0', width: Math.max(30, width * 0.13) }
-              ]} />
+              {idx < steps.length - 1 && (
+                <View style={[
+                  styles.stepConnector,
+                  { backgroundColor: currentStep > step.number ? Colors.primary : '#E5E5E5', width: Math.max(20, width * 0.08) }
+                ]} />
+              )}
+            </React.Fragment>
+          ))}
+        </View>
+        
+        <View style={{ flex: 1 }}>
+          <FlatList
+            data={[{ key: 'content' }]}
+            renderItem={() => (
+              <>
+                {/* Step Content */}
+                <View style={[ { borderRadius: 16, backgroundColor: Colors.cardBackground, marginHorizontal: 20 }]}>
+                  {renderStepContent()}
+                </View>
+                
+                {/* Navigation Buttons - Hide when keyboard is visible */}
+                {!isKeyboardVisible && (
+                  <View style={{
+                    backgroundColor: Colors.background,
+                    paddingHorizontal: 20,
+                    paddingTop: 20,
+                    paddingBottom: 8,
+                  }}>
+                    <View style={styles.buttonRow}>
+                      <Button
+                        title={currentStep === 1 ? "Save Draft" : "Previous"}
+                        onPress={handlePrevious}
+                        disabled={false}
+                        outlined={true}
+                        textStyle={{ 
+                          fontSize: 16, 
+                          color: Colors.textPrimary,
+                          fontWeight: '600',
+                        }}
+                        style={{ 
+                          flex: 1, 
+                          marginRight: 8,
+                          backgroundColor: '#E8EEF7',
+                          borderColor: '#E8EEF7',
+                          borderWidth: 0,
+                          borderRadius: 25,
+                          height: 56,
+                        }}
+                      />
+                      <Button
+                        title={currentStep === steps.length ? 'Submit' : 'Next Step'}
+                        onPress={handleNext}
+                        primary
+                        isloading={stepLoading}
+                        disabled={stepLoading}
+                        textStyle={{ 
+                          fontSize: 16, 
+                          color: Colors.white, 
+                          fontWeight: '600',
+                        }}
+                        style={{ 
+                          flex: 1, 
+                          marginLeft: 8,
+                          backgroundColor: '#4CAF50',
+                          borderRadius: 25,
+                          height: 56,
+                        }}
+                      />
+                    </View>
+                  </View>
+                )}
+                
+                {/* Payment Modal (Stripe) */}
+                <SubscriptionPaymentModal
+                  visible={isModalVisible}
+                  onClose={handleModalClose}
+                  onSuccess={handlePaymentSuccess}
+                  onFailure={handlePaymentFailure}
+                  formData={formData}
+                  membershipCategory={professionalDetail?.professionalDetails?.membershipCategory || formData?.professionalDetails?.membershipCategory}
+                  applicationId={personalDetail?.applicationId}
+                />
+              </>
             )}
-          </React.Fragment>
-        ))}
-      </View>
-      <ScrollView contentContainerStyle={[styles.container]}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Step Content */}
-        <View style={[styles.card, { borderRadius: width * 0.02 }]}> {renderStepContent()} </View>
-        {/* Navigation Buttons */}
-        {/* Modal */}
-        <Modal visible={isModalVisible} transparent animationType="slide">
-          <View style={styles.modalContainer}>
-            <View style={[styles.modalContent, { padding: width * 0.06, borderRadius: width * 0.03, width: width * 0.8 }]}>
-              <Text style={{ fontSize: Math.max(16, width * 0.045), marginBottom: 16 }}>Thank you for your submission!</Text>
-              <Button title="Close" onPress={handleModalClose} style={{ minWidth: 100, marginTop: 12 }} />
-            </View>
-          </View>
-        </Modal>
-      </ScrollView>
-      <View style={[styles.buttonRow, { marginTop: width * 0.04, marginBottom: hp(2) }]}>
-        <Button title="Previous" onPress={handlePrevious} disabled={currentStep === 1} style={{ flex: 1, marginRight: 8, height: hp(5) }} />
-        <Button
-          title={currentStep === steps.length ? 'Submit' : 'Next'}
-          onPress={currentStep === steps.length ? handleSubmit : handleNext}
-          style={{ flex: 1, marginLeft: 8, height: hp(5) }}
-        />
-      </View>
-    </Wrapper>
+            keyExtractor={(item) => item.key}
+            contentContainerStyle={[styles.container, { 
+              paddingBottom: isKeyboardVisible ? hp(20) : hp(3),
+              backgroundColor: Colors.background
+            }]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#fff', flexGrow: 1 },
-  title: { fontWeight: 'bold', marginBottom: 16 },
+  container: { 
+    backgroundColor: Colors.background, 
+    flexGrow: 1,
+    paddingTop: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 16,
+    backgroundColor: Colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    letterSpacing: 0.3,
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5A77B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: { 
+    fontWeight: 'bold', 
+    marginBottom: 16,
+    color: Colors.textPrimary,
+  },
   stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
     marginTop: hp(2),
-    marginBottom: 24,
+    // marginBottom: 24,
   },
   stepperItemContainer: {
     alignItems: 'center',
@@ -640,18 +1147,36 @@ const styles = StyleSheet.create({
   stepCircle: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#e0e0e0',
   },
   stepConnector: {
-    height: 3,
+    height: 2,
     alignSelf: 'center',
-    borderRadius: 2,
+    borderRadius: 1,
     marginHorizontal: 2,
   },
-  card: { marginBottom: 16 },
-  buttonRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { backgroundColor: '#fff', alignItems: 'center' },
+  card: { 
+    marginBottom: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: 'rgba(0,0,0,0.5)' 
+  },
+  modalContent: { 
+    backgroundColor: '#fff', 
+    alignItems: 'center' 
+  },
 });
 
 export default Application;

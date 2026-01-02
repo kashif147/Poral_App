@@ -24,7 +24,6 @@ export const DashboardCard = ({
       shadowRadius: 8,
       elevation: 3,
       alignItems: 'center',
-      alignSelf: 'stretch',
       ...style,
     }}
   >
