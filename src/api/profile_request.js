@@ -8,7 +8,6 @@ const request = axios.create();
 request.interceptors.request.use(
   async config => {
     const headers = await getHeaders();
-    console.log('🔑 Request headers:', headers);
     if (headers.token) {
       config.headers['Authorization'] = `Bearer ${headers.token}`;
     }
@@ -25,11 +24,9 @@ request.interceptors.request.use(
 
 request.interceptors.response.use(
   res => {
-    console.log('✅ API Response:', res.config.url, 'Status:', res.status);
     return res;
   },
   error => {
-    console.error('❌ Error message:', error.message);
     return error.response;
   },
 );

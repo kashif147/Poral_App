@@ -8,18 +8,13 @@ const request = axios.create();
 request.interceptors.request.use(
   async config => {
     const headers = await getHeaders();
-    console.log('🔑 Request headers:', headers);
    
-    // Only add Authorization header if token exists (not for auth endpoints)
     if (headers.token) {
       config.headers['Authorization'] = `Bearer ${headers.token}`;;
     }
     config.headers['Content-Type'] = 'application/json';
 
     config.baseURL = BASE_URL;
-    console.log('🌐 Request URL:', config.baseURL + config.url);
-    console.log('📤 Request method:', config.method);
-    console.log('📤 Request data:', config.data);
 
     return config;
   },

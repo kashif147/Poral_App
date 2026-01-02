@@ -17,6 +17,7 @@ end
 pod 'Firebase/CoreOnly', '~> 12.6.0'
 pod 'GoogleUtilities', :modular_headers => true
 pod 'FirebaseCoreInternal', :modular_headers => true
+pod 'FirebaseCore', :modular_headers => true
 
 target 'portal' do
   config = use_native_modules!

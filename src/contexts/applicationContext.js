@@ -24,6 +24,7 @@ export const ApplicationProvider = ({ children }) => {
     setLoading(true);
     fetchPersonalDetail()
       .then(res => {
+        console.log('res==========>', res);
         if (res.status === 200) {
           setPersonalDetail(res?.data?.data);
           setLoading(false);
