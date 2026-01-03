@@ -1,26 +1,44 @@
-import axios from 'axios';
+import { signInMicrosoftRequest } from '../api/auth.api';
 import {
-  signInMicrosoftRequest,
-} from '../api/auth.api';
-import { deleteHeaders, deleteUser, getHeaders, getUser, saveUser, setHeaders } from '../helpers/auth.helper';
+  deleteHeaders,
+  deleteUser,
+  getHeaders,
+  getUser,
+  saveUser,
+  setHeaders,
+} from '../helpers/auth.helper';
 import { deleteVerifier } from '../helpers/verifier.helper';
 import { setSignedIn, setUser } from '../store/slice/auth.slice';
-import { microSoftUrlRedirect } from '../helpers/B2C.helper';
-import { signOutFromAzureB2C } from '../helpers/webviewAuth.helper';
 
 export const validation = () => {
-  return async (dispatch) => {
+  return async dispatch => {
     try {
-      const res = getHeaders();
-      const user = getUser()
-      if (res?.token && user?.user) {
+      const res = await getHeaders();
+      const user = await getUser();
+      if (
+        res?.token &&
+        typeof res.token === 'string' &&
+        res.token.trim().length > 0 &&
+        user?.user &&
+        typeof user.user === 'string' &&
+        user.user.trim().length > 0
+      ) {
         dispatch(setSignedIn(true));
-        dispatch(setUser(JSON.parse(user?.user)));
+        try {
+          const parsedUser = JSON.parse(user.user);
+          dispatch(setUser(parsedUser));
+        } catch (parseError) {
+          console.error('Error parsing user data:', parseError);
+          dispatch(setUser({}));
+        }
       } else {
         dispatch(setSignedIn(false));
+        dispatch(setUser({}));
       }
     } catch (error) {
+      console.error('Validation error:', error);
       dispatch(setSignedIn(false));
+      dispatch(setUser({}));
     }
   };
 };
@@ -31,8 +49,8 @@ export const signInMicrosoft = data => {
       .then(res => {
         if (res.status === 200) {
           setHeaders(res.data);
-          saveUser(res.data.user)
-          deleteVerifier()
+          saveUser(res.data.user);
+          deleteVerifier();
           dispatch(setSignedIn(true));
           dispatch(setUser(res.data.user));
         } else {
@@ -40,36 +58,24 @@ export const signInMicrosoft = data => {
         }
       })
       .catch(() => {
-        toast.error('Something went wrong')
-        navigate('/')
+        toast.error('Something went wrong');
+        navigate('/');
       });
   };
 };
 
-
-export const signOut = (navigate) => {
-  return async (dispatch) => {
+export const signOut = navigation => {
+  return async dispatch => {
     try {
-      // Clear Redux state
-      dispatch(setSignedIn(false));
-      dispatch(setUser({}));
-      
-      // Clear local storage (tokens and user data)
       await deleteHeaders();
       await deleteUser();
       await deleteVerifier();
-      
-      // Navigate to home screen
-      navigate('/');
-      
-      // Sign out from Azure B2C to end the session
-      await signOutFromAzureB2C();
+      dispatch(setSignedIn(false));
+      dispatch(setUser({}));
     } catch (error) {
       console.error('Sign out error:', error);
-      // Still navigate to home even if Azure B2C logout fails
-      navigate('/');
-      // Uncomment if you have toast configured
-      // toast.error('Something went wrong during sign out');
+      dispatch(setSignedIn(false));
+      dispatch(setUser({}));
     }
   };
 };

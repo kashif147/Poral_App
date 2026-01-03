@@ -55,6 +55,7 @@ const WebViewLogin = ({ visible, onClose, onSuccess, onError }) => {
             response_mode: 'query',
             code_challenge: code_challenge,
             code_challenge_method: 'S256',
+            prompt: 'login', // Force login screen even if session exists
           };
 
           Object.keys(params).forEach(key =>
