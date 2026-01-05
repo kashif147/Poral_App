@@ -13,20 +13,17 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import CustomSwitch from '../../common/switch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// import { useDispatch } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { signOut } from '../../services/auth.services';
 import ScreenHeader from '../../common/screenHeader';
-import { signOutFromAzureB2C } from '../../helpers/webviewAuth.helper';
-import { deleteHeaders, deleteUser } from '../../helpers/auth.helper';
-import { deleteVerifier } from '../../helpers/verifier.helper';
 
 const Profile = () => {
   const { personalDetail, getPersonalDetail } = useApplication();
   const { profileByIdDetail, getProfileByIdDetail, profileDetail } = useProfile();
   const applicationId = personalDetail?.applicationId;
   const insets = useSafeAreaInsets();
-  // const dispatch = useDispatch();
+  const dispatch = useDispatch();
   const navigation = useNavigation();
 
   const [loading, setLoading] = useState(false);
@@ -200,7 +197,7 @@ const Profile = () => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Confirm Logout',
       'Are you sure you want to log out?',
@@ -216,20 +213,10 @@ const Profile = () => {
             try {
               setLoading(true);
               
-              // Remove tokens, user data, and verifier from storage
-              await deleteHeaders();
-              await deleteUser();
-              await deleteVerifier();
-              
-              // Sign out from Azure B2C
-              await signOutFromAzureB2C();
-              
-              // Navigate to login screen
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
+              // Use Redux signOut action which handles all cleanup and navigation
+              await dispatch(signOut(navigation));
             } catch (error) {
+              console.error('Logout error:', error);
               Alert.alert('Error', 'Something went wrong during logout');
             } finally {
               setLoading(false);
