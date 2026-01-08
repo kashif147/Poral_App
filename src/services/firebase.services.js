@@ -10,7 +10,7 @@ const getFcmToken = async () => {
   await registerAppWithFcm();
   try {
     token = await messaging().getToken();
-    console.log('FCM token', token);
+    console.log('FCM token=========>', token);
     // Store token in AsyncStorage for future API integration
     if (token) {
       await AsyncStorage.setItem('fcmToken', token);
