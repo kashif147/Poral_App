@@ -9,6 +9,7 @@ import Categories from '../modules/categories/Categories';
 import Courses from '../modules/courses/Courses';
 import Membership from '../modules/membership/Membership';
 import Payment from '../modules/payment/Payment';
+import PaymentMethod from '../modules/payment/PaymentMethod';
 import Profile from '../modules/profile/Profile';
 import Resources from '../modules/resources/Resources';
 import Notifications from '../modules/notifications/Notifications';
@@ -92,6 +93,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       'Resources': 'Resources',
       'Application': STACKS.APPLICATION_STACK,
       'Payment': STACKS.PAYMENT_STACK,
+      'PaymentMethod': STACKS.PAYMENT_STACK,
     };
     
     const targetRoute = routeMap[route];
@@ -222,7 +224,7 @@ const TabNavigator = () => {
         <Tab.Screen name={STACKS.DASHBOARD_STACK} component={DashBoard} />
         <Tab.Screen name={STACKS.EVENTS_STACK} component={Event} />
         <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
-        <Tab.Screen name={STACKS.PAYMENT_STACK} component={Payment} />
+        <Tab.Screen name={STACKS.PAYMENT_STACK} component={PaymentMethod} />
         <Tab.Screen name="Menu" component={DashBoard} />
         {/* Hidden screens for popup navigation */}
         <Tab.Screen name={STACKS.APPLICATION_STACK} component={Application} />

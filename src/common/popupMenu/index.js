@@ -55,6 +55,15 @@ const PopupMenu = ({ visible, onClose, onNavigate }) => {
       bgColor: '#E3F2FD',
       route: 'Profile',
     },
+    {
+      id: 'paymentMethod',
+      label: 'Payment Method',
+      icon: 'card-outline',
+      iconType: 'Ionicons',
+      color: '#10B981',
+      bgColor: '#D1FAE5',
+      route: 'PaymentMethod',
+    },
   ];
 
   const handleItemPress = (item) => {
@@ -172,8 +181,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   menuItem: {
-    width: (width - 40) / 4, 
+    width: (width - 60) / 4, // 4 items per row with padding
     alignItems: 'center',
+    marginBottom: 20,
   },
   iconContainer: {
     width: 64,
