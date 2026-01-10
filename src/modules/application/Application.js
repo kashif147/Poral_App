@@ -940,7 +940,7 @@ const Application = () => {
         <ScreenHeader title="Application" />
 
         {/* Stepper */}
-        <View style={[styles.stepperRow, { width: '100%',  paddingHorizontal: 20 }]}>
+        <View style={[styles.stepperRow, { paddingHorizontal: 20, marginRight: 10}]}>
           {steps.map((step, idx) => (
             <React.Fragment key={step.number}>
               <View style={styles.stepperItemContainer}>
@@ -1009,7 +1009,7 @@ const Application = () => {
             renderItem={() => (
               <>
                 {/* Step Content */}
-                <View style={[ { borderRadius: 16, backgroundColor: Colors.cardBackground, marginHorizontal: 20 }]}>
+                <View style={[ { borderRadius: 16, backgroundColor: Colors.cardBackground,paddingHorizontal: 10 }]}>
                   {renderStepContent()}
                 </View>
                 
@@ -1134,9 +1134,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
     marginTop: hp(2),
-    // marginBottom: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    marginLeft: 10,
+    marginRight: 10,
+    paddingVertical: hp(1),
+    backgroundColor: Colors.cardBackground,
   },
   stepperItemContainer: {
     alignItems: 'center',

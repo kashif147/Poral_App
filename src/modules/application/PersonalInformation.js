@@ -980,7 +980,6 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.cardBackground,
-    // marginHorizontal: 20,
     marginBottom: 16,
     padding: 20,
     borderRadius: 16,
