@@ -18,25 +18,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 // Fallback payment types if lookups not loaded yet
 const paymentTypes = ['Deduction at Source', 'Credit Card'];
 
-// Section Header Component with Icon and Gradient
-const SectionHeader = ({ iconName, title, subtitle, gradientColors }) => {
-  return (
-    <View style={styles.sectionHeaderContainer}>
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.iconGradientBox}
-      >
-        <Ionicons name={iconName} size={24} color="#FFFFFF" />
-      </LinearGradient>
-      <View style={styles.sectionHeaderText}>
-        <Text style={styles.sectionHeader}>{title}</Text>
-        {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
-      </View>
-    </View>
-  );
-};
 
 // Format price - convert from cents to currency
 const formatPrice = (priceInCents, currency = 'EUR') => {
@@ -104,7 +85,7 @@ const SubscriptionDetails = ({
   const currency = categoryData?.currentPricing?.currency || 'EUR';
 
   return (
-    <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
+    <View style={{ backgroundColor: Colors.background, paddingBottom: 16, paddingTop: 4 }}>
       {/* Your Subscription Fees Section */}
       {categoryData && (
         <View style={styles.pricingCard}>
@@ -138,12 +119,7 @@ const SubscriptionDetails = ({
       )}
       {/* Payment Information Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="card-outline"
-          title="Payment Information"
-          subtitle="Select your preferred payment method."
-          gradientColors={['#10B981', '#059669']}
-        />
+        <Text style={styles.cardTitle}>Payment Information</Text>
 
         {/* Payment Type */}
         <Text style={styles.label}>Payment Type *</Text>
@@ -209,12 +185,7 @@ const SubscriptionDetails = ({
 
       {/* Member Status Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="person-outline"
-          title="Member Status"
-          subtitle="Please select the most appropriate option below."
-          gradientColors={['#3B82F6', '#2563EB']}
-        />
+        <Text style={styles.cardTitle}>Member Status</Text>
 
         <Text style={styles.radioGroupLabel}>
           Please select the most appropriate option below *
@@ -429,12 +400,7 @@ const SubscriptionDetails = ({
 
       {/* Additional Memberships Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="people-outline"
-          title="Additional Memberships"
-          subtitle="Are you a member of another Trade Union?"
-          gradientColors={['#A855F7', '#9333EA']}
-        />
+        <Text style={styles.cardTitle}>Additional Memberships</Text>
         <Text style={styles.radioGroupLabel}>
           Are you a member of another Trade Union? If yes, which Union? *
         </Text>
@@ -547,12 +513,7 @@ const SubscriptionDetails = ({
 
       {/* Recruitment Details Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="person-add-outline"
-          title="Recruitment Details"
-          subtitle="Were you recruited by another member?"
-          gradientColors={['#F97316', '#EA580C']}
-        />
+        <Text style={styles.cardTitle}>Recruitment Details</Text>
 
         {/* Recruited By */}
         <Text style={styles.label}>Recruited By</Text>
@@ -591,12 +552,7 @@ const SubscriptionDetails = ({
 
       {/* Section Details Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="layers-outline"
-          title="Section Details"
-          subtitle="Select your primary and secondary sections."
-          gradientColors={['#EC4899', '#DB2777']}
-        />
+        <Text style={styles.cardTitle}>Section Details</Text>
 
         {/* Primary Section */}
         <Text style={styles.label}>Primary Section</Text>
@@ -679,12 +635,7 @@ const SubscriptionDetails = ({
 
       {/* Additional Services & Terms Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="checkmark-circle-outline"
-          title="Additional Services & Terms"
-          subtitle="Select additional services and agree to terms."
-          gradientColors={['#14B8A6', '#0D9488']}
-        />
+        <Text style={styles.cardTitle}>Additional Services & Terms</Text>
 
         <View style={styles.checkboxRow}>
           <TouchableOpacity
@@ -771,41 +722,6 @@ const SubscriptionDetails = ({
 };
 
 const styles = StyleSheet.create({
-  // Section Header Styles
-  sectionHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-    gap: 12,
-  },
-  iconGradientBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  sectionHeaderText: {
-    flex: 1,
-  },
-  sectionHeader: {
-    color: Colors.textPrimary,
-    fontWeight: 'bold',
-    fontSize: 22,
-    marginBottom: 4,
-    letterSpacing: 0.3,
-  },
-  sectionSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-  },
   // Pricing Card Styles
   pricingCard: {
     // marginTop: 16,
@@ -904,22 +820,27 @@ const styles = StyleSheet.create({
   // Card Styles
   card: {
     backgroundColor: Colors.cardBackground,
-    marginTop: 16,
+    marginTop: 12,
     marginBottom: 16,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardTitle: {
     color: Colors.textPrimary,
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 20,
     marginBottom: 16,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   // Gradient Container Styles
   gradientContainer: {
@@ -980,12 +901,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   label: {
-    fontWeight: '500',
-    fontSize: 14,
-    marginTop: 16,
-    marginBottom: 8,
+    fontWeight: '600',
+    fontSize: 15,
+    marginTop: 12,
+    marginBottom: 6,
     color: Colors.textPrimary,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
+    lineHeight: 20,
   },
   row: {
     flexDirection: 'row',
@@ -996,8 +918,8 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 4,
   },
-  inputField: { marginBottom: 4 },
-  pickerField: { marginBottom: 4 },
+  inputField: { marginBottom: 8 },
+  pickerField: { marginBottom: 8 },
   radioRow: {
     flexDirection: 'row',
     alignItems: 'center',

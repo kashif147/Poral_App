@@ -175,25 +175,6 @@ const DEFAULT_COUNTRY = {
   callingCode: '353',
 };
 
-// Section Header Component with Icon and Gradient
-const SectionHeader = ({ iconName, title, subtitle, gradientColors }) => {
-  return (
-    <View style={styles.sectionHeaderContainer}>
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.iconGradientBox}
-      >
-        <Ionicons name={iconName} size={24} color="#FFFFFF" />
-      </LinearGradient>
-      <View style={styles.sectionHeaderText}>
-        <Text style={styles.sectionHeader}>{title}</Text>
-        {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
-      </View>
-    </View>
-  );
-};
 
 // Normalize API values to match picker options (handle case differences)
 const normalizePreferredAddress = (value) => {
@@ -472,15 +453,10 @@ const PersonalInformation = ({
   };
 
   return (
-    <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
+    <View style={{ backgroundColor: Colors.background, paddingBottom: 16, paddingTop: 4 }}>
       {/* Basic Information Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="person-outline"
-          title="Personal Information"
-          subtitle="Please provide your details as they appear on your official documents."
-          gradientColors={['#3B82F6', '#2563EB']}
-        />
+        <Text style={styles.cardTitle}>Personal Information</Text>
 
         {/* Title */}
         <Text style={styles.label}>Title *</Text>
@@ -611,26 +587,25 @@ const PersonalInformation = ({
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Consent</Text>
         <View style={styles.termsRow}>
-          <Text style={styles.termsLabel}>
-            I agree to receive correspondence from INMO
-          </Text>
-          <CustomSwitch
-            value={formData.consent}
-            onValueChange={val =>
-              onFormDataChange({ ...formData, consent: val })
-            }
-          />
+          <View style={styles.termsLabelContainer}>
+            <Text style={styles.termsLabel}>
+              I agree to receive correspondence from INMO
+            </Text>
+          </View>
+          <View style={styles.switchContainer}>
+            <CustomSwitch
+              value={formData.consent}
+              onValueChange={val =>
+                onFormDataChange({ ...formData, consent: val })
+              }
+            />
+          </View>
         </View>
       </View>
 
       {/* Address Information Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="mail-outline"
-          title="Correspondence Details"
-          subtitle="Let us know the best way to send you mail."
-          gradientColors={['#10B981', '#059669']}
-        />
+        <Text style={styles.cardTitle}>Correspondence Details</Text>
         
         
           <View style={styles.halfInput}>
@@ -785,51 +760,54 @@ const PersonalInformation = ({
                 backgroundColor: 'transparent',
               },
               textInput: {
-                height: 52,
+                height: 56,
                 borderWidth: 1.5,
-                borderColor: '#E5E5E5',
-                borderRadius: 12,
-                paddingHorizontal: 16,
-                paddingRight: 48,
+                borderColor: '#E8E8E8',
+                borderRadius: 14,
+                paddingHorizontal: 18,
+                paddingRight: 52,
                 fontSize: 15,
                 color: Colors.textPrimary,
                 backgroundColor: Colors.white,
                 fontWeight: '400',
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+                elevation: 2,
               },
               listView: {
                 zIndex: 9999,
                 position: 'absolute',
-                top: 52,
+                top: 58,
                 left: 0,
                 right: 0,
                 backgroundColor: 'white',
-                borderRadius: 12,
-                elevation: 10,
+                borderRadius: 14,
+                elevation: 12,
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                maxHeight: 200,
-                marginTop: 4,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.12,
+                shadowRadius: 12,
+                maxHeight: 220,
+                marginTop: 6,
+                borderWidth: 1,
+                borderColor: '#F0F0F0',
               },
               row: {
-                padding: 15,
+                padding: 16,
                 borderBottomWidth: 1,
-                borderBottomColor: '#f0f0f0',
+                borderBottomColor: '#F5F5F5',
                 backgroundColor: 'white',
               },
               description: {
                 fontSize: 15,
                 color: Colors.textPrimary,
+                fontWeight: '400',
               },
               separator: {
                 height: 1,
-                backgroundColor: '#f0f0f0',
+                backgroundColor: '#F5F5F5',
               },
             }}
             renderRightButton={() => (
@@ -951,12 +929,7 @@ const PersonalInformation = ({
 
       {/* Contact Information Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="call-outline"
-          title="Contact Details"
-          subtitle="Provide your phone numbers and email addresses."
-          gradientColors={['#A855F7', '#9333EA']}
-        />
+        <Text style={styles.cardTitle}>Contact Details</Text>
 
         <View style={styles.halfInput}>
           <Text style={styles.label}>Mobile No *</Text>
@@ -1103,75 +1076,45 @@ const PersonalInformation = ({
 };
 
 const styles = StyleSheet.create({
-  sectionHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-    gap: 12,
-  },
-  iconGradientBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  sectionHeaderText: {
-    flex: 1,
-  },
-  sectionHeader: {
-    color: Colors.textPrimary,
-    fontWeight: 'bold',
-    fontSize: 24,
-    marginBottom: 4,
-    letterSpacing: 0.3,
-  },
-  sectionSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-  },
   card: {
     backgroundColor: Colors.cardBackground,
     marginBottom: 16,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#F0F0F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardTitle: {
     color: Colors.textPrimary,
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 20,
     marginBottom: 16,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   sectionTitle: {
     color: Colors.textPrimary,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 18,
     marginTop: 20,
     marginBottom: 12,
-    letterSpacing: 0.2,
+    letterSpacing: 0.15,
   },
   label: {
     color: Colors.textPrimary,
-    fontWeight: '500',
-    fontSize: 14,
-    marginTop: 16,
-    marginBottom: 8,
-    letterSpacing: 0.2,
+    fontWeight: '600',
+    fontSize: 15,
+    marginTop: 12,
+    marginBottom: 6,
+    letterSpacing: 0.1,
+    lineHeight: 20,
   },
   row: {
     flexDirection: 'row',
@@ -1187,10 +1130,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   inputField: {
-    marginBottom: 4,
+    marginBottom: 8,
   },
   pickerField: {
-    marginBottom: 4,
+    marginBottom: 8,
   },
   genderContainer: {
     flexDirection: 'row',
@@ -1201,19 +1144,19 @@ const styles = StyleSheet.create({
   genderButton: {
     flex: 1,
     minWidth: '45%',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E5E5E5',
+    borderColor: '#E8E8E8',
     backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   genderButtonActive: {
     backgroundColor: Colors.primary,
@@ -1239,17 +1182,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    gap: 16,
   },
   termsLabelContainer: {
     flex: 1,
-    marginRight: 12,
+    flexShrink: 1,
+    paddingRight: 8,
   },
   termsLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textPrimary,
     fontWeight: '400',
-    lineHeight: 20,
+    lineHeight: 22,
+    flexWrap: 'wrap',
+  },
+  switchContainer: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 2,
+    flexShrink: 0,
   },
   termsLabelBold: {
     fontSize: 14,
@@ -1268,48 +1221,63 @@ const styles = StyleSheet.create({
   autocompleteContainer: {
     position: 'relative',
     zIndex: 9999,
-    marginBottom: 4,
+    marginBottom: 8,
     elevation: 10,
   },
   addressIconContainer: {
     position: 'absolute',
-    right: 16,
-    top: 16,
+    right: 20,
+    top: 20,
     zIndex: 1,
   },
   countryButtonStyle: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderColor: '#E5E5E5',
+    borderColor: '#E8E8E8',
     borderWidth: 1.5,
-    borderRadius: 12,
-    minWidth: 85,
-    height: 52,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    borderRadius: 14,
+    minWidth: 90,
+    height: 56,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   PhoneNoStyle: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderColor: '#E5E5E5',
+    borderColor: '#E8E8E8',
     borderWidth: 1.5,
-    borderRadius: 12,
-    height: 52,
-    paddingVertical: 3,
+    borderRadius: 14,
+    height: 56,
+    paddingVertical: 4,
     backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
   countryBtnTextStyle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.textPrimary,
-    marginRight: 4,
+    marginRight: 6,
   },
   phoneInputError: {
     borderColor: Colors.red,
     borderWidth: 2,
+    shadowColor: Colors.red,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });
 
