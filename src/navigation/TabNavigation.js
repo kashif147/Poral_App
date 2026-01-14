@@ -93,7 +93,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       'Resources': 'Resources',
       'Application': STACKS.APPLICATION_STACK,
       'Payment': STACKS.PAYMENT_STACK,
-      'PaymentMethod': STACKS.PAYMENT_STACK,
+      'PaymentMethod': STACKS.PAYMENT_METHOD_STACK,
     };
     
     const targetRoute = routeMap[route];
@@ -235,12 +235,13 @@ const TabNavigator = () => {
         <Tab.Screen name={STACKS.DASHBOARD_STACK} component={DashBoard} />
         <Tab.Screen name={STACKS.EVENTS_STACK} component={Event} />
         <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
-        <Tab.Screen name={STACKS.PAYMENT_STACK} component={PaymentMethod} />
+        <Tab.Screen name={STACKS.PAYMENT_STACK} component={Payment} />
         <Tab.Screen name="Menu" component={DashBoard} />
         {/* Hidden screens for popup navigation */}
         <Tab.Screen name={STACKS.APPLICATION_STACK} component={Application} />
         <Tab.Screen name={STACKS.CATEGORIES_STACK} component={Categories} />
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
+        <Tab.Screen name={STACKS.PAYMENT_METHOD_STACK} component={PaymentMethod} />
         <Tab.Screen name="Profile" component={Profile} />
         <Tab.Screen name="Resources" component={Resources} />
         <Tab.Screen name="Directory" component={Profile} />

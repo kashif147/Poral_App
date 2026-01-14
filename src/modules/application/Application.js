@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, TouchableOpacity } from 'react-native';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
-import { Wrapper } from '../../common/wrapper';
-import { Colors, commonStyles, hp } from '../../utils/Styles';
+import { Colors, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
 import SubscriptionPaymentModal from './components/SubscriptionPaymentModal';
 import { useApplication } from '../../contexts/applicationContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useLookup } from '../../contexts/lookupContext';
 import ScreenHeader from '../../common/screenHeader';
 import {
-  fetchPersonalDetail,
-  fetchProfessionalDetail,
-  fetchSubscriptionDetail,
   createPersonalDetailRequest,
   updatePersonalDetailRequest,
   createProfessionalDetailRequest,
@@ -22,7 +17,6 @@ import {
   createSubscriptionDetailRequest,
   updateSubscriptionDetailRequest,
 } from '../../api/application.api';
-import { fetchCategoryByCategoryId } from '../../api/category.api';
 
 const steps = [
   { number: 1, title: 'Personal' },
@@ -59,20 +53,25 @@ const initialFormData = {
 };
 
 const Application = () => {
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const {
+    categoryData,
+    getCategoryData,
+    personalDetail,
+    professionalDetail,
+    subscriptionDetail,
+    getPersonalDetail,
+    getProfessionalDetail,
+    getSubscriptionDetail,
+  } = useApplication();
+  const { categoryLookups } = useLookup();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [shouldShowModal, setShouldShowModal] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [showValidation, setShowValidation] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [stepLoading, setStepLoading] = useState(false);
-  const [personalDetail, setPersonalDetail] = useState(null);
-  const [professionalDetail, setProfessionalDetail] = useState(null);
-  const [subscriptionDetail, setSubscriptionDetail] = useState(null);
-  const [categoryData, setCategoryData] = useState(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   // Keyboard event listeners
@@ -309,33 +308,11 @@ const Application = () => {
           return false;
         }
         
-        // Required for new/graduate members
-        // if (memberStatus === 'new' || memberStatus === 'graduate') {
-        //   if (!incomeProtectionScheme) {
-        //     console.log('❌ Validation failed: incomeProtectionScheme missing for new/graduate');
-        //     return false;
-        //   }
-        //   // if (!inmoRewards) {
-        //   //   console.log('❌ Validation failed: inmoRewards missing for new/graduate');
-        //   //   return false;
-        //   // }
-        // }
-        
-        console.log('✅ Step 3 validation passed!');
+        break;
         break;
       }
     }
     return true;
-  };
-
-  const handleSubmit = () => {
-    setShowValidation(true);
-    if (validateCurrentStep()) {
-      setIsSubmitted(true);
-      setIsModalVisible(true);
-      // Submit formData to backend here
-      // Alert.alert('Form submitted!', JSON.stringify(formData, null, 2));
-    }
   };
 
   const handleModalClose = () => {
@@ -366,38 +343,11 @@ const Application = () => {
     Alert.alert('Payment Failed', message || 'Please try again.');
   };
 
-  // Load from API on mount
+  // Initialize: load personal detail from context (matching web version)
   useEffect(() => {
-    const loadFromApi = async () => {
-      setLoading(true);
-      try {
-        const res = await fetchPersonalDetail();
-        if (res?.status === 200) {
-          setPersonalDetail(res?.data?.data);
-        }
-      } catch { }
-      setLoading(false);
-    };
-    loadFromApi();
+    getPersonalDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // When we have applicationId, fetch other details
-  useEffect(() => {
-    const loadMore = async () => {
-      if (!personalDetail?.applicationId) return;
-      setLoading(true);
-      try {
-        const [profRes, subRes] = await Promise.all([
-          fetchProfessionalDetail(personalDetail.applicationId),
-          fetchSubscriptionDetail(personalDetail.applicationId),
-        ]);
-        if (profRes?.status === 200) setProfessionalDetail(profRes?.data?.data);
-        if (subRes?.status === 200) setSubscriptionDetail(subRes?.data?.data);
-      } catch { }
-      setLoading(false);
-    };
-    loadMore();
-  }, [personalDetail?.applicationId]);
 
   // Hydrate form from fetched details
   useEffect(() => {
@@ -484,15 +434,7 @@ const Application = () => {
 
       // Fetch category data when membershipCategory is available (matching web version)
       if (membershipCategory) {
-        fetchCategoryByCategoryId(membershipCategory)
-          .then(res => {
-            const payload = res?.data?.data || res?.data;
-            setCategoryData(payload || null);
-          })
-          .catch(error => {
-            console.error('Failed to fetch category data:', error);
-            setCategoryData(null);
-          });
+        getCategoryData(membershipCategory, categoryLookups || []);
       }
     }
   }, [professionalDetail, professionalDetail?.professionalDetails?.membershipCategory]);
@@ -585,7 +527,7 @@ const Application = () => {
     createPersonalDetailRequest(personalInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
-        setPersonalDetail(res?.data?.data);
+        getPersonalDetail();
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add personal detail');
@@ -631,7 +573,7 @@ const Application = () => {
       setStepLoading(false);
       console.log('🔄 Updating personal detail with:', res);
       if (res?.status === 200) {
-        setPersonalDetail(res?.data?.data);
+        getPersonalDetail();
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update personal detail');
@@ -741,7 +683,7 @@ const Application = () => {
     createProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
-        setProfessionalDetail(res?.data?.data);
+        getProfessionalDetail();
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add professional detail');
@@ -784,7 +726,7 @@ const Application = () => {
     updateProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
-        setProfessionalDetail(res?.data?.data);
+        getProfessionalDetail();
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update professional detail');
@@ -829,7 +771,7 @@ const Application = () => {
       setStepLoading(false);
       if (res?.status === 200) {
         console.log('✅ Subscription detail created successfully');
-        setSubscriptionDetail(res?.data?.data);
+        getSubscriptionDetail();
         
         // Check if undergraduate student - they don't need payment (matching web version)
         if (categoryData?.name === 'Undergraduate Student' ||
@@ -888,7 +830,7 @@ const Application = () => {
       setStepLoading(false);
       if (res?.status === 200) {
         console.log('✅ Subscription detail updated successfully');
-        setSubscriptionDetail(res?.data?.data);
+        getSubscriptionDetail();
         
         // Check if undergraduate student - they don't need payment (matching web version)
         if (categoryData?.name === 'Undergraduate Student' ||
@@ -953,9 +895,6 @@ const Application = () => {
       );
     }
   };
-
-  // Debug log for modal state (matching web version)
-  console.log('💳 Payment modal visible:', isModalVisible);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>

@@ -13,6 +13,7 @@ const STACKS = {
   COURSES_STACK: "Courses",
   MEMBERSHIP_STACK: "Membership",
   PAYMENT_STACK: "Payment",
+  PAYMENT_METHOD_STACK: "PaymentMethod",
 };
 
 const TAB = {

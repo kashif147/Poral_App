@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApplication } from '../../contexts/applicationContext';
-import { fetchCategoryByCategoryId } from '../../api/category.api';
+import { useLookup } from '../../contexts/lookupContext';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import CheckboxWithLabel from '../../common/checkbox/CheckboxWithLabel';
@@ -19,14 +19,14 @@ import { Colors, hp, wp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const DirectDebit = () => {
-  const { personalDetail, subscriptionDetail } = useApplication();
+  const { personalDetail, subscriptionDetail, categoryData, getCategoryData } = useApplication();
+  const { categoryLookups } = useLookup();
   const ibanInputRef = useRef(null);
   const [user, setUser] = useState(null);
 
   // Get category data
   const membershipCategory =
     subscriptionDetail?.subscriptionDetails?.membershipCategory;
-  const [categoryData, setCategoryData] = useState(null);
 
   // Form state
   const [formState, setFormState] = useState({
@@ -80,18 +80,10 @@ const DirectDebit = () => {
 
   // Fetch category data
   useEffect(() => {
-    const fetchCategory = async () => {
-      if (!membershipCategory) return;
-      try {
-        const res = await fetchCategoryByCategoryId(membershipCategory);
-        const payload = res?.data?.data || res?.data;
-        setCategoryData(payload);
-      } catch (error) {
-        console.error('Failed to fetch category:', error);
-      }
-    };
-    fetchCategory();
-  }, [membershipCategory]);
+    if (membershipCategory) {
+      getCategoryData(membershipCategory, categoryLookups || []);
+    }
+  }, [membershipCategory, categoryLookups, getCategoryData]);
 
   // Auto-populate user data
   useEffect(() => {

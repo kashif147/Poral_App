@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApplication } from '../../contexts/applicationContext';
-import { fetchCategoryByCategoryId } from '../../api/category.api';
+import { useLookup } from '../../contexts/lookupContext';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import DatePicker from '../../common/DatePicker';
@@ -22,14 +22,14 @@ import { Colors, hp, wp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const StandingBankersOrder = () => {
-  const { subscriptionDetail } = useApplication();
+  const { subscriptionDetail, categoryData, getCategoryData } = useApplication();
+  const { categoryLookups } = useLookup();
   const ibanInputRef = useRef(null);
   const [user, setUser] = useState(null);
 
   // Get category data
   const membershipCategory =
     subscriptionDetail?.subscriptionDetails?.membershipCategory;
-  const [categoryData, setCategoryData] = useState(null);
 
   // Form state
   const [formState, setFormState] = useState({
@@ -71,32 +71,25 @@ const StandingBankersOrder = () => {
 
   // Fetch category data
   useEffect(() => {
-    const fetchCategory = async () => {
-      if (!membershipCategory) return;
-      try {
-        const res = await fetchCategoryByCategoryId(membershipCategory);
-        const payload = res?.data?.data || res?.data;
-        setCategoryData(payload);
-
-        if (payload?.currentPricing?.price) {
-          const priceInEuros = payload.currentPricing.price / 100;
-          setFormState(prev => ({
-            ...prev,
-            amount: priceInEuros.toFixed(2),
-            accountName:
-              user?.userFirstName && user?.userLastName
-                ? `${user.userFirstName} ${user.userLastName}`
-                : user?.userName || '',
-          }));
-        }
-      } catch (error) {
-        console.error('Failed to fetch category:', error);
-      }
-    };
-    if (user) {
-      fetchCategory();
+    if (membershipCategory) {
+      getCategoryData(membershipCategory, categoryLookups || []);
     }
-  }, [membershipCategory, user]);
+  }, [membershipCategory, categoryLookups, getCategoryData]);
+
+  // Set form state when category data is loaded
+  useEffect(() => {
+    if (categoryData?.currentPricing?.price && user) {
+      const priceInEuros = categoryData.currentPricing.price / 100;
+      setFormState(prev => ({
+        ...prev,
+        amount: priceInEuros.toFixed(2),
+        accountName:
+          user?.userFirstName && user?.userLastName
+            ? `${user.userFirstName} ${user.userLastName}`
+            : user?.userName || '',
+      }));
+    }
+  }, [categoryData, user]);
 
   // Bank list
   const bankOptions = [

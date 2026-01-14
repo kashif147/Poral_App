@@ -130,9 +130,8 @@ const ProfessionalDetails = ({
       return [];
     }
     console.log('Category lookups available:', safeCategoryLookups.length);
-    // Use _id as the value to store (matching web version)
+    // Use name as the value to store (matching web version)
     const mapped = safeCategoryLookups.map(item => {
-      const id = item?._id || item?.id;
       const label =
         item?.name ||
         item?.DisplayName ||
@@ -140,7 +139,7 @@ const ProfessionalDetails = ({
         item?.productType?.name ||
         item?.code;
       return {
-        value: String(id || ''),
+        value: String(label || ''),
         label: String(label || ''),
         rawItem: item, // Keep reference to original item
       };
@@ -227,15 +226,20 @@ const ProfessionalDetails = ({
   const adaptationYes = formData?.nursingAdaptationProgramme === 'yes';
   const adaptationNo = formData?.nursingAdaptationProgramme === 'no';
 
-  // Helper function to check category type based on _id (matching web version)
+  // Helper function to check category type based on name (matching web version)
   const isCategoryType = categoryType => {
     if (!formData?.membershipCategory) return false;
 
-    // Find the selected category by _id
-    const selectedCategory = safeCategoryLookups.find(
-      item =>
-        String(item?._id || item?.id) === String(formData.membershipCategory),
-    );
+    // Find the selected category by name
+    const selectedCategory = safeCategoryLookups.find(item => {
+      const itemName =
+        item?.name ||
+        item?.DisplayName ||
+        item?.label ||
+        item?.productType?.name ||
+        item?.code;
+      return String(itemName || '') === String(formData.membershipCategory);
+    });
 
     if (!selectedCategory) return false;
 
