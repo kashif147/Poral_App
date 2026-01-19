@@ -3,20 +3,132 @@ import { PERMISSIONS, request } from 'react-native-permissions';
 import notifee, { EventType } from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { v4 as uuidv4 } from 'uuid';
+import { registerToken } from '../api/notification.api';
 
-const getFcmToken = async () => {
+// Store notification context methods globally for notification handlers
+let notificationContextMethods = null;
+
+// Function to set notification context methods (called from component)
+const setNotificationContextMethods = (methods) => {
+  notificationContextMethods = methods;
+};
+
+// Generate or retrieve persistent device ID
+const getOrCreateDeviceId = async () => {
+  const STORAGE_KEY = 'fcmDeviceId';
+  
+  try {
+    let deviceId = await AsyncStorage.getItem(STORAGE_KEY);
+    
+    if (!deviceId) {
+      // Generate new device ID using UUID
+      deviceId = uuidv4();
+      await AsyncStorage.setItem(STORAGE_KEY, deviceId);
+      console.log('Generated new device ID:', deviceId);
+    } else {
+      console.log('Retrieved existing device ID:', deviceId);
+    }
+    
+    return deviceId;
+  } catch (error) {
+    console.error('Error getting/creating device ID:', error);
+    // Fallback: generate a new ID for this session
+    return uuidv4();
+  }
+};
+
+// Register FCM token with backend
+const registerFcmTokenWithBackend = async (fcmToken, userId, tenantId, deviceId, platform = 'ios') => {
+  if (!fcmToken || !userId || !tenantId || !deviceId) {
+    console.warn('Missing required data for FCM token registration:', {
+      hasToken: !!fcmToken,
+      hasUserId: !!userId,
+      hasTenantId: !!tenantId,
+      hasDeviceId: !!deviceId,
+    });
+    return false;
+  }
+
+  try {
+    const registrationData = {
+      fcmToken,
+      userId,
+      tenantId,
+      deviceId,
+      platform,
+    };
+
+    console.log('Registering FCM token with backend:', {
+      ...registrationData,
+      fcmToken: fcmToken.substring(0, 20) + '...', // Log partial token for debugging
+    });
+
+    const response = await registerToken(registrationData);
+    
+    if (response?.status === 200 || response?.data?.status === 'success') {
+      console.log('FCM token registered successfully');
+      return true;
+    } else {
+      console.error('FCM token registration failed:', response?.data?.message || 'Unknown error');
+      return false;
+    }
+  } catch (error) {
+    console.error('Error registering FCM token with backend:', error);
+    return false;
+  }
+};
+
+const getFcmToken = async (userData = null) => {
   let token = null;
   await checkApplicationNotificationsPermission();
   await registerAppWithFcm();
   try {
     token = await messaging().getToken();
     console.log('FCM token=========>', token);
-    // Store token in AsyncStorage for future API integration
+    console.log('FCM Token (for API):', token);
+    
+    // Store token in AsyncStorage
     if (token) {
       await AsyncStorage.setItem('fcmToken', token);
+      console.log('FCM token stored in AsyncStorage');
+      
+      // Register token with backend if user data is provided
+      if (userData) {
+        const userId = userData.userId;
+        const tenantId = userData.tenantId;
+        const deviceId = await getOrCreateDeviceId();
+        const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+        
+        if (userId && tenantId && deviceId) {
+          // Register token asynchronously (don't block token retrieval)
+          registerFcmTokenWithBackend(token, userId, tenantId, deviceId, platform)
+            .then(success => {
+              if (success) {
+                console.log('FCM token registration completed successfully');
+              } else {
+                console.warn('FCM token registration failed, but token is still available');
+              }
+            })
+            .catch(error => {
+              console.error('FCM token registration error:', error);
+            });
+        } else {
+          console.warn('User data incomplete, skipping FCM token registration:', {
+            hasUserId: !!userId,
+            hasTenantId: !!tenantId,
+            hasDeviceId: !!deviceId,
+          });
+        }
+      } else {
+        console.log('User data not provided, FCM token will be registered later');
+      }
+    } else {
+      console.log('No FCM token received');
     }
   } catch (error) {
     console.log('Error getting FCM token', error);
+    console.error('FCM Token Error Details:', error.message);
     token = 'DeviceToken';
   }
   return token;
@@ -50,23 +162,36 @@ const checkApplicationNotificationsPermission = async () => {
 };
 
 const registerAppWithFcm = async () => {
-  // isDeviceRegisteredForRemoteMessages is iOS-only
+  // Register device for remote messages (iOS-only)
   if (Platform.OS === 'ios') {
     try {
-      const isRegistered = await messaging().isDeviceRegisteredForRemoteMessages();
-      console.log('Is device registered for remote messages', isRegistered);
-      if (!isRegistered) {
-        await messaging()
-          .registerDeviceForRemoteMessages()
-          .then(result => {
-            console.log('Device registered for remote messages', result);
-          })
-          .catch(error => {
-            console.log('Error registering device for remote messages', error);
-          });
-      }
+      await messaging()
+        .registerDeviceForRemoteMessages()
+        .then(result => {
+          console.log('Device registered for remote messages', result);
+        })
+        .catch(error => {
+          // Handle specific error about missing aps-environment entitlement
+          if (error?.message?.includes('aps-environment') || error?.code === 'messaging/unknown') {
+            console.warn(
+              'Push notifications not configured: Missing "aps-environment" entitlement. ' +
+              'Please enable Push Notifications capability in Xcode under Signing & Capabilities.'
+            );
+          } else {
+            console.log('Error registering device for remote messages:', error.message || error);
+          }
+          // Don't throw - allow app to continue without push notifications
+        });
     } catch (error) {
-      console.log('Error checking/registering device for remote messages', error);
+      // Handle errors gracefully - app can function without push notifications
+      if (error?.message?.includes('aps-environment') || error?.code === 'messaging/unknown') {
+        console.warn(
+          'Push notifications not configured: Missing "aps-environment" entitlement. ' +
+          'Please enable Push Notifications capability in Xcode under Signing & Capabilities.'
+        );
+      } else {
+        console.log('Error registering device for remote messages:', error.message || error);
+      }
     }
   } else {
     // Android doesn't need explicit registration
@@ -75,45 +200,76 @@ const registerAppWithFcm = async () => {
 };
 
 const unRegisterAppWithFcm = async () => {
-  // isDeviceRegisteredForRemoteMessages is iOS-only
+  // Unregister device for remote messages (iOS-only)
   if (Platform.OS === 'ios') {
     try {
-      const isRegistered = await messaging().isDeviceRegisteredForRemoteMessages();
-      if (isRegistered) {
-        await messaging()
-          .unregisterDeviceForRemoteMessages()
-          .then(result => {
-            console.log('Device unregistered for remote messages', result);
-          })
-          .catch(error => {
-            console.log('Error unregistering device for remote messages', error);
-          });
-      }
+      await messaging()
+        .unregisterDeviceForRemoteMessages()
+        .then(result => {
+          console.log('Device unregistered for remote messages', result);
+        })
+        .catch(error => {
+          // Silently handle error - device may not be registered
+          console.log('Error unregistering device for remote messages', error.message || error);
+        });
     } catch (error) {
-      console.log('Error checking/unregistering device for remote messages', error);
+      // Silently handle error - device may not be registered
+      console.log('Error unregistering device for remote messages', error.message || error);
     }
   }
   
   // Delete token on both platforms
+  // Note: This may fail if Firebase isn't fully initialized or device isn't registered
+  // It's safe to ignore this error during logout
   try {
     await messaging().deleteToken();
     console.log('FCM token deleted');
+    // Also remove from AsyncStorage
+    await AsyncStorage.removeItem('fcmToken');
   } catch (error) {
-    console.log('Error deleting FCM token', error);
+    // Silently handle error - token deletion is not critical during logout
+    // The token will be invalidated when user logs back in and gets a new token
+    console.log('Error deleting FCM token (non-critical):', error.message || error);
+    // Still try to remove from AsyncStorage even if Firebase deletion fails
+    try {
+      await AsyncStorage.removeItem('fcmToken');
+    } catch (storageError) {
+      // Ignore storage errors
+    }
   }
 };
 
 const registerListenerWithFcm = (navigationRef) => {
   const unsubscribe = messaging().onMessage(async remoteMessage => {
-    if (
-      remoteMessage?.notification?.title &&
-      remoteMessage?.notification?.body
-    ) {
+    console.log('Foreground message received', remoteMessage);
+    
+    // Handle new payload structure: { from, messageId, notification: { title, body } }
+    const notificationTitle = remoteMessage?.notification?.title;
+    const notificationBody = remoteMessage?.notification?.body;
+    const messageId = remoteMessage?.messageId;
+    const from = remoteMessage?.from;
+    
+    if (notificationTitle && notificationBody) {
+      // Display notification
       onDisplayNotificaiton(
-        remoteMessage?.notification?.title,
-        remoteMessage?.notification?.body,
+        notificationTitle,
+        notificationBody,
         remoteMessage?.data,
       );
+
+      // Increment unread count and add notification to context
+      if (notificationContextMethods) {
+        notificationContextMethods.incrementUnreadCount();
+        notificationContextMethods.addNotification({
+          messageId: messageId || Date.now().toString(),
+          from: from,
+          title: notificationTitle,
+          body: notificationBody,
+          read: false,
+          timestamp: new Date().toISOString(),
+          data: remoteMessage.data || {},
+        });
+      }
     }
   });
 
@@ -221,4 +377,5 @@ export {
   registerAppWithFcm,
   unRegisterAppWithFcm,
   registerListenerWithFcm,
+  setNotificationContextMethods,
 };

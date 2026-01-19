@@ -1,11 +1,15 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { Alert } from 'react-native';
 import {
   fetchPersonalDetail,
   fetchProfessionalDetail,
   fetchSubscriptionDetail,
 } from '../api/application.api';
 import { fetchCategoryByCategoryId } from '../api/category.api';
+import {
+  getPersonalDetailFromCrmCreateRequest,
+  getProfessionalDetailFromCrmCreateRequest,
+  getSubscriptionDetailFromCrmCreateRequest,
+} from '../api/profile.api';
 
 const ApplicationContext = createContext();
 
@@ -17,6 +21,7 @@ export const ApplicationProvider = ({ children }) => {
   const [currentStep, setCurrentStepState] = useState(1);
   const [categoryData, setCategoryData] = useState(null);
   const [categoryLoading, setCategoryLoading] = useState(false);
+  const [isCrmUser, setIsCrmUser] = useState(false);
 
   // Simple setter without localStorage persistence
   const setCurrentStep = stepUpdater => {
@@ -25,58 +30,151 @@ export const ApplicationProvider = ({ children }) => {
 
   const getPersonalDetail = () => {
     setLoading(true);
-    fetchPersonalDetail()
+
+    // First Priority: Try CRM API
+    getPersonalDetailFromCrmCreateRequest()
       .then(res => {
-        console.log('res==========>', res);
-        if (res.status === 200) {
+        console.log('CRM Personal Detail response===============>', res);
+        if (res?.status === 200 && res?.data?.data) {
+          // CRM data exists, use it exclusively
+          setPersonalDetail(res.data.data);
+          setIsCrmUser(true);
+          setLoading(false);
+          return Promise.resolve(); // Prevent fallback execution
+        } else {
+          // CRM API failed or returned empty, fallback to portal API
+          return fetchPersonalDetail();
+        }
+      })
+      .then(res => {
+        // This will only execute if CRM API failed and portal API was called
+        if (res && res?.status === 200) {
           setPersonalDetail(res?.data?.data);
+          setIsCrmUser(false);
           setLoading(false);
-        } else {
+        } else if (res) {
           setLoading(false);
-          Alert.alert('Error', res.data.message ?? 'Unable to get personal detail');
         }
       })
       .catch(() => {
-        setLoading(false);
-        Alert.alert('Error', 'Something went wrong');
+        // If CRM API throws error, try portal API as fallback
+        fetchPersonalDetail()
+          .then(res => {
+            if (res?.status === 200) {
+              setPersonalDetail(res?.data?.data);
+              setIsCrmUser(false);
+            }
+            setLoading(false);
+          })
+          .catch(() => {
+            setLoading(false);
+          });
       });
   };
 
-  const getProfessionalDetail = () => {
-    if (!personalDetail?.applicationId) return;
+  const getProfessionalDetail = (applicationId) => {
     setLoading(true);
-    fetchProfessionalDetail(personalDetail?.applicationId)
+
+    // First Priority: Try CRM API (doesn't require applicationId)
+    getProfessionalDetailFromCrmCreateRequest()
       .then(res => {
-        if (res.status === 200) {
+        if (res?.status === 200 && res?.data?.data) {
+          // CRM data exists, use it exclusively
+          setProfessionalDetail(res.data.data);
+          setIsCrmUser(true);
+          setLoading(false);
+          return Promise.resolve(); // Prevent fallback execution
+        } else {
+          // CRM API failed or returned empty, fallback to portal API
+          const appId = applicationId || personalDetail?.applicationId;
+          if (!appId) {
+            setLoading(false);
+            return Promise.resolve();
+          }
+          return fetchProfessionalDetail(appId);
+        }
+      })
+      .then(res => {
+        // This will only execute if CRM API failed and portal API was called
+        if (res && res?.status === 200) {
           setProfessionalDetail(res?.data?.data);
+          setIsCrmUser(false);
           setLoading(false);
-        } else {
+        } else if (res) {
           setLoading(false);
-          Alert.alert('Error', res.data.message ?? 'Unable to get professional detail');
         }
       })
       .catch(() => {
-        setLoading(false);
-        Alert.alert('Error', 'Something went wrong');
+        // If CRM API throws error, try portal API as fallback
+        const appId = applicationId || personalDetail?.applicationId;
+        if (!appId) {
+          setLoading(false);
+          return;
+        }
+        fetchProfessionalDetail(appId)
+          .then(res => {
+            if (res?.status === 200) {
+              setProfessionalDetail(res?.data?.data);
+              setIsCrmUser(false);
+            }
+            setLoading(false);
+          })
+          .catch(() => {
+            setLoading(false);
+          });
       });
   };
 
-  const getSubscriptionDetail = () => {
-    if (!personalDetail?.applicationId) return;
+  const getSubscriptionDetail = (applicationId) => {
     setLoading(true);
-    fetchSubscriptionDetail(personalDetail?.applicationId)
+
+    // First Priority: Try CRM API (doesn't require applicationId)
+    getSubscriptionDetailFromCrmCreateRequest()
       .then(res => {
-        if (res.status === 200) {
-          setSubscriptionDetail(res?.data?.data);
+        if (res?.status === 200 && res?.data?.data) {
+          // CRM data exists, use it exclusively
+          setSubscriptionDetail(res.data.data);
+          setIsCrmUser(true);
           setLoading(false);
+          return Promise.resolve(); // Prevent fallback execution
         } else {
+          // CRM API failed or returned empty, fallback to portal API
+          const appId = applicationId || personalDetail?.applicationId;
+          if (!appId) {
+            setLoading(false);
+            return Promise.resolve();
+          }
+          return fetchSubscriptionDetail(appId);
+        }
+      })
+      .then(res => {
+        // This will only execute if CRM API failed and portal API was called
+        if (res && res?.status === 200) {
+          setSubscriptionDetail(res?.data?.data);
+          setIsCrmUser(false);
           setLoading(false);
-          Alert.alert('Error', res.data.message ?? 'Unable to get subscription detail');
+        } else if (res) {
+          setLoading(false);
         }
       })
       .catch(() => {
-        setLoading(false);
-        Alert.alert('Error', 'Something went wrong');
+        // If CRM API throws error, try portal API as fallback
+        const appId = applicationId || personalDetail?.applicationId;
+        if (!appId) {
+          setLoading(false);
+          return;
+        }
+        fetchSubscriptionDetail(appId)
+          .then(res => {
+            if (res?.status === 200) {
+              setSubscriptionDetail(res?.data?.data);
+              setIsCrmUser(false);
+            }
+            setLoading(false);
+          })
+          .catch(() => {
+            setLoading(false);
+          });
       });
   };
 
@@ -138,14 +236,29 @@ export const ApplicationProvider = ({ children }) => {
       });
   }, []);
 
-  // Cascade fetch when we have an applicationId
+  // Cascade fetch based on user type
   useEffect(() => {
-    if (personalDetail?.applicationId) {
-      getProfessionalDetail();
-      getSubscriptionDetail();
+    // For CRM users, professional and subscription details don't require applicationId
+    // For portal users, we need applicationId from personalDetail
+    if (isCrmUser) {
+      // CRM user: fetch professional and subscription details without applicationId
+      if (!professionalDetail) {
+        getProfessionalDetail();
+      }
+      if (!subscriptionDetail) {
+        getSubscriptionDetail();
+      }
+    } else if (personalDetail?.applicationId) {
+      // Portal user: fetch with applicationId
+      if (!professionalDetail) {
+        getProfessionalDetail(personalDetail.applicationId);
+      }
+      if (!subscriptionDetail) {
+        getSubscriptionDetail(personalDetail.applicationId);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personalDetail?.applicationId]);
+  }, [personalDetail?.applicationId, isCrmUser]);
 
   // Initialize: load personal detail
   useEffect(() => {
@@ -167,6 +280,18 @@ export const ApplicationProvider = ({ children }) => {
     }
   }, [personalDetail, professionalDetail, subscriptionDetail]);
 
+  // Helper function to check if user has CRM data
+  const isCrmUserCheck = () => {
+    return (
+      isCrmUser ||
+      Boolean(
+        (personalDetail && !personalDetail?.applicationId) ||
+          (professionalDetail && !professionalDetail?.applicationId) ||
+          (subscriptionDetail && !subscriptionDetail?.applicationId),
+      )
+    );
+  };
+
   const value = useMemo(() => ({
     loading,
     personalDetail,
@@ -180,6 +305,7 @@ export const ApplicationProvider = ({ children }) => {
     getProfessionalDetail,
     getSubscriptionDetail,
     getCategoryData,
+    isCrmUser: isCrmUserCheck(),
   }), [
     loading,
     personalDetail,
@@ -189,6 +315,7 @@ export const ApplicationProvider = ({ children }) => {
     categoryData,
     categoryLoading,
     getCategoryData,
+    isCrmUser,
   ]);
 
   return (
