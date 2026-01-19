@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, TouchableOpacity } from 'react-native';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
-import { Wrapper } from '../../common/wrapper';
-import { Colors, commonStyles, hp } from '../../utils/Styles';
+import { Colors, hp } from '../../utils/Styles';
 import { Button } from '../../common/button';
 import SubscriptionPaymentModal from './components/SubscriptionPaymentModal';
 import { useApplication } from '../../contexts/applicationContext';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useLookup } from '../../contexts/lookupContext';
 import ScreenHeader from '../../common/screenHeader';
 import {
-  fetchPersonalDetail,
-  fetchProfessionalDetail,
-  fetchSubscriptionDetail,
   createPersonalDetailRequest,
   updatePersonalDetailRequest,
   createProfessionalDetailRequest,
@@ -22,7 +17,6 @@ import {
   createSubscriptionDetailRequest,
   updateSubscriptionDetailRequest,
 } from '../../api/application.api';
-import { fetchCategoryByCategoryId } from '../../api/category.api';
 
 const steps = [
   { number: 1, title: 'Personal' },
@@ -59,20 +53,25 @@ const initialFormData = {
 };
 
 const Application = () => {
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const {
+    categoryData,
+    getCategoryData,
+    personalDetail,
+    professionalDetail,
+    subscriptionDetail,
+    getPersonalDetail,
+    getProfessionalDetail,
+    getSubscriptionDetail,
+  } = useApplication();
+  const { categoryLookups } = useLookup();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [shouldShowModal, setShouldShowModal] = useState(false);
   const [formData, setFormData] = useState(initialFormData);
   const [showValidation, setShowValidation] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [stepLoading, setStepLoading] = useState(false);
-  const [personalDetail, setPersonalDetail] = useState(null);
-  const [professionalDetail, setProfessionalDetail] = useState(null);
-  const [subscriptionDetail, setSubscriptionDetail] = useState(null);
-  const [categoryData, setCategoryData] = useState(null);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
 
   // Keyboard event listeners
@@ -143,6 +142,34 @@ const Application = () => {
   const handlePrevious = () => {
     const prevStep = Math.max(currentStep - 1, 1);
     setCurrentStep(prevStep);
+  };
+
+  const handleStepClick = (stepNumber) => {
+    // Allow navigation to:
+    // 1. Already completed steps (can go back)
+    // 2. Current step (no change)
+    // 3. Next step if current step is validated
+    if (stepNumber === currentStep) {
+      return; // Already on this step
+    }
+    
+    if (stepNumber < currentStep) {
+      // Going back to a previous step - always allowed
+      setCurrentStep(stepNumber);
+      return;
+    }
+    
+    if (stepNumber === currentStep + 1) {
+      // Going to next step - validate current step first
+      handleNext();
+      return;
+    }
+    
+    // Cannot skip steps ahead
+    if (stepNumber > currentStep + 1) {
+      Alert.alert('Warning', 'Please complete the current step before proceeding');
+      return;
+    }
   };
 
   const handleFormDataChange = (stepName, data) => {
@@ -281,33 +308,11 @@ const Application = () => {
           return false;
         }
         
-        // Required for new/graduate members
-        // if (memberStatus === 'new' || memberStatus === 'graduate') {
-        //   if (!incomeProtectionScheme) {
-        //     console.log('❌ Validation failed: incomeProtectionScheme missing for new/graduate');
-        //     return false;
-        //   }
-        //   // if (!inmoRewards) {
-        //   //   console.log('❌ Validation failed: inmoRewards missing for new/graduate');
-        //   //   return false;
-        //   // }
-        // }
-        
-        console.log('✅ Step 3 validation passed!');
+        break;
         break;
       }
     }
     return true;
-  };
-
-  const handleSubmit = () => {
-    setShowValidation(true);
-    if (validateCurrentStep()) {
-      setIsSubmitted(true);
-      setIsModalVisible(true);
-      // Submit formData to backend here
-      // Alert.alert('Form submitted!', JSON.stringify(formData, null, 2));
-    }
   };
 
   const handleModalClose = () => {
@@ -338,38 +343,11 @@ const Application = () => {
     Alert.alert('Payment Failed', message || 'Please try again.');
   };
 
-  // Load from API on mount
+  // Initialize: load personal detail from context (matching web version)
   useEffect(() => {
-    const loadFromApi = async () => {
-      setLoading(true);
-      try {
-        const res = await fetchPersonalDetail();
-        if (res?.status === 200) {
-          setPersonalDetail(res?.data?.data);
-        }
-      } catch { }
-      setLoading(false);
-    };
-    loadFromApi();
+    getPersonalDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // When we have applicationId, fetch other details
-  useEffect(() => {
-    const loadMore = async () => {
-      if (!personalDetail?.applicationId) return;
-      setLoading(true);
-      try {
-        const [profRes, subRes] = await Promise.all([
-          fetchProfessionalDetail(personalDetail.applicationId),
-          fetchSubscriptionDetail(personalDetail.applicationId),
-        ]);
-        if (profRes?.status === 200) setProfessionalDetail(profRes?.data?.data);
-        if (subRes?.status === 200) setSubscriptionDetail(subRes?.data?.data);
-      } catch { }
-      setLoading(false);
-    };
-    loadMore();
-  }, [personalDetail?.applicationId]);
 
   // Hydrate form from fetched details
   useEffect(() => {
@@ -456,15 +434,7 @@ const Application = () => {
 
       // Fetch category data when membershipCategory is available (matching web version)
       if (membershipCategory) {
-        fetchCategoryByCategoryId(membershipCategory)
-          .then(res => {
-            const payload = res?.data?.data || res?.data;
-            setCategoryData(payload || null);
-          })
-          .catch(error => {
-            console.error('Failed to fetch category data:', error);
-            setCategoryData(null);
-          });
+        getCategoryData(membershipCategory, categoryLookups || []);
       }
     }
   }, [professionalDetail, professionalDetail?.professionalDetails?.membershipCategory]);
@@ -557,7 +527,7 @@ const Application = () => {
     createPersonalDetailRequest(personalInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
-        setPersonalDetail(res?.data?.data);
+        getPersonalDetail();
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add personal detail');
@@ -603,7 +573,7 @@ const Application = () => {
       setStepLoading(false);
       console.log('🔄 Updating personal detail with:', res);
       if (res?.status === 200) {
-        setPersonalDetail(res?.data?.data);
+        getPersonalDetail();
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update personal detail');
@@ -713,7 +683,7 @@ const Application = () => {
     createProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
-        setProfessionalDetail(res?.data?.data);
+        getProfessionalDetail();
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to add professional detail');
@@ -756,7 +726,7 @@ const Application = () => {
     updateProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
-        setProfessionalDetail(res?.data?.data);
+        getProfessionalDetail();
         setCurrentStep(prev => Math.min(prev + 1, steps.length));
       } else {
         Alert.alert('Error', res?.data?.message || 'Unable to update professional detail');
@@ -801,7 +771,7 @@ const Application = () => {
       setStepLoading(false);
       if (res?.status === 200) {
         console.log('✅ Subscription detail created successfully');
-        setSubscriptionDetail(res?.data?.data);
+        getSubscriptionDetail();
         
         // Check if undergraduate student - they don't need payment (matching web version)
         if (categoryData?.name === 'Undergraduate Student' ||
@@ -860,7 +830,7 @@ const Application = () => {
       setStepLoading(false);
       if (res?.status === 200) {
         console.log('✅ Subscription detail updated successfully');
-        setSubscriptionDetail(res?.data?.data);
+        getSubscriptionDetail();
         
         // Check if undergraduate student - they don't need payment (matching web version)
         if (categoryData?.name === 'Undergraduate Student' ||
@@ -926,9 +896,6 @@ const Application = () => {
     }
   };
 
-  // Debug log for modal state (matching web version)
-  console.log('💳 Payment modal visible:', isModalVisible);
-
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView 
@@ -940,67 +907,81 @@ const Application = () => {
         <ScreenHeader title="Application" />
 
         {/* Stepper */}
-        <View style={[styles.stepperRow, { width: '100%',  paddingHorizontal: 20 }]}>
-          {steps.map((step, idx) => (
-            <React.Fragment key={step.number}>
-              <View style={styles.stepperItemContainer}>
-                <View
-                  style={[
-                    styles.stepCircle,
-                    {
-                      width: Math.max(40, width * 0.1), 
-                      height: Math.max(40, width * 0.1), 
-                      borderRadius: Math.max(20, width * 0.05),
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.08,
-                      shadowRadius: 4,
-                      elevation: 3,
-                      borderWidth: currentStep === step.number ? 2 : 0,
-                      borderColor: currentStep === step.number ? Colors.primary : 'transparent',
-                      backgroundColor: currentStep === step.number
-                        ? Colors.primary
-                        : currentStep > step.number
-                          ? Colors.primary
-                          : '#E5E5E5',
-                    },
-                  ]}
+        <View style={[styles.stepperRow, { paddingHorizontal: 20, marginRight: 10}]}>
+          {steps.map((step, idx) => {
+            const isCompleted = currentStep > step.number || (isSubmitted && step.number === 3);
+            const isCurrent = currentStep === step.number;
+            const isClickable = isCompleted || isCurrent || step.number === currentStep + 1;
+            const isDisabled = !isClickable || stepLoading;
+            
+            return (
+              <React.Fragment key={step.number}>
+                <TouchableOpacity
+                  style={styles.stepperItemContainer}
+                  onPress={() => !isDisabled && handleStepClick(step.number)}
+                  disabled={isDisabled}
+                  activeOpacity={isDisabled ? 1 : 0.7}
                 >
+                  <View
+                    style={[
+                      styles.stepCircle,
+                      {
+                        width: Math.max(40, width * 0.1), 
+                        height: Math.max(40, width * 0.1), 
+                        borderRadius: Math.max(20, width * 0.05),
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.08,
+                        shadowRadius: 4,
+                        elevation: 3,
+                        borderWidth: currentStep === step.number ? 2 : 0,
+                        borderColor: currentStep === step.number ? Colors.primary : 'transparent',
+                        backgroundColor: currentStep === step.number
+                          ? Colors.primary
+                          : currentStep > step.number
+                            ? Colors.primary
+                            : '#E5E5E5',
+                        opacity: isDisabled ? 0.6 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={{
+                      color: (currentStep === step.number || currentStep > step.number) ? Colors.white : '#999999',
+                      fontWeight: 'bold',
+                      fontSize: Math.max(16, width * 0.04),
+                    }}>
+                      {(() => {
+                        if (isSubmitted && step.number === 3) {
+                          return '✓';
+                        } else if (currentStep > step.number) {
+                          return '✓';
+                        } else {
+                          return String(step.number);
+                        }
+                      })()}
+                    </Text>
+                  </View>
                   <Text style={{
-                    color: (currentStep === step.number || currentStep > step.number) ? Colors.white : '#999999',
-                    fontWeight: 'bold',
-                    fontSize: Math.max(16, width * 0.04),
+                    fontSize: Math.max(10, width * 0.027),
+                    color: currentStep === step.number ? Colors.textPrimary : Colors.textSecondary,
+                    fontWeight: currentStep === step.number ? '600' : 'normal',
+                    marginTop: 6,
+                    textAlign: 'center',
+                    width: Math.max(70, width * 0.22),
+                    opacity: isDisabled ? 0.6 : 1,
                   }}>
-                    {(() => {
-                      if (isSubmitted && step.number === 3) {
-                        return '✓';
-                      } else if (currentStep > step.number) {
-                        return '✓';
-                      } else {
-                        return String(step.number);
-                      }
-                    })()}
+                    {String(step.title)}
                   </Text>
-                </View>
-                <Text style={{
-                  fontSize: Math.max(10, width * 0.027),
-                  color: currentStep === step.number ? Colors.textPrimary : Colors.textSecondary,
-                  fontWeight: currentStep === step.number ? '600' : 'normal',
-                  marginTop: 6,
-                  textAlign: 'center',
-                  width: Math.max(70, width * 0.22),
-                }}>
-                  {String(step.title)}
-                </Text>
-              </View>
-              {idx < steps.length - 1 && (
-                <View style={[
-                  styles.stepConnector,
-                  { backgroundColor: currentStep > step.number ? Colors.primary : '#E5E5E5', width: Math.max(20, width * 0.08) }
-                ]} />
-              )}
-            </React.Fragment>
-          ))}
+                </TouchableOpacity>
+                {idx < steps.length - 1 && (
+                  <View style={[
+                    styles.stepConnector,
+                    { backgroundColor: currentStep > step.number ? Colors.primary : '#E5E5E5', width: Math.max(20, width * 0.08) }
+                  ]} />
+                )}
+              </React.Fragment>
+            );
+          })}
         </View>
         
         <View style={{ flex: 1 }}>
@@ -1009,7 +990,7 @@ const Application = () => {
             renderItem={() => (
               <>
                 {/* Step Content */}
-                <View style={[ { borderRadius: 16, backgroundColor: Colors.cardBackground, marginHorizontal: 20 }]}>
+                <View style={[ { borderRadius: 16, backgroundColor: Colors.background,paddingHorizontal: 10 }]}>
                   {renderStepContent()}
                 </View>
                 
@@ -1023,7 +1004,7 @@ const Application = () => {
                   }}>
                     <View style={styles.buttonRow}>
                       <Button
-                        title={currentStep === 1 ? "Save Draft" : "Previous"}
+                        title={currentStep === 1 ? "Save Draft" : steps[currentStep - 2]?.title || "Previous"}
                         onPress={handlePrevious}
                         disabled={false}
                         outlined={true}
@@ -1043,7 +1024,7 @@ const Application = () => {
                         }}
                       />
                       <Button
-                        title={currentStep === steps.length ? 'Submit' : 'Next Step'}
+                        title={currentStep === steps.length ? 'Submit Application' : steps[currentStep]?.title || 'Next Step'}
                         onPress={handleNext}
                         primary
                         isloading={stepLoading}
@@ -1056,7 +1037,7 @@ const Application = () => {
                         style={{ 
                           flex: 1, 
                           marginLeft: 8,
-                          backgroundColor: '#4CAF50',
+                          backgroundColor: Colors.primary,
                           borderRadius: 25,
                           height: 56,
                         }}
@@ -1134,9 +1115,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
     marginTop: hp(2),
-    // marginBottom: 24,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+    marginLeft: 10,
+    marginRight: 10,
+    paddingVertical: hp(1),
+    backgroundColor: Colors.cardBackground,
   },
   stepperItemContainer: {
     alignItems: 'center',

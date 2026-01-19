@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { InputField } from '../../common/inputField';
@@ -15,32 +16,165 @@ import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplet
 import { DatePicker } from '../../common/DatePicker';
 import { useLookup } from '../../contexts/lookupContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import PhoneInput from 'react-native-phone-number-input';
+import CountryPicker from 'react-native-country-picker-modal';
 
 const preferredAddresses = ['Home', 'Work', 'Other'];
 const preferredEmails = ['Personal', 'Work'];
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCJYpj8WV5Rzof7O3jGhW9XabD0J4Yqe1o';
 
-// Section Header Component with Icon and Gradient
-const SectionHeader = ({ iconName, title, subtitle, gradientColors }) => {
-  return (
-    <View style={styles.sectionHeaderContainer}>
-      <LinearGradient
-        colors={gradientColors}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.iconGradientBox}
-      >
-        <Ionicons name={iconName} size={24} color="#FFFFFF" />
-      </LinearGradient>
-      <View style={styles.sectionHeaderText}>
-        <Text style={styles.sectionHeader}>{title}</Text>
-        {subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
-      </View>
-    </View>
-  );
+// Country calling code mapping (calling code -> country code cca2)
+const countryCallingCode = {
+  '1': 'US',      // US/Canada (defaults to US)
+  '44': 'GB',     // United Kingdom
+  '353': 'IE',    // Ireland
+  '91': 'IN',     // India
+  '92': 'PK',     // Pakistan
+  '93': 'AF',     // Afghanistan
+  '94': 'LK',     // Sri Lanka
+  '95': 'MM',     // Myanmar
+  '98': 'IR',     // Iran
+  '61': 'AU',     // Australia
+  '86': 'CN',     // China
+  '81': 'JP',     // Japan
+  '82': 'KR',     // South Korea
+  '49': 'DE',     // Germany
+  '33': 'FR',     // France
+  '39': 'IT',     // Italy
+  '34': 'ES',     // Spain
+  '7': 'RU',      // Russia/Kazakhstan
+  '20': 'EG',     // Egypt
+  '27': 'ZA',     // South Africa
+  '30': 'GR',     // Greece
+  '31': 'NL',     // Netherlands
+  '32': 'BE',     // Belgium
+  '36': 'HU',     // Hungary
+  '40': 'RO',     // Romania
+  '41': 'CH',     // Switzerland
+  '43': 'AT',     // Austria
+  '45': 'DK',     // Denmark
+  '46': 'SE',     // Sweden
+  '47': 'NO',     // Norway
+  '48': 'PL',     // Poland
+  '51': 'PE',     // Peru
+  '52': 'MX',     // Mexico
+  '53': 'CU',     // Cuba
+  '54': 'AR',     // Argentina
+  '55': 'BR',     // Brazil
+  '56': 'CL',     // Chile
+  '57': 'CO',     // Colombia
+  '58': 'VE',     // Venezuela
+  '60': 'MY',     // Malaysia
+  '62': 'ID',     // Indonesia
+  '63': 'PH',     // Philippines
+  '64': 'NZ',     // New Zealand
+  '65': 'SG',     // Singapore
+  '66': 'TH',     // Thailand
+  '84': 'VN',     // Vietnam
+  '90': 'TR',     // Turkey
+  '212': 'MA',    // Morocco
+  '213': 'DZ',    // Algeria
+  '216': 'TN',    // Tunisia
+  '218': 'LY',    // Libya
+  '220': 'GM',    // Gambia
+  '221': 'SN',    // Senegal
+  '222': 'MR',    // Mauritania
+  '223': 'ML',    // Mali
+  '224': 'GN',    // Guinea
+  '225': 'CI',    // Côte d'Ivoire
+  '226': 'BF',    // Burkina Faso
+  '227': 'NE',    // Niger
+  '228': 'TG',    // Togo
+  '229': 'BJ',    // Benin
+  '230': 'MU',    // Mauritius
+  '231': 'LR',    // Liberia
+  '232': 'SL',    // Sierra Leone
+  '233': 'GH',    // Ghana
+  '234': 'NG',    // Nigeria
+  '235': 'TD',    // Chad
+  '236': 'CF',    // Central African Republic
+  '237': 'CM',    // Cameroon
+  '238': 'CV',    // Cape Verde
+  '239': 'ST',    // São Tomé and Príncipe
+  '240': 'GQ',    // Equatorial Guinea
+  '241': 'GA',    // Gabon
+  '242': 'CG',    // Republic of the Congo
+  '243': 'CD',    // Democratic Republic of the Congo
+  '244': 'AO',    // Angola
+  '245': 'GW',    // Guinea-Bissau
+  '246': 'IO',    // British Indian Ocean Territory
+  '248': 'SC',    // Seychelles
+  '249': 'SD',    // Sudan
+  '250': 'RW',    // Rwanda
+  '251': 'ET',    // Ethiopia
+  '252': 'SO',    // Somalia
+  '253': 'DJ',    // Djibouti
+  '254': 'KE',    // Kenya
+  '255': 'TZ',    // Tanzania
+  '256': 'UG',    // Uganda
+  '257': 'BI',    // Burundi
+  '258': 'MZ',    // Mozambique
+  '260': 'ZM',    // Zambia
+  '261': 'MG',    // Madagascar
+  '262': 'RE',    // Réunion / Mayotte
+  '263': 'ZW',    // Zimbabwe
+  '264': 'NA',    // Namibia
+  '265': 'MW',    // Malawi
+  '266': 'LS',    // Lesotho
+  '267': 'BW',    // Botswana
+  '268': 'SZ',    // Eswatini
+  '269': 'KM',    // Comoros
+  '290': 'SH',    // Saint Helena
+  '291': 'ER',    // Eritrea
+  '297': 'AW',    // Aruba
+  '298': 'FO',    // Faroe Islands
+  '299': 'GL',    // Greenland
+  '350': 'GI',    // Gibraltar
+  '351': 'PT',    // Portugal
+  '352': 'LU',    // Luxembourg
+  '353': 'IE',    // Ireland (duplicate for clarity)
+  '354': 'IS',    // Iceland
+  '356': 'MT',    // Malta
+  '357': 'CY',    // Cyprus
+  '358': 'FI',    // Finland
+  '359': 'BG',    // Bulgaria
+  '370': 'LT',    // Lithuania
+  '371': 'LV',    // Latvia
+  '372': 'EE',    // Estonia
+  '373': 'MD',    // Moldova
+  '374': 'AM',    // Armenia
+  '375': 'BY',    // Belarus
+  '376': 'AD',    // Andorra
+  '377': 'MC',    // Monaco
+  '378': 'SM',    // San Marino
+  '380': 'UA',    // Ukraine
+  '381': 'RS',    // Serbia
+  '382': 'ME',    // Montenegro
+  '383': 'XK',    // Kosovo
+  '385': 'HR',    // Croatia
+  '386': 'SI',    // Slovenia
+  '387': 'BA',    // Bosnia and Herzegovina
+  '389': 'MK',    // North Macedonia
+  '420': 'CZ',    // Czech Republic
+  '421': 'SK',    // Slovakia
+  '423': 'LI',    // Liechtenstein
 };
+
+// Allowed country codes (default to include Ireland and common countries)
+const allowedCountryCodes = [
+  'IE', 'US', 'GB', 'CA', 'AU', 'NZ', 'IN', 'PK', 'CN', 'JP', 'KR',
+  'DE', 'FR', 'IT', 'ES', 'NL', 'BE', 'CH', 'AT', 'SE', 'NO', 'DK',
+  'FI', 'PL', 'PT', 'GR', 'IE', 'CZ', 'HU', 'RO', 'BG', 'HR', 'SI',
+  'MX', 'BR', 'AR', 'CL', 'CO', 'PE', 'VE', 'MY', 'SG', 'TH', 'PH',
+  'ID', 'VN', 'TR', 'EG', 'ZA', 'MA', 'NG', 'KE', 'GH', 'TZ', 'UG',
+];
+
+// Default country (Ireland)
+const DEFAULT_COUNTRY = {
+  cca2: 'IE',
+  callingCode: '353',
+};
+
 
 // Normalize API values to match picker options (handle case differences)
 const normalizePreferredAddress = (value) => {
@@ -72,7 +206,7 @@ const PersonalInformation = ({
   personalDetail,
 }) => {
   const ref = useRef();
-  const phoneInput = useRef(null);
+  const textInputRef = useRef(null);
   // Get lookups from context (matching web version - context handles all fetching centrally)
   const {
     genderLookups = [],
@@ -80,123 +214,116 @@ const PersonalInformation = ({
     countryLookups = [],
   } = useLookup() || {};
   
-  const [phoneValue, setPhoneValue] = useState('');
-  const [phoneNationalNumber, setPhoneNationalNumber] = useState('');
-  const [phoneCountryCode, setPhoneCountryCode] = useState('IE');
-  const [phoneKey, setPhoneKey] = useState(0);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY);
 
-  // Function to extract country code from phone number
-  const getCountryCodeFromPhone = (phoneNumber) => {
-    if (!phoneNumber || !phoneNumber.startsWith('+')) {
-      return 'IE'; // Default to Ireland
+  // Detect country code from phone number (matching input.js logic)
+  const detectCountryCodeFromPhone = (text) => {
+    if (!text) return { callingCode: null, phoneNumber: null, cca2: null };
+
+    const cleaned = text.trim();
+
+    if (!cleaned.startsWith('+')) {
+      return { callingCode: null, phoneNumber: null, cca2: null };
     }
-    
-    // Common country codes mapping
-    const countryCodesMap = {
-      '+1': 'US',
-      '+44': 'GB',
-      '+353': 'IE',
-      '+91': 'IN',
-      '+92': 'PK',
-      '+93': 'AF',
-      '+94': 'LK',
-      '+95': 'MM',
-      '+98': 'IR',
-      '+61': 'AU',
-      '+86': 'CN',
-      '+81': 'JP',
-      '+82': 'KR',
-      '+49': 'DE',
-      '+33': 'FR',
-      '+39': 'IT',
-      '+34': 'ES',
-      '+7': 'RU',
-    };
-    
-    // Try to match country code (1-4 digits after +)
-    for (let i = 4; i >= 1; i--) {
-      const code = phoneNumber.substring(0, i + 1);
-      if (countryCodesMap[code]) {
-        return countryCodesMap[code];
+
+    const digitsOnly = cleaned.replace(/\D/g, '');
+
+    const sortedCallingCodes = Object.keys(countryCallingCode).sort(
+      (a, b) => b.length - a.length,
+    );
+
+    for (const callingCode of sortedCallingCodes) {
+      if (digitsOnly.startsWith(callingCode)) {
+        const cca2 = countryCallingCode[callingCode];
+
+        if (allowedCountryCodes.includes(cca2)) {
+          const phoneNumber = digitsOnly.substring(callingCode.length);
+          if (callingCode === '1' && phoneNumber.length === 10) {
+            return { callingCode, phoneNumber, cca2 };
+          }
+          else if (callingCode !== '1' && phoneNumber.length >= 6 && phoneNumber.length <= 15) {
+            return { callingCode, phoneNumber, cca2 };
+          }
+        }
       }
     }
-    
-    return 'IE'; // Default to Ireland if no match
+
+    return { callingCode: null, phoneNumber: null, cca2: null };
   };
 
-  // Function to extract national number from full international phone number
-  const extractNationalNumber = (fullNumber) => {
-    if (!fullNumber) {
-      return '';
+  // Handle country selection
+  const handleCountrySelect = (country) => {
+    setSelectedCountry({
+      cca2: country.cca2,
+      callingCode: country.callingCode[0] || country.callingCode,
+    });
+  };
+
+  // Handle phone number input change
+  const handlePhoneNumberChange = (text) => {
+    const cleanedText = text.replace(/[^0-9]/g, '');
+    setPhoneNumber(cleanedText);
+    
+    // Update formData with full formatted number
+    if (cleanedText) {
+      const fullNumber = `+${selectedCountry.callingCode}${cleanedText}`;
+      onFormDataChange({ ...formData, mobileNo: fullNumber });
+    } else {
+      onFormDataChange({ ...formData, mobileNo: '' });
     }
-    
-    // If it doesn't start with +, assume it's already a national number
-    if (!fullNumber.startsWith('+')) {
-      return fullNumber;
-    }
-    
-    // Use the same country code mapping as getCountryCodeFromPhone
-    // to determine which prefix to remove
-    const countryCodesMap = {
-      '+1': 'US',
-      '+44': 'GB',
-      '+353': 'IE',
-      '+91': 'IN',
-      '+92': 'PK',
-      '+93': 'AF',
-      '+94': 'LK',
-      '+95': 'MM',
-      '+98': 'IR',
-      '+61': 'AU',
-      '+86': 'CN',
-      '+81': 'JP',
-      '+82': 'KR',
-      '+49': 'DE',
-      '+33': 'FR',
-      '+39': 'IT',
-      '+34': 'ES',
-      '+7': 'RU',
-    };
-    
-    // Try to match country code (1-4 digits after +)
-    // Check longer codes first (e.g., +353 before +3)
-    for (let i = 4; i >= 1; i--) {
-      const code = fullNumber.substring(0, i + 1);
-      if (countryCodesMap[code]) {
-        // Remove the country code prefix (including the +)
-        const nationalNumber = fullNumber.substring(i + 1);
-        return nationalNumber;
+  };
+
+  // Update formData when country changes (only if phone number exists)
+  useEffect(() => {
+    if (phoneNumber && selectedCountry.callingCode) {
+      const fullNumber = `+${selectedCountry.callingCode}${phoneNumber}`;
+      // Only update if it's different to avoid infinite loops
+      if (formData?.mobileNo !== fullNumber) {
+        onFormDataChange({ ...formData, mobileNo: fullNumber });
+      }
+    } else if (!phoneNumber) {
+      // Clear mobileNo when phone number is empty
+      if (formData?.mobileNo) {
+        onFormDataChange({ ...formData, mobileNo: '' });
       }
     }
-    
-    // If no match found, return the number without the + as fallback
-    // This handles edge cases where country code is not in our map
-    return fullNumber.substring(1);
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCountry.callingCode, phoneNumber]);
 
   // Initialize phone value and country code from formData
   useEffect(() => {
-    if (formData?.mobileNo !== phoneValue) {
-      if (formData?.mobileNo) {
-        console.log('📱 Setting phone from API:', formData.mobileNo);
-        setPhoneValue(formData.mobileNo);
-        const detectedCode = getCountryCodeFromPhone(formData.mobileNo);
-        console.log('📱 Detected country code:', detectedCode);
-        setPhoneCountryCode(detectedCode);
-        
-        // Extract national number (without country code) for PhoneInput defaultValue
-        const nationalNumber = extractNationalNumber(formData.mobileNo);
-        console.log('📱 Extracted national number:', nationalNumber);
-        setPhoneNationalNumber(nationalNumber);
-      } else {
-        // Clear phone values when mobileNo is empty
-        setPhoneValue('');
-        setPhoneNationalNumber('');
-        setPhoneCountryCode('IE'); // Reset to default
-      }
+    if (formData?.mobileNo) {
+      console.log('📱 Setting phone from API:', formData.mobileNo);
       
-      // Force re-render by changing key
-      setPhoneKey(prev => prev + 1);
+      // Detect country from phone number
+      const detected = detectCountryCodeFromPhone(formData.mobileNo);
+      
+      if (detected.phoneNumber && detected.cca2 && detected.callingCode) {
+        console.log('📱 Detected country:', detected.cca2, 'calling code:', detected.callingCode);
+        console.log('📱 Extracted national number:', detected.phoneNumber);
+        
+        setSelectedCountry({
+          cca2: detected.cca2,
+          callingCode: detected.callingCode,
+        });
+        setPhoneNumber(detected.phoneNumber);
+      } else {
+        // If detection fails, default to Ireland
+        console.log('📱 Detection failed, defaulting to Ireland');
+        setSelectedCountry(DEFAULT_COUNTRY);
+        // Try to extract number without country code
+        const cleaned = formData.mobileNo.replace(/[^0-9]/g, '');
+        if (cleaned.startsWith('353')) {
+          setPhoneNumber(cleaned.substring(3));
+        } else {
+          setPhoneNumber(cleaned);
+        }
+      }
+    } else {
+      // Clear phone values when mobileNo is empty
+      setPhoneNumber('');
+      setSelectedCountry(DEFAULT_COUNTRY);
     }
   }, [formData?.mobileNo]);
 
@@ -326,15 +453,10 @@ const PersonalInformation = ({
   };
 
   return (
-    <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
+    <View style={{ backgroundColor: Colors.background, paddingBottom: 16, paddingTop: 4 }}>
       {/* Basic Information Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="person-outline"
-          title="Personal Information"
-          subtitle="Please provide your details as they appear on your official documents."
-          gradientColors={['#3B82F6', '#2563EB']}
-        />
+        <Text style={styles.cardTitle}>Personal Information</Text>
 
         {/* Title */}
         <Text style={styles.label}>Title *</Text>
@@ -465,26 +587,25 @@ const PersonalInformation = ({
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Consent</Text>
         <View style={styles.termsRow}>
-          <Text style={styles.termsLabel}>
-            I agree to receive correspondence from INMO
-          </Text>
-          <CustomSwitch
-            value={formData.consent}
-            onValueChange={val =>
-              onFormDataChange({ ...formData, consent: val })
-            }
-          />
+          <View style={styles.termsLabelContainer}>
+            <Text style={styles.termsLabel}>
+              I agree to receive correspondence from INMO
+            </Text>
+          </View>
+          <View style={styles.switchContainer}>
+            <CustomSwitch
+              value={formData.consent}
+              onValueChange={val =>
+                onFormDataChange({ ...formData, consent: val })
+              }
+            />
+          </View>
         </View>
       </View>
 
       {/* Address Information Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="mail-outline"
-          title="Correspondence Details"
-          subtitle="Let us know the best way to send you mail."
-          gradientColors={['#10B981', '#059669']}
-        />
+        <Text style={styles.cardTitle}>Correspondence Details</Text>
         
         
           <View style={styles.halfInput}>
@@ -639,51 +760,54 @@ const PersonalInformation = ({
                 backgroundColor: 'transparent',
               },
               textInput: {
-                height: 52,
+                height: 56,
                 borderWidth: 1.5,
-                borderColor: '#E5E5E5',
-                borderRadius: 12,
-                paddingHorizontal: 16,
-                paddingRight: 48,
+                borderColor: '#E8E8E8',
+                borderRadius: 14,
+                paddingHorizontal: 18,
+                paddingRight: 52,
                 fontSize: 15,
                 color: Colors.textPrimary,
                 backgroundColor: Colors.white,
                 fontWeight: '400',
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.06,
+                shadowRadius: 4,
+                elevation: 2,
               },
               listView: {
                 zIndex: 9999,
                 position: 'absolute',
-                top: 52,
+                top: 58,
                 left: 0,
                 right: 0,
                 backgroundColor: 'white',
-                borderRadius: 12,
-                elevation: 10,
+                borderRadius: 14,
+                elevation: 12,
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                maxHeight: 200,
-                marginTop: 4,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.12,
+                shadowRadius: 12,
+                maxHeight: 220,
+                marginTop: 6,
+                borderWidth: 1,
+                borderColor: '#F0F0F0',
               },
               row: {
-                padding: 15,
+                padding: 16,
                 borderBottomWidth: 1,
-                borderBottomColor: '#f0f0f0',
+                borderBottomColor: '#F5F5F5',
                 backgroundColor: 'white',
               },
               description: {
                 fontSize: 15,
                 color: Colors.textPrimary,
+                fontWeight: '400',
               },
               separator: {
                 height: 1,
-                backgroundColor: '#f0f0f0',
+                backgroundColor: '#F5F5F5',
               },
             }}
             renderRightButton={() => (
@@ -805,60 +929,68 @@ const PersonalInformation = ({
 
       {/* Contact Information Card */}
       <View style={styles.card}>
-        <SectionHeader
-          iconName="call-outline"
-          title="Contact Details"
-          subtitle="Provide your phone numbers and email addresses."
-          gradientColors={['#A855F7', '#9333EA']}
-        />
+        <Text style={styles.cardTitle}>Contact Details</Text>
 
         <View style={styles.halfInput}>
           <Text style={styles.label}>Mobile No *</Text>
-          <PhoneInput
-            key={phoneKey}
-            ref={phoneInput}
-            defaultValue={phoneNationalNumber}
-            defaultCode={phoneCountryCode}
-            layout="first"
-            withDarkTheme={false}
-            countryPickerProps={{
-              withAlphaFilter: true,
-              withCallingCode: true,
-              withEmoji: true,
-              withFlagButton: true,
-            }}
-            onChangeCountry={(country) => {
-              console.log('📱 Country changed to:', country);
-              setPhoneCountryCode(country.cca2);
-            }}
-            onChangeText={(text) => {
-              // This gives just the phone number without country code
-              console.log('📱 Phone number only:', text);
-              setPhoneNationalNumber(text);
-            }}
-            onChangeFormattedText={text => {
-              // This gives the full formatted number with country code
-              console.log('📱 Phone changed to:', text);
-              setPhoneValue(text);
-              onFormDataChange({ ...formData, mobileNo: text });
-            }}
-            containerStyle={[
-              styles.phoneInputContainer,
-              showValidation && !formData.mobileNo && styles.phoneInputError,
-            ]}
-            textContainerStyle={styles.phoneInputTextContainer}
-            textInputStyle={styles.phoneInputText}
-            codeTextStyle={styles.phoneInputCodeText}
-            flagButtonStyle={styles.phoneInputFlagButton}
-            countryPickerButtonStyle={styles.phoneInputCountryPicker}
-            placeholder="345 123 4567"
-            textInputProps={{
-              maxLength: 20,
-              returnKeyType: 'done',
-              keyboardType: 'phone-pad',
-            }}
-            // disableArrowIcon={false}
-          />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 8,
+            }}>
+            <CountryPicker
+              withFilter
+              withFlagButton={false}
+              withCallingCodeButton
+              countryCode={selectedCountry?.cca2}
+              countryCodes={allowedCountryCodes}
+              onSelect={handleCountrySelect}
+              renderFlagButton={props => (
+                <TouchableOpacity
+                  style={[
+                    styles.countryButtonStyle,
+                    showValidation && !formData.mobileNo && styles.phoneInputError,
+                  ]}
+                  onPress={props.onOpen}>
+                  <Text allowFontScaling={false} style={styles.countryBtnTextStyle}>
+                    +{selectedCountry?.callingCode}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={Colors.textPrimary} />
+                </TouchableOpacity>
+              )}
+              theme={{
+                flagSizeButton: 20,
+                fontSize: 15,
+                backgroundColor: Colors.white,
+                onBackgroundTextColor: Colors.textPrimary,
+                flagBorderRadius: 10,
+              }}
+            />
+            <ScrollView keyboardShouldPersistTaps="never" style={{ flex: 1 }}>
+              <InputField
+                TextInputRef={textInputRef}
+                bgStyle={[
+                  styles.PhoneNoStyle,
+                  showValidation && !formData.mobileNo && styles.phoneInputError,
+                ]}
+                textStyle={{
+                  textAlign: 'left',
+                  fontSize: 15,
+                }}
+                keyboardType="phone-pad"
+                maxLength={20}
+                value={phoneNumber}
+                onChange={handlePhoneNumberChange}
+                returnKeyType="done"
+                textContentType="telephoneNumber"
+                autoComplete="tel"
+                placeholder="345 123 4567"
+                placeholderColor={Colors.textSecondary}
+              />
+            </ScrollView>
+          </View>
         </View>
 
         <View style={styles.halfInput}>
@@ -944,76 +1076,45 @@ const PersonalInformation = ({
 };
 
 const styles = StyleSheet.create({
-  sectionHeaderContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-    gap: 12,
-  },
-  iconGradientBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  sectionHeaderText: {
-    flex: 1,
-  },
-  sectionHeader: {
-    color: Colors.textPrimary,
-    fontWeight: 'bold',
-    fontSize: 24,
-    marginBottom: 4,
-    letterSpacing: 0.3,
-  },
-  sectionSubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-  },
   card: {
     backgroundColor: Colors.cardBackground,
-    // marginHorizontal: 20,
     marginBottom: 16,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#F0F0F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardTitle: {
     color: Colors.textPrimary,
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 20,
     marginBottom: 16,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   sectionTitle: {
     color: Colors.textPrimary,
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 18,
     marginTop: 20,
     marginBottom: 12,
-    letterSpacing: 0.2,
+    letterSpacing: 0.15,
   },
   label: {
     color: Colors.textPrimary,
-    fontWeight: '500',
-    fontSize: 14,
-    marginTop: 16,
-    marginBottom: 8,
-    letterSpacing: 0.2,
+    fontWeight: '600',
+    fontSize: 15,
+    marginTop: 12,
+    marginBottom: 6,
+    letterSpacing: 0.1,
+    lineHeight: 20,
   },
   row: {
     flexDirection: 'row',
@@ -1029,10 +1130,10 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   inputField: {
-    marginBottom: 4,
+    marginBottom: 8,
   },
   pickerField: {
-    marginBottom: 4,
+    marginBottom: 8,
   },
   genderContainer: {
     flexDirection: 'row',
@@ -1043,19 +1144,19 @@ const styles = StyleSheet.create({
   genderButton: {
     flex: 1,
     minWidth: '45%',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#E5E5E5',
+    borderColor: '#E8E8E8',
     backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   genderButtonActive: {
     backgroundColor: Colors.primary,
@@ -1081,17 +1182,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingVertical: 0,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    gap: 16,
   },
   termsLabelContainer: {
     flex: 1,
-    marginRight: 12,
+    flexShrink: 1,
+    paddingRight: 8,
   },
   termsLabel: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textPrimary,
     fontWeight: '400',
-    lineHeight: 20,
+    lineHeight: 22,
+    flexWrap: 'wrap',
+  },
+  switchContainer: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 2,
+    flexShrink: 0,
   },
   termsLabelBold: {
     fontSize: 14,
@@ -1110,77 +1221,63 @@ const styles = StyleSheet.create({
   autocompleteContainer: {
     position: 'relative',
     zIndex: 9999,
-    marginBottom: 4,
+    marginBottom: 8,
     elevation: 10,
   },
   addressIconContainer: {
     position: 'absolute',
-    right: 16,
-    top: 16,
+    right: 20,
+    top: 20,
     zIndex: 1,
   },
-  phoneInputContainer: {
-    width: '100%',
-    height: 52,
+  countryButtonStyle: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderColor: '#E8E8E8',
     borderWidth: 1.5,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
+    borderRadius: 14,
+    minWidth: 90,
+    height: 56,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     backgroundColor: Colors.white,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
     elevation: 1,
-    marginTop: 4,
-    paddingHorizontal: 0,
-    flexDirection: 'row',
+  },
+  PhoneNoStyle: {
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderColor: '#E8E8E8',
+    borderWidth: 1.5,
+    borderRadius: 14,
+    height: 56,
+    paddingVertical: 4,
+    backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  countryBtnTextStyle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    marginRight: 6,
   },
   phoneInputError: {
     borderColor: Colors.red,
-    backgroundColor: '#FFF5F5',
-  },
-  phoneInputTextContainer: {
-    backgroundColor: Colors.white,
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    paddingVertical: 0,
-    height: 52,
-    flex: 1,
-  },
-  phoneInputText: {
-    fontSize: 15,
-    color: Colors.textPrimary,
-    fontWeight: '400',
-    height: 52,
-    paddingTop: 0,
-    paddingBottom: 0,
-  },
-  phoneInputCodeText: {
-    fontSize: 15,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-    marginLeft: 4,
-    marginRight: 4,
-  },
-  phoneInputFlagButton: {
-    minWidth: 50,
-    height: 52,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontSize: 28,
-  },
-  phoneInputCountryPicker: {
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-    height: 52,
-    minWidth: 100,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    backgroundColor: Colors.white,
+    borderWidth: 2,
+    shadowColor: Colors.red,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
 });
 

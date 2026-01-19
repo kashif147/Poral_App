@@ -9,5 +9,6 @@ const BASE_URL = `https://${DOMAIN}/user-service`;
 const PORTAL_URL = `https://${DOMAIN}/portal-service`;
 const ACCOUNT_URL = `https://${DOMAIN}/account-service`;
 const PROFILE_URL = `https://${DOMAIN}/profile-service`;
+const NOTIFICATION_URL = `https://${DOMAIN}/notification-service`;
  
-export { BASE_URL, PORTAL_URL ,ACCOUNT_URL, PROFILE_URL};
+export { BASE_URL, PORTAL_URL ,ACCOUNT_URL, PROFILE_URL, NOTIFICATION_URL};

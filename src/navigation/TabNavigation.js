@@ -9,6 +9,7 @@ import Categories from '../modules/categories/Categories';
 import Courses from '../modules/courses/Courses';
 import Membership from '../modules/membership/Membership';
 import Payment from '../modules/payment/Payment';
+import PaymentMethod from '../modules/payment/PaymentMethod';
 import Profile from '../modules/profile/Profile';
 import Resources from '../modules/resources/Resources';
 import Notifications from '../modules/notifications/Notifications';
@@ -92,6 +93,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       'Resources': 'Resources',
       'Application': STACKS.APPLICATION_STACK,
       'Payment': STACKS.PAYMENT_STACK,
+      'PaymentMethod': STACKS.PAYMENT_METHOD_STACK,
     };
     
     const targetRoute = routeMap[route];
@@ -111,17 +113,17 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         style={{
           height: hp(8),
           flexDirection: 'row',
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.primary,
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderTopWidth: 1,
-          borderTopColor: Colors.divider,
+          borderTopWidth: 0,
           shadowColor: '#000',
-          shadowOpacity: 0.05,
+          shadowOpacity: 0.15,
           shadowRadius: 8,
           shadowOffset: { width: 0, height: -2 },
           elevation: 10,
           paddingBottom: 0,
+          paddingHorizontal: wp(6),
         }}
       >
         {state.routes.map((route, index) => {
@@ -159,7 +161,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               testID={options.tabBarTestID}
               onPress={onPress}
               activeOpacity={0.8}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: hp(0.8), position: 'relative' }}
             >
               <View style={{
                 borderRadius: 24,
@@ -169,12 +171,12 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               }}>
                 {tab.name === 'menu' ? (
                   <HamburgerIcon
-                    color={isFocused ? Colors.primary : '#999999'}
+                    color={Colors.white}
                     size={wp(5)}
                   />
                 ) : tab.name === STACKS.PAYMENT_STACK ? (
                   <PaymentIcon
-                    color={isFocused ? Colors.primary : '#999999'}
+                    color={Colors.white}
                     size={wp(5)}
                   />
                 ) : (
@@ -183,17 +185,28 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                     resizeMode="contain"
                     style={{
                       ...styles.image,
-                      tintColor: isFocused ? Colors.primary : '#999999',
+                      tintColor: Colors.white,
                     }}
                   />
                 )}
               </View>
               <Text style={{
-                color: isFocused ? Colors.primary : '#999999',
+                color: Colors.white,
                 fontSize: 10,
                 fontWeight: isFocused ? '600' : '500',
                 marginTop: 2,
               }}>{tab.label}</Text>
+              {isFocused && (
+                <View style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: wp(3),
+                  right: wp(3),
+                  height: 3,
+                  backgroundColor: Colors.white,
+                  borderRadius: 2,
+                }} />
+              )}
             </TouchableOpacity>
           );
         })}
@@ -228,6 +241,7 @@ const TabNavigator = () => {
         <Tab.Screen name={STACKS.APPLICATION_STACK} component={Application} />
         <Tab.Screen name={STACKS.CATEGORIES_STACK} component={Categories} />
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
+        <Tab.Screen name={STACKS.PAYMENT_METHOD_STACK} component={PaymentMethod} />
         <Tab.Screen name="Profile" component={Profile} />
         <Tab.Screen name="Resources" component={Resources} />
         <Tab.Screen name="Directory" component={Profile} />

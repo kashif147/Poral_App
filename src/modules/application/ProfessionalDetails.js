@@ -130,9 +130,8 @@ const ProfessionalDetails = ({
       return [];
     }
     console.log('Category lookups available:', safeCategoryLookups.length);
-    // Use _id as the value to store (matching web version)
+    // Use name as the value to store (matching web version)
     const mapped = safeCategoryLookups.map(item => {
-      const id = item?._id || item?.id;
       const label =
         item?.name ||
         item?.DisplayName ||
@@ -140,7 +139,7 @@ const ProfessionalDetails = ({
         item?.productType?.name ||
         item?.code;
       return {
-        value: String(id || ''),
+        value: String(label || ''),
         label: String(label || ''),
         rawItem: item, // Keep reference to original item
       };
@@ -227,15 +226,20 @@ const ProfessionalDetails = ({
   const adaptationYes = formData?.nursingAdaptationProgramme === 'yes';
   const adaptationNo = formData?.nursingAdaptationProgramme === 'no';
 
-  // Helper function to check category type based on _id (matching web version)
+  // Helper function to check category type based on name (matching web version)
   const isCategoryType = categoryType => {
     if (!formData?.membershipCategory) return false;
 
-    // Find the selected category by _id
-    const selectedCategory = safeCategoryLookups.find(
-      item =>
-        String(item?._id || item?.id) === String(formData.membershipCategory),
-    );
+    // Find the selected category by name
+    const selectedCategory = safeCategoryLookups.find(item => {
+      const itemName =
+        item?.name ||
+        item?.DisplayName ||
+        item?.label ||
+        item?.productType?.name ||
+        item?.code;
+      return String(itemName || '') === String(formData.membershipCategory);
+    });
 
     if (!selectedCategory) return false;
 
@@ -367,7 +371,7 @@ const ProfessionalDetails = ({
   }, [formData?.nursingAdaptationProgramme]);
 
   return (
-    <View style={{ backgroundColor: Colors.background, paddingBottom: 20 }}>
+    <View style={{ backgroundColor: Colors.background, paddingBottom: 16, paddingTop: 4 }}>
       {/* Membership Information Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Membership Information</Text>
@@ -729,58 +733,67 @@ const ProfessionalDetails = ({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.cardBackground,
-    // marginHorizontal: 20,
-    marginTop: 16,
+    marginTop: 12,
     marginBottom: 16,
     padding: 20,
-    borderRadius: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   cardTitle: {
     color: Colors.textPrimary,
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 20,
     marginBottom: 16,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   sectionHeader: {
     color: Colors.textPrimary,
-    fontWeight: 'bold',
-    fontSize: 24,
-    marginBottom: 8,
+    fontWeight: '700',
+    fontSize: 26,
+    marginBottom: 4,
+    letterSpacing: 0.2,
+    lineHeight: 32,
   },
   sectionSubtitle: {
     color: Colors.textSecondary,
     fontSize: 14,
-    marginBottom: 24,
+    lineHeight: 20,
+    marginTop: 2,
+    fontWeight: '400',
   },
   sectionTitle: {
     fontWeight: '600',
-    fontSize: 16,
+    fontSize: 18,
     marginTop: 20,
     marginBottom: 12,
     color: Colors.textPrimary,
-    letterSpacing: 0.2,
+    letterSpacing: 0.15,
   },
   label: {
-    fontWeight: '500',
-    fontSize: 14,
-    marginTop: 16,
-    marginBottom: 8,
+    fontWeight: '600',
+    fontSize: 15,
+    marginTop: 12,
+    marginBottom: 6,
     color: Colors.textPrimary,
-    letterSpacing: 0.2,
+    letterSpacing: 0.1,
+    lineHeight: 20,
   },
   switchLabel: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textPrimary,
-    marginRight: 12,
+    marginRight: 16,
     fontWeight: '400',
-    lineHeight: 20,
+    lineHeight: 22,
   },
   row: {
     flexDirection: 'row',
@@ -791,67 +804,84 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 4,
   },
-  inputField: { marginBottom: 4 },
-  pickerField: { marginBottom: 4 },
+  inputField: { 
+    marginBottom: 8,
+  },
+  pickerField: { 
+    marginBottom: 8,
+  },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 16,
     paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   radioRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
     gap: 24,
+    marginTop: 4,
   },
   radioGroup: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 8,
-    gap: 4,
+    gap: 8,
+    marginTop: 4,
   },
   radioOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    marginRight: 8,
+    marginBottom: 10,
+    marginRight: 12,
+    paddingVertical: 4,
   },
   radioOptionDisabled: {
     opacity: 0.5,
   },
   radioCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#E5E5E5',
+    borderColor: '#E8E8E8',
     backgroundColor: Colors.white,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   radioCircleSelected: {
     borderColor: Colors.primary,
+    borderWidth: 2.5,
   },
   radioCircleDisabled: {
     borderColor: '#D0D0D0',
+    opacity: 0.6,
   },
   radioInnerCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
     backgroundColor: Colors.primary,
   },
   radioOptionLabel: {
     color: Colors.textPrimary,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '400',
     flexShrink: 1,
+    lineHeight: 20,
   },
   radioOptionLabelDisabled: {
     color: Colors.textSecondary,
+    opacity: 0.6,
   },
 });
 

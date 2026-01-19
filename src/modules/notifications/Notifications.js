@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,98 +6,110 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, wp, hp } from '../../utils/Styles';
 import ScreenHeader from '../../common/screenHeader';
+import { useNotification } from '../../contexts/notificationContext';
+import { fetchNotificationRequest, readNotificationRequest } from '../../api/notification.api';
+import moment from 'moment';
 
 const Notifications = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: 'payment',
-      icon: 'info',
-      title: 'Monthly Payment Due',
-      message: 'Your monthly subscription payment of €24.92 is due on December 1, 2025.',
-      time: '2 hours ago',
-      read: false,
-      color: 'blue',
-    },
-    {
-      id: 2,
-      type: 'subscription',
-      icon: 'success',
-      title: 'Subscription Activated',
-      message: 'Your membership subscription has been successfully activated. Welcome aboard!',
-      time: '1 day ago',
-      read: false,
-      color: 'green',
-    },
-    {
-      id: 3,
-      type: 'payment',
-      icon: 'success',
-      title: 'Payment Successful',
-      message: 'Your payment of €299.00 has been processed successfully. Receipt #INV-2024-001234.',
-      time: '2 days ago',
-      read: true,
-      color: 'green',
-    },
-    {
-      id: 4,
-      type: 'subscription',
-      icon: 'warning',
-      title: 'Subscription Renewal Reminder',
-      message: 'Your annual subscription will renew on January 15, 2026. Update payment method if needed.',
-      time: '3 days ago',
-      read: true,
-      color: 'orange',
-    },
-    {
-      id: 5,
-      type: 'payment',
-      icon: 'info',
-      title: 'Payment Method Updated',
-      message: 'Your payment method ending in ****4242 has been updated successfully.',
-      time: '5 days ago',
-      read: true,
-      color: 'blue',
-    },
-    {
-      id: 6,
-      type: 'subscription',
-      icon: 'info',
-      title: 'New Benefits Available',
-      message: 'Check out the new member benefits and rewards available to you.',
-      time: '1 week ago',
-      read: true,
-      color: 'purple',
-    },
-    {
-      id: 7,
-      type: 'payment',
-      icon: 'success',
-      title: 'Payment Confirmation',
-      message: 'Monthly payment of €24.92 received. Thank you for your payment.',
-      time: '2 weeks ago',
-      read: true,
-      color: 'green',
-    },
-    {
-      id: 8,
-      type: 'subscription',
-      icon: 'info',
-      title: 'Profile Update Required',
-      message: 'Please review and update your profile information to keep your account current.',
-      time: '3 weeks ago',
-      read: true,
-      color: 'blue',
-    },
-  ]);
-
+  const {
+    notifications,
+    unreadCount,
+    markAsRead: markAsReadContext,
+    markAllAsRead: markAllAsReadContext,
+    setNotificationsValue,
+    setUnreadCountValue,
+  } = useNotification();
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all'); // all, payment, subscription, unread
+    
+
+  // Fetch notifications from API
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const response = await fetchNotificationRequest({ page: 1, limit: 50 });
+      
+      // Check if response is successful (matching web version structure)
+      if (response?.status === 200 && response?.data?.success) {
+        const data = response.data.data;
+        // API returns notifications in data.notifications array
+        const notificationsList = data?.notifications || [];
+        
+        // Ensure notificationsList is an array
+        if (!Array.isArray(notificationsList)) {
+          console.warn('Notifications data is not an array:', notificationsList);
+          setNotificationsValue([]);
+          setUnreadCountValue(0);
+          return;
+        }
+        
+        // Map API response to notification format
+        const mappedNotifications = notificationsList.map(notif => ({
+          messageId: notif._id || notif.messageId || notif.id || Date.now().toString(),
+          from: notif.from,
+          title: notif.title || 'Notification',
+          body: notif.body || notif.message || '',
+          read: notif.isRead || notif.read || false,
+          timestamp: notif.sentAt || notif.createdAt || notif.timestamp || new Date().toISOString(),
+          data: notif.data || {},
+          // Extract type from data or infer from title/body
+          type: notif.data?.type || (notif.title?.toLowerCase().includes('payment') ? 'payment' : 'subscription'),
+          // Format time
+          time: (notif.sentAt || notif.createdAt || notif.timestamp) 
+            ? moment(notif.sentAt || notif.createdAt || notif.timestamp).fromNow() 
+            : 'Just now',
+        }));
+        
+        setNotificationsValue(mappedNotifications);
+        
+        // Set unread count from API response or calculate from notifications
+        const unread = data?.unreadCount !== undefined 
+          ? data.unreadCount 
+          : mappedNotifications.filter(n => !n.read).length;
+        setUnreadCountValue(unread);
+      } else {
+        // Handle error response
+        const errorMessage = response?.data?.message || 'Failed to fetch notifications';
+        console.error('Failed to fetch notifications:', errorMessage);
+        // Don't show alert for empty responses, just log
+        if (response?.status !== 200) {
+          Alert.alert('Error', errorMessage);
+        } else {
+          // Success but no data - set empty arrays
+          setNotificationsValue([]);
+          setUnreadCountValue(0);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      Alert.alert('Error', 'Failed to load notifications. Please try again.');
+      // Set empty state on error
+      setNotificationsValue([]);
+      setUnreadCountValue(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch notifications on mount and when screen focuses
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchNotifications();
+    }, [])
+  );
 
   const getIcon = (iconType, color) => {
     switch (iconType) {
@@ -121,18 +133,47 @@ const Notifications = ({ navigation }) => {
     return colors[color] || colors.blue;
   };
 
-  const markAsRead = (id) => {
-    setNotifications(notifications.map(notif =>
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
+  const markAsRead = async (messageId) => {
+    try {
+      // Call API to mark as read
+      const response = await readNotificationRequest({ messageId });
+      if (response?.status === 200 || response?.status === 201) {
+        // Update context
+        markAsReadContext(messageId);
+      } else {
+        Alert.alert('Error', 'Failed to mark notification as read');
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      Alert.alert('Error', 'Failed to mark notification as read');
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(notif => ({ ...notif, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      // Get all unread notification IDs
+      const unreadIds = notifications.filter(n => !n.read).map(n => n.messageId);
+      if (unreadIds.length === 0) return;
+
+      // Call API to mark all as read
+      const response = await readNotificationRequest({ messageIds: unreadIds });
+      if (response?.status === 200 || response?.status === 201) {
+        // Update context
+        markAllAsReadContext();
+      } else {
+        Alert.alert('Error', 'Failed to mark all notifications as read');
+      }
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+      Alert.alert('Error', 'Failed to mark all notifications as read');
+    }
   };
 
   const deleteNotification = (id) => {
-    setNotifications(notifications.filter(notif => notif.id !== id));
+    // Note: API doesn't have delete endpoint in web version, so we'll just remove from local state
+    // If delete API is needed, it can be added later
+    const updatedNotifications = notifications.filter(notif => notif.messageId !== id);
+    setNotificationsValue(updatedNotifications);
   };
 
   const filteredNotifications = notifications.filter(notif => {
@@ -140,8 +181,6 @@ const Notifications = ({ navigation }) => {
     if (filter === 'unread') return !notif.read;
     return notif.type === filter;
   });
-
-  const unreadCount = notifications.filter(n => !n.read).length;
 
   const paymentCount = notifications.filter(n => n.type === 'payment').length;
   const subscriptionCount = notifications.filter(n => n.type === 'subscription').length;
@@ -229,76 +268,85 @@ const Notifications = ({ navigation }) => {
       </View>
 
       {/* Notifications List */}
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {filteredNotifications.length > 0 ? (
-          filteredNotifications.map((notification) => {
-            const iconColors = getIconBgColor(notification.color);
-            return (
-              <View
-                key={notification.id}
-                style={[
-                  styles.notificationCard,
-                  !notification.read && styles.notificationCardUnread
-                ]}
-              >
-                <View style={styles.notificationContent}>
-                  <View style={[styles.iconContainer, { backgroundColor: iconColors.bg }]}>
-                    {getIcon(notification.icon, iconColors.text)}
-                  </View>
-                  <View style={styles.notificationTextContainer}>
-                    <View style={styles.notificationHeader}>
-                      <View style={styles.notificationTitleContainer}>
-                        <Text style={styles.notificationTitle}>
-                          {notification.title}
-                        </Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading notifications...</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {filteredNotifications.length > 0 ? (
+            filteredNotifications.map((notification) => {
+              // Determine icon and color based on notification type or data
+              const iconType = notification.data?.iconType || 'info';
+              const color = notification.data?.color || 'blue';
+              const iconColors = getIconBgColor(color);
+              return (
+                <View
+                  key={notification.messageId}
+                  style={[
+                    styles.notificationCard,
+                    !notification.read && styles.notificationCardUnread
+                  ]}
+                >
+                  <View style={styles.notificationContent}>
+                    <View style={[styles.iconContainer, { backgroundColor: iconColors.bg }]}>
+                      {getIcon(iconType, iconColors.text)}
+                    </View>
+                    <View style={styles.notificationTextContainer}>
+                      <View style={styles.notificationHeader}>
+                        <View style={styles.notificationTitleContainer}>
+                          <Text style={styles.notificationTitle}>
+                            {notification.title}
+                          </Text>
+                          {!notification.read && (
+                            <View style={styles.unreadDot} />
+                          )}
+                        </View>
+                        <TouchableOpacity
+                          onPress={() => deleteNotification(notification.messageId)}
+                          style={styles.deleteButton}
+                        >
+                          <Ionicons name="close" size={18} color="#9CA3AF" />
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.notificationMessage}>
+                        {notification.body}
+                      </Text>
+                      <View style={styles.notificationFooter}>
+                        <View style={styles.footerLeft}>
+                          <Text style={styles.notificationTime}>{notification.time}</Text>
+                          <View style={[
+                            styles.typeBadge,
+                            notification.type === 'payment' ? styles.typeBadgePayment : styles.typeBadgeSubscription
+                          ]}>
+                            <Text style={[
+                              styles.typeBadgeText,
+                              notification.type === 'payment' ? styles.typeBadgeTextPayment : styles.typeBadgeTextSubscription
+                            ]}>
+                              {notification.type === 'payment' ? '💳 Payment' : '📋 Subscription'}
+                            </Text>
+                          </View>
+                        </View>
                         {!notification.read && (
-                          <View style={styles.unreadDot} />
+                          <TouchableOpacity
+                            onPress={() => markAsRead(notification.messageId)}
+                            style={styles.markReadButton}
+                          >
+                            <Text style={styles.markReadButtonText}>Mark as read</Text>
+                          </TouchableOpacity>
                         )}
                       </View>
-                      <TouchableOpacity
-                        onPress={() => deleteNotification(notification.id)}
-                        style={styles.deleteButton}
-                      >
-                        <Ionicons name="close" size={18} color="#9CA3AF" />
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={styles.notificationMessage}>
-                      {notification.message}
-                    </Text>
-                    <View style={styles.notificationFooter}>
-                      <View style={styles.footerLeft}>
-                        <Text style={styles.notificationTime}>{notification.time}</Text>
-                        <View style={[
-                          styles.typeBadge,
-                          notification.type === 'payment' ? styles.typeBadgePayment : styles.typeBadgeSubscription
-                        ]}>
-                          <Text style={[
-                            styles.typeBadgeText,
-                            notification.type === 'payment' ? styles.typeBadgeTextPayment : styles.typeBadgeTextSubscription
-                          ]}>
-                            {notification.type === 'payment' ? '💳 Payment' : '📋 Subscription'}
-                          </Text>
-                        </View>
-                      </View>
-                      {!notification.read && (
-                        <TouchableOpacity
-                          onPress={() => markAsRead(notification.id)}
-                          style={styles.markReadButton}
-                        >
-                          <Text style={styles.markReadButtonText}>Mark as read</Text>
-                        </TouchableOpacity>
-                      )}
                     </View>
                   </View>
                 </View>
-              </View>
-            );
-          })
-        ) : (
+              );
+            })
+          ) : (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
               <Ionicons name="notifications-outline" size={48} color="#9CA3AF" />
@@ -311,7 +359,8 @@ const Notifications = ({ navigation }) => {
             </Text>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -515,6 +564,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
 });
 

@@ -11,6 +11,8 @@ import { Colors } from './src/utils/Styles';
 import { ApplicationProvider } from './src/contexts/applicationContext';
 import { LookupProvider } from './src/contexts/lookupContext';
 import { ProfileProvider } from './src/contexts/profileContext';
+import { NotificationProvider } from './src/contexts/notificationContext';
+import NotificationSetup from './src/components/NotificationSetup';
 import LandingPage from './src/modules/landing/LandingPage';
 import SplashScreen from './src/modules/splash/SplashScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -26,6 +28,7 @@ import {
   getFcmToken,
   registerListenerWithFcm,
   unRegisterAppWithFcm,
+  setNotificationContextMethods,
 } from './src/services/firebase.services';
 import { validation } from './src/services/auth.services';
 import { setSignedIn, setUser, setLoading } from './src/store/slice/auth.slice';
@@ -34,6 +37,7 @@ function App() {
   const dispatch = useDispatch();
   const isSignedIn = useSelector(state => state.auth.isSignedIn);
   const isLoading = useSelector(state => state.auth.isLoading);
+  const user = useSelector(state => state.auth.user);
   const [showWebView, setShowWebView] = useState(false);
   const navigationRef = useRef(null);
   const notificationUnsubscribeRef = useRef(null);
@@ -305,12 +309,36 @@ function App() {
     setShowWebView(false);
   };
 
+  // Initialize FCM when user is signed in
   useEffect(() => {
     if (isSignedIn) {
       const initializeNotifications = async () => {
         try {
-          await getFcmToken();
+          console.log('Initializing FCM notifications...');
+          
+          // Extract user data from Redux state
+          const userData = user || {};
+          const userId = userData?.id || userData?._id;
+          const tenantId = userData?.tenantId || userData?.userTenantId;
+          
+          console.log('User data for FCM registration:', {
+            hasUserId: !!userId,
+            hasTenantId: !!tenantId,
+            userId: userId ? userId.substring(0, 10) + '...' : 'N/A',
+            tenantId: tenantId ? tenantId.substring(0, 10) + '...' : 'N/A',
+          });
+          
+          // Prepare user data for token registration
+          const userDataForRegistration = userId && tenantId ? { userId, tenantId } : null;
+          
+          const token = await getFcmToken(userDataForRegistration);
+          console.log('FCM Token retrieved in App:', token);
+          
+          // Also log from AsyncStorage
+          const storedToken = await AsyncStorage.getItem('fcmToken');
+          console.log('FCM Token from AsyncStorage:', storedToken);
 
+          // Wait a bit for navigation to be ready
           setTimeout(() => {
             if (navigationRef.current) {
               const unsubscribe = registerListenerWithFcm(navigationRef);
@@ -326,11 +354,14 @@ function App() {
           }, 500);
         } catch (error) {
           // Error handled silently
+          console.log('Error initializing notifications', error);
+          console.error('FCM Initialization Error:', error);
         }
       };
 
       initializeNotifications();
     } else {
+      // Clean up on logout
       if (notificationUnsubscribeRef.current) {
         notificationUnsubscribeRef.current();
         notificationUnsubscribeRef.current = null;
@@ -346,7 +377,7 @@ function App() {
         notificationUnsubscribeRef.current = null;
       }
     };
-  }, [isSignedIn]);
+  }, [isSignedIn, user]);
 
   if (isLoading) {
     return <SplashScreen />;
@@ -373,15 +404,18 @@ function App() {
           }
         >
           {isSignedIn ? (
-            <LookupProvider>
-              <ApplicationProvider>
-                <ProfileProvider>
-                  <NavigationContainer ref={navigationRef}>
-                    <TabNavigator />
-                  </NavigationContainer>
-                </ProfileProvider>
-              </ApplicationProvider>
-            </LookupProvider>
+            <NotificationProvider>
+              <LookupProvider>
+                <ApplicationProvider>
+                  <ProfileProvider>
+                    <NotificationSetup />
+                    <NavigationContainer ref={navigationRef}>
+                      <TabNavigator />
+                    </NavigationContainer>
+                  </ProfileProvider>
+                </ApplicationProvider>
+              </LookupProvider>
+            </NotificationProvider>
           ) : (
             <LandingPage onLoginPress={handleLogin} />
           )}

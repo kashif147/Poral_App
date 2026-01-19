@@ -7,20 +7,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createPaymentIntentRequest } from '../../api/payment.api';
-import { fetchCategoryByCategoryId } from '../../api/category.api';
 import { useApplication } from '../../contexts/applicationContext';
+import { useLookup } from '../../contexts/lookupContext';
 import ScreenHeader from '../../common/screenHeader';
 
 const Payment = () => {
   const insets = useSafeAreaInsets();
   const { confirmPayment } = useStripe();
-  const { personalDetail } = useApplication();
+  const { personalDetail, categoryData, getCategoryData, categoryLoading } = useApplication();
+  const { categoryLookups } = useLookup();
   
   const [loading, setLoading] = useState(false);
-  const [productLoading, setProductLoading] = useState(false);
   const [cardComplete, setCardComplete] = useState(false);
   const [editablePrice, setEditablePrice] = useState('');
-  const [product, setProduct] = useState(null);
   const [clientSecret, setClientSecret] = useState(null);
   const [userDetail, setUserDetail] = useState(null);
   const [cardholderName, setCardholderName] = useState('');
@@ -59,34 +58,22 @@ const Payment = () => {
 
   // Fetch category data to get default price
   useEffect(() => {
-    const fetchProduct = async () => {
-      if (!membershipCategory) return;
-      
-      setProductLoading(true);
-      try {
-        const res = await fetchCategoryByCategoryId(membershipCategory);
-        const payload = res?.data?.data || res?.data;
-        setProduct(payload || null);
-        
-        // Set default price from category
-        if (payload?.currentPricing?.price) {
-          const priceInEuros = (payload.currentPricing.price / 100).toFixed(2);
-          setEditablePrice(priceInEuros);
-        }
-      } catch (e) {
-        console.error('Failed to fetch category:', e);
-        setProduct(null);
-      } finally {
-        setProductLoading(false);
-      }
-    };
+    if (membershipCategory) {
+      getCategoryData(membershipCategory, categoryLookups || []);
+    }
+  }, [membershipCategory, categoryLookups, getCategoryData]);
 
-    fetchProduct();
-  }, [membershipCategory]);
+  // Set default price when category data is loaded
+  useEffect(() => {
+    if (categoryData?.currentPricing?.price && !editablePrice) {
+      const priceInEuros = (categoryData.currentPricing.price / 100).toFixed(2);
+      setEditablePrice(priceInEuros);
+    }
+  }, [categoryData, editablePrice]);
 
   // Format currency
   const formatCurrency = value => {
-    const currency = (product?.currentPricing?.currency || 'EUR').toUpperCase();
+    const currency = (categoryData?.currentPricing?.currency || 'EUR').toUpperCase();
     try {
       return new Intl.NumberFormat('en-IE', {
         style: 'currency',
@@ -118,7 +105,7 @@ const Payment = () => {
     try {
       // Step 1: Create Payment Intent with the edited price
       const amountInCents = Math.round(parseFloat(editablePrice) * 100);
-      const currency = product?.currentPricing?.currency || 'eur';
+      const currency = categoryData?.currentPricing?.currency || 'eur';
       const applicationId = personalDetail?.applicationId;
       const userId = userDetail?.id || userDetail?._id;
       const tenantId = userDetail?.tenantId || userDetail?.userTenantId;
@@ -211,7 +198,7 @@ const Payment = () => {
             <Text style={styles.caption}>Review your membership and complete payment</Text>
 
             {/* Loading state */}
-            {productLoading ? (
+            {categoryLoading ? (
               <View style={{ paddingVertical: 40, alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={Colors.primary} />
                 <Text style={{ color: Colors.textPrimary, marginTop: 12 }}>Loading payment details...</Text>
@@ -219,22 +206,22 @@ const Payment = () => {
             ) : (
               <View>
                 {/* Membership category card */}
-                {product && (
+                {categoryData && (
                   <View style={styles.categoryCard}>
                     <View style={{ flex: 1, paddingRight: 12 }}>
                       <Text style={styles.smallLabel}>MEMBERSHIP CATEGORY</Text>
-                      <Text style={styles.categoryText}>{product?.name || 'Membership Category'}</Text>
-                      {product?.description && (
-                        <Text style={styles.categoryDescription}>{product.description}</Text>
+                      <Text style={styles.categoryText}>{categoryData?.name || 'Membership Category'}</Text>
+                      {categoryData?.description && (
+                        <Text style={styles.categoryDescription}>{categoryData.description}</Text>
                       )}
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={styles.smallLabel}>DEFAULT PRICE</Text>
                       <Text style={styles.priceText}>
-                        {formatCurrency(product?.currentPricing?.price / 100 || 0)}
+                        {formatCurrency(categoryData?.currentPricing?.price / 100 || 0)}
                       </Text>
-                      {product?.currentPricing?.frequency && (
-                        <Text style={styles.frequencyText}>{product.currentPricing.frequency}</Text>
+                      {categoryData?.currentPricing?.frequency && (
+                        <Text style={styles.frequencyText}>{categoryData.currentPricing.frequency}</Text>
                       )}
                     </View>
                   </View>
@@ -252,7 +239,7 @@ const Payment = () => {
                     style={styles.input}
                   />
                   <Text style={styles.hintText}>
-                    Default price: {formatCurrency(product?.currentPricing?.price / 100 || 0)}
+                    Default price: {formatCurrency(categoryData?.currentPricing?.price / 100 || 0)}
                   </Text>
                 </View>
 

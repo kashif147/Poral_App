@@ -4,7 +4,8 @@ import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Button } from '../../../common/button';
 import { hp, Colors } from '../../../utils/Styles';
 import { createPaymentIntentRequest } from '../../../api/payment.api';
-import { fetchCategoryByCategoryId } from '../../../api/category.api';
+import { useApplication } from '../../../contexts/applicationContext';
+import { useLookup } from '../../../contexts/lookupContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SubscriptionPaymentModal = ({
@@ -17,11 +18,12 @@ const SubscriptionPaymentModal = ({
   applicationId,
 }) => {
   const { confirmPayment } = useStripe();
+  const { categoryData, getCategoryData, categoryLoading } = useApplication();
+  const { categoryLookups } = useLookup();
   const [isLoading, setIsLoading] = useState(false);
   const [productLoading, setProductLoading] = useState(false);
   const [cardComplete, setCardComplete] = useState(false);
   const [clientSecret, setClientSecret] = useState(null);
-  const [categoryData, setCategoryData] = useState(null);
   const [error, setError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
   const [customPrice, setCustomPrice] = useState('');
@@ -98,17 +100,27 @@ const SubscriptionPaymentModal = ({
       setClientSecret(null);
       setCardComplete(false);
       setIsLoading(false);
-      setCategoryData(null);
       setError(null);
       setRetryKey(0); // Reset retry key
     }
   }, [visible, formData]);
 
-  // Fetch category data and initialize payment intent (matching web version)
+  // Fetch category data when modal opens
+  useEffect(() => {
+    if (visible && membershipCategory) {
+      console.log('📦 Fetching category:', membershipCategory);
+      getCategoryData(membershipCategory, categoryLookups || []);
+    }
+  }, [visible, membershipCategory, categoryLookups, getCategoryData]);
+
+  // Initialize payment intent when category data is available (matching web version)
   useEffect(() => {
     const initPayment = async () => {
-      if (!visible || !applicationId || !membershipCategory) {
-        console.log('⏸️ Payment init skipped:', { visible, applicationId, membershipCategory });
+      if (!visible || !applicationId || !membershipCategory || !categoryData) {
+        if (!categoryData && visible && membershipCategory) {
+          // Still loading category data
+          setProductLoading(true);
+        }
         return;
       }
 
@@ -119,11 +131,8 @@ const SubscriptionPaymentModal = ({
       setProductLoading(true);
 
       try {
-        // ✅ Step 1: Fetch category details
-        console.log('📦 Fetching category:', membershipCategory);
-        const categoryRes = await fetchCategoryByCategoryId(membershipCategory);
-        const payload = categoryRes?.data?.data || categoryRes?.data;
-        setCategoryData(payload || null);
+        // ✅ Step 1: Category data is already loaded
+        const payload = categoryData;
         console.log('✅ Category data loaded:', payload?.name);
 
         const currentPricing = payload?.currentPricing || {};
@@ -189,7 +198,6 @@ const SubscriptionPaymentModal = ({
         console.error('❌ Error stack:', error.stack);
         const errorMessage = error.message || 'Payment initialization failed';
         setError(errorMessage);
-        setCategoryData(null); // Clear category data on error
         Alert.alert('Error', errorMessage);
         onFailure?.(errorMessage);
       } finally {
@@ -198,7 +206,7 @@ const SubscriptionPaymentModal = ({
     };
 
     initPayment();
-  }, [visible, membershipCategory, applicationId, formData?.subscriptionDetails?.paymentType, retryKey]);
+  }, [visible, membershipCategory, applicationId, categoryData, formData?.subscriptionDetails?.paymentType, retryKey]);
 
   // Display price based on payment type
   const getDisplayPrice = () => {
@@ -333,7 +341,7 @@ const SubscriptionPaymentModal = ({
               </View>
 
           {/* Show loading while fetching category data */}
-          {productLoading || (!categoryData && !error) ? (
+          {productLoading || categoryLoading || (!categoryData && !error) ? (
             <View style={{ paddingVertical: 40, alignItems: 'center' }}>
               <ActivityIndicator size="large" color={Colors.primary} />
               <Text style={{ color: Colors.textPrimary, marginTop: 12 }}>Loading payment details...</Text>
