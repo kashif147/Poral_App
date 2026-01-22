@@ -17,3 +17,11 @@ export const fetchNotificationRequest = (params = {}) => {
 export const readNotificationRequest = (data) => {
   return notification_request.post('/api/firebase/notifications/mark-read', data);
 };
+
+export const deleteNotificationRequest = (id) => {
+  return notification_request.delete(`/api/firebase/notifications/${id}`);
+};
+
+export const deleteAllNotificationRequest = () => {
+  return notification_request.delete('/api/firebase/notifications');
+};

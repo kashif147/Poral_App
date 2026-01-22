@@ -15,7 +15,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, wp, hp } from '../../utils/Styles';
 import ScreenHeader from '../../common/screenHeader';
 import { useNotification } from '../../contexts/notificationContext';
-import { fetchNotificationRequest, readNotificationRequest } from '../../api/notification.api';
+import { fetchNotificationRequest, readNotificationRequest, deleteNotificationRequest, deleteAllNotificationRequest } from '../../api/notification.api';
 import moment from 'moment';
 
 const Notifications = ({ navigation }) => {
@@ -169,11 +169,58 @@ const Notifications = ({ navigation }) => {
     }
   };
 
-  const deleteNotification = (id) => {
-    // Note: API doesn't have delete endpoint in web version, so we'll just remove from local state
-    // If delete API is needed, it can be added later
-    const updatedNotifications = notifications.filter(notif => notif.messageId !== id);
-    setNotificationsValue(updatedNotifications);
+  const deleteNotification = async (id) => {
+    try {
+      // Call API to delete notification
+      const response = await deleteNotificationRequest(id);
+      if (response?.status === 200 || response?.status === 204) {
+        // Update local state after successful deletion
+        const updatedNotifications = notifications.filter(notif => notif.messageId !== id);
+        setNotificationsValue(updatedNotifications);
+        // Update unread count if deleted notification was unread
+        const deletedNotif = notifications.find(n => n.messageId === id);
+        if (deletedNotif && !deletedNotif.read) {
+          setUnreadCountValue(unreadCount - 1);
+        }
+      } else {
+        Alert.alert('Error', 'Failed to delete notification');
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      Alert.alert('Error', 'Failed to delete notification');
+    }
+  };
+
+  const deleteAllNotifications = async () => {
+    Alert.alert(
+      'Delete All Notifications',
+      'Are you sure you want to delete all notifications? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const response = await deleteAllNotificationRequest();
+              if (response?.status === 200 || response?.status === 204) {
+                // Clear all notifications from local state
+                setNotificationsValue([]);
+                setUnreadCountValue(0);
+              } else {
+                Alert.alert('Error', 'Failed to delete all notifications');
+              }
+            } catch (error) {
+              console.error('Error deleting all notifications:', error);
+              Alert.alert('Error', 'Failed to delete all notifications');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const filteredNotifications = notifications.filter(notif => {
@@ -190,18 +237,33 @@ const Notifications = ({ navigation }) => {
       {/* Header */}
       <ScreenHeader title="Notifications" />
       
-      {/* Unread Count and Mark All Button */}
-      {unreadCount > 0 && (
+      {/* Unread Count and Action Buttons */}
+      {(unreadCount > 0 || notifications.length > 0) && (
         <View style={styles.headerActionBar}>
           <Text style={styles.unreadCountText}>
-            {unreadCount} unread notification{unreadCount > 1 ? 's' : ''}
+            {unreadCount > 0 
+              ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
+              : `${notifications.length} notification${notifications.length > 1 ? 's' : ''}`}
           </Text>
-          <TouchableOpacity
-            onPress={markAllAsRead}
-            style={styles.markAllButton}
-          >
-            <Text style={styles.markAllButtonText}>Mark all as read</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            {unreadCount > 0 && (
+              <TouchableOpacity
+                onPress={markAllAsRead}
+                style={styles.markAllButton}
+              >
+                <Text style={styles.markAllButtonText}>Mark all as read</Text>
+              </TouchableOpacity>
+            )}
+            {notifications.length > 0 && (
+              <TouchableOpacity
+                onPress={deleteAllNotifications}
+                style={styles.deleteAllButton}
+              >
+                <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                <Text style={styles.deleteAllButtonText}>Delete All</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       )}
 
@@ -385,6 +447,11 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '500',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   markAllButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -393,6 +460,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: Colors.primary,
+  },
+  deleteAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  deleteAllButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#DC2626',
   },
   filterContainer: {
     backgroundColor: Colors.surface,
