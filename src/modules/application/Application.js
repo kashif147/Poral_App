@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, TouchableOpacity } from 'react-native';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
@@ -73,6 +73,7 @@ const Application = () => {
   const [showValidation, setShowValidation] = useState(false);
   const [stepLoading, setStepLoading] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const flatListRef = useRef(null);
 
   // Keyboard event listeners
   useEffect(() => {
@@ -88,6 +89,13 @@ const Application = () => {
       keyboardDidHideListener?.remove();
     };
   }, []);
+
+  // Scroll to top when step changes
+  useEffect(() => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+    }
+  }, [currentStep]);
 
   // Show modal after subscription detail is created/updated (matching web version)
   useEffect(() => {
@@ -986,6 +994,7 @@ const Application = () => {
         
         <View style={{ flex: 1 }}>
           <FlatList
+            ref={flatListRef}
             data={[{ key: 'content' }]}
             renderItem={() => (
               <>

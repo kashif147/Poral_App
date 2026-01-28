@@ -244,8 +244,8 @@ const Payment = () => {
                 </View>
 
                 {/* Name + Email */}
-                <View style={[styles.row, { marginTop: 20 }]}>
-                  <View style={{ flex: 1, marginRight: 6 }}>
+                <View style={{ marginTop: 20 }}>
+                  <View>
                     <Text style={styles.requiredLabel}>Name on Card *</Text>
                     <TextInput
                       value={cardholderName}
@@ -255,7 +255,7 @@ const Payment = () => {
                       style={styles.input}
                     />
                   </View>
-                  <View style={{ flex: 1, marginLeft: 6 }}>
+                  <View style={{ marginTop: 16 }}>
                     <Text style={styles.requiredLabel}>Email *</Text>
                     <TextInput
                       value={email}

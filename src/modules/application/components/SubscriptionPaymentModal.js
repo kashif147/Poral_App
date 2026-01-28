@@ -397,14 +397,27 @@ const SubscriptionPaymentModal = ({
           </View>
 
           {/* Name + Email */}
-          <View style={[styles.row, { marginTop: 20 }]}> 
-            <View style={{ flex: 1, marginRight: 6 }}>
+          <View style={{ marginTop: 20 }}>
+            <View>
               <Text style={styles.requiredLabel}>Name on Card *</Text>
-                  <TextInput value={cardholderName} onChangeText={setCardholderName} placeholder="Full name" placeholderTextColor={Colors.textSecondary} style={styles.input} />
+              <TextInput 
+                value={cardholderName} 
+                onChangeText={setCardholderName} 
+                placeholder="Full name" 
+                placeholderTextColor={Colors.textSecondary} 
+                style={styles.input} 
+              />
             </View>
-            <View style={{ flex: 1, marginLeft: 6 }}>
+            <View style={{ marginTop: 16 }}>
               <Text style={styles.requiredLabel}>Email *</Text>
-                  <TextInput value={email} onChangeText={setEmail} placeholder="you@example.com" placeholderTextColor={Colors.textSecondary} keyboardType="email-address" style={styles.input} />
+              <TextInput 
+                value={email} 
+                onChangeText={setEmail} 
+                placeholder="you@example.com" 
+                placeholderTextColor={Colors.textSecondary} 
+                keyboardType="email-address" 
+                style={styles.input} 
+              />
             </View>
           </View>
           <TouchableOpacity onPress={() => {
@@ -425,23 +438,23 @@ const SubscriptionPaymentModal = ({
           {/* Card details */}
           <View style={{ marginTop: 20 }}>
             <Text style={styles.requiredLabel}>Card Details *</Text>
-                <View style={styles.cardFieldWrapper}>
-            <CardField
-              postalCodeEnabled={false}
-                    placeholders={{ number: '4242 4242 4242 4242', cvc: 'CVC', expiration: 'MM/YY' }}
-                    cardStyle={{
-                      backgroundColor: '#00000000',
-                      textColor: Colors.textPrimary,
-                      placeholderColor: Colors.textSecondary,
-                      borderWidth: 0,
-                      borderColor: '#00000000',
-                      borderRadius: 12,
-                      fontSize: 15,
-                    }}
-                    style={{ width: '100%', height: 52 }}
-              onCardChange={details => setCardComplete(details?.complete)}
-            />
-                </View>
+            <View style={styles.cardFieldWrapper}>
+              <CardField
+                postalCodeEnabled={false}
+                placeholders={{ number: '4242 4242 4242 4242', cvc: 'CVC', expiration: 'MM/YY' }}
+                cardStyle={{
+                  backgroundColor: '#00000000',
+                  textColor: Colors.textPrimary,
+                  placeholderColor: Colors.textSecondary,
+                  borderWidth: 0,
+                  borderColor: '#00000000',
+                  borderRadius: 12,
+                  fontSize: 15,
+                }}
+                style={{ width: '100%', height: 52 }}
+                onCardChange={details => setCardComplete(details?.complete)}
+              />
+            </View>
           </View>
 
           {/* Total + Actions */}
