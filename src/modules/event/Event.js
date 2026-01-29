@@ -180,7 +180,7 @@ const Event = () => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <ScreenHeader title="Events" />
+      <ScreenHeader  title="Events" />
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>

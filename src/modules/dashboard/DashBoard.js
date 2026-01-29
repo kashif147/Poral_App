@@ -15,9 +15,12 @@ import { useApplication } from '../../contexts/applicationContext';
 import { useLookup } from '../../contexts/lookupContext';
 import { applicationConfirmationRequest } from '../../api/application.api';
 import { useProfile } from '../../contexts/profileContext';
+import ScreenHeader from '../../common/screenHeader';
+import { useSelector } from 'react-redux';
 
 const DashBoard = () => {
   const navigation = useNavigation();
+  const user = useSelector(state => state.auth.user);
   const [userName, setUserName] = useState('User');
   const insets = useSafeAreaInsets();
   const { personalDetail } = useApplication();
@@ -79,53 +82,6 @@ const DashBoard = () => {
 
     checkApplicationStatus();
   }, [personalDetail?.applicationId]);
-
-  // Get application status display info
-  const getStatusInfo = (status) => {
-    const statusMap = {
-      'submitted': {
-        label: 'Submitted',
-        sublabel: 'Completed on Jan 12, 2024',
-        icon: 'checkmark-circle',
-        iconColor: Colors.primary,
-        iconBg: '#E8F0FE',
-        status: 'completed'
-      },
-      'in_review': {
-        label: 'In Review',
-        sublabel: 'Current Step',
-        icon: 'reload-circle',
-        iconColor: '#FFA500',
-        iconBg: '#FFF4E6',
-        status: 'current'
-      },
-      'approved': {
-        label: 'Approved',
-        sublabel: 'Pending',
-        icon: 'lock-closed',
-        iconColor: '#94A3B8',
-        iconBg: '#F1F5F9',
-        status: 'pending'
-      },
-      'pending': {
-        label: 'Pending Review',
-        sublabel: 'Waiting for approval',
-        icon: 'time',
-        iconColor: '#FFA500',
-        iconBg: '#FFF4E6',
-        status: 'current'
-      },
-      'rejected': {
-        label: 'Rejected',
-        sublabel: 'Please contact support',
-        icon: 'close-circle',
-        iconColor: '#EF4444',
-        iconBg: '#FEE2E2',
-        status: 'rejected'
-      }
-    };
-    return statusMap[status] || statusMap['pending'];
-  };
 
   // Quick Links - 2x2 grid
   const quickLinks = [
@@ -196,8 +152,9 @@ const DashBoard = () => {
 
   return (
     <View style={styles.container}>
-      {/* Sticky Header with greeting and notification */}
-      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
+      <ScreenHeader showBack={false} title={`Dashboard`} />
+
+      {/* <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
         <View style={styles.headerLeft}>
           <View style={styles.avatarContainer}>
             <Ionicons name="person" size={24} color={Colors.white} />
@@ -205,7 +162,6 @@ const DashBoard = () => {
           <Text style={styles.greetingText}>Hello, {userName}!</Text>
         </View>
         <View style={styles.headerRight}>
-          {/* Membership Number Badge */}
           {profileDetail?.membershipNumber && (
             <View style={styles.membershipBadge}>
               <Text style={styles.membershipLabel}>Membership Number</Text>
@@ -220,7 +176,7 @@ const DashBoard = () => {
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
         </View>
-      </View>
+      </View> */}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {/* Application Status Card */}

@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import { STACKS } from '../../enums/ScreenEnums';
 import PersonalInformation from './PersonalInformation';
 import ProfessionalDetails from './ProfessionalDetails';
 import SubscriptionDetails from './SubscriptionDetails';
@@ -65,6 +68,8 @@ const Application = () => {
     getSubscriptionDetail,
   } = useApplication();
   const { categoryLookups } = useLookup();
+  const navigation = useNavigation();
+  const user = useSelector(state => state.auth.user);
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -200,10 +205,12 @@ const Application = () => {
           gender,
           dob,
           personalEmail,
+          workEmail,
           mobileNo,
           addressLine1,
           addressLine4,
           preferredAddress,
+          preferredEmail,
         } = formData.personalInfo || {};
         if (
           !title ||
@@ -211,14 +218,16 @@ const Application = () => {
           !surname ||
           !gender ||
           !dob ||
-          !personalEmail ||
           !mobileNo ||
           !addressLine1 ||
           !addressLine4 ||
-          !preferredAddress
+          !preferredAddress ||
+          !preferredEmail
         ) {
           return false;
         }
+        if (preferredEmail === 'Personal' && !personalEmail) return false;
+        if (preferredEmail === 'Work' && !workEmail) return false;
         break;
       }
       case 2: {
@@ -333,13 +342,13 @@ const Application = () => {
     // Close the payment modal
     setIsModalVisible(false);
     
-    // Show success alert and mark as submitted
+    // Show success alert and navigate to dashboard (match web)
     Alert.alert('Success', 'Payment completed successfully!', [
       {
         text: 'OK',
         onPress: () => {
-          // Reset form state
           setIsSubmitted(true);
+          navigation.navigate(STACKS.DASHBOARD_STACK);
         }
       }
     ]);
@@ -356,6 +365,21 @@ const Application = () => {
     getPersonalDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Seed personal info from auth user when no personalDetail yet (match web)
+  useEffect(() => {
+    if (!user || personalDetail) return;
+    setFormData(prev => ({
+      ...prev,
+      personalInfo: {
+        ...prev.personalInfo,
+        forename: user.firstName ?? user.userFirstName ?? prev.personalInfo.forename,
+        surname: user.lastName ?? user.userLastName ?? prev.personalInfo.surname,
+        personalEmail: user.email ?? user.userEmail ?? prev.personalInfo.personalEmail,
+        mobileNo: user.mobilePhone ?? user.userMobilePhone ?? prev.personalInfo.mobileNo,
+      },
+    }));
+  }, [user, personalDetail]);
 
   // Hydrate form from fetched details
   useEffect(() => {
@@ -787,7 +811,12 @@ const Application = () => {
             professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
           console.log('🎓 Undergraduate student - skipping payment');
           setIsSubmitted(true);
-          Alert.alert('Success', 'Application submitted successfully!');
+          Alert.alert('Success', 'Application submitted successfully!', [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate(STACKS.DASHBOARD_STACK),
+            }
+          ]);
         } else {
           // Trigger payment modal for other categories (matching web version)
           console.log('💳 Triggering payment modal...');
@@ -846,7 +875,12 @@ const Application = () => {
             professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
           console.log('🎓 Undergraduate student - skipping payment');
           setIsSubmitted(true);
-          Alert.alert('Success', 'Application updated successfully!');
+          Alert.alert('Success', 'Application updated successfully!', [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate(STACKS.DASHBOARD_STACK),
+            }
+          ]);
         } else {
           // Trigger payment modal for other categories (matching web version)
           console.log('💳 Triggering payment modal...');

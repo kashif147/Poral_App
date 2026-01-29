@@ -5,5 +5,5 @@ export const signInMicrosoftRequest = data => {
 };
 
 export const validationRequest = () => {
-  return request.post('/auth/me');
+  return request.get('/api/me');
 };

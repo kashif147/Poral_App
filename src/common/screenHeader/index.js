@@ -1,11 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  Image,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../utils/Styles';
+import { IMAGES } from '../../assets/images';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useProfile } from '../../contexts/profileContext';
 
 const ScreenHeader = ({ title, showBack = true }) => {
+  const { profileDetail } = useProfile();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
@@ -16,7 +26,12 @@ const ScreenHeader = ({ title, showBack = true }) => {
   };
 
   return (
-    <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
+    <View
+      style={[
+        styles.header,
+        { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 },
+      ]}
+    >
       <View style={styles.leftSection}>
         {showBack && (
           <TouchableOpacity
@@ -24,13 +39,44 @@ const ScreenHeader = ({ title, showBack = true }) => {
             style={styles.backButton}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />
+            <Ionicons
+              name="chevron-back-outline"
+              size={24}
+              color={Colors.textPrimary}
+            />
           </TouchableOpacity>
+        )}
+        {title === 'Dashboard' && (
+          <Image source={IMAGES.LOGO} style={styles.logo} />
         )}
         <Text style={styles.headerTitle}>{title}</Text>
       </View>
-      <View style={styles.headerAvatarContainer}>
-        <Ionicons name="person" size={20} color={Colors.white} />
+
+      <View style={styles.rightSection}>
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={() => navigation.navigate('Notifications')}
+        >
+          <Ionicons
+            name="notifications-outline"
+            size={24}
+            color={Colors.textPrimary}
+          />
+          <View style={styles.notificationBadge} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Profile')}
+          style={styles.profileButton}
+        >
+          <Image
+            source={
+              profileDetail?.profileImage
+                ? { uri: profileDetail.profileImage }
+                : IMAGES.AVATAR
+            }
+            style={styles.headerAvatar}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -55,24 +101,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   backButton: {
     marginRight: 12,
-    padding: 4,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
-  headerAvatarContainer: {
+  logo: {
+    width: 35,
+    height: 35,
+    marginRight: 10,
+  },
+  profileButton: {
+    // marginRight: 12,
+  },
+  headerAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#F5A77B',
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  notificationButton: {
+    position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#FF4444',
+    borderWidth: 2,
+    borderColor: Colors.surface,
   },
 });
 
 export default ScreenHeader;
-

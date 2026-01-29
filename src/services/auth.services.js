@@ -1,44 +1,55 @@
-import { signInMicrosoftRequest } from '../api/auth.api';
+import { signInMicrosoftRequest, validationRequest } from '../api/auth.api';
 import {
   deleteHeaders,
   deleteUser,
   getHeaders,
-  getUser,
   saveUser,
   setHeaders,
 } from '../helpers/auth.helper';
 import { deleteVerifier } from '../helpers/verifier.helper';
 import { setSignedIn, setUser } from '../store/slice/auth.slice';
 
+const performLogoutCleanup = async dispatch => {
+  await deleteHeaders();
+  await deleteUser();
+  await deleteVerifier();
+  dispatch(setSignedIn(false));
+  dispatch(setUser({}));
+};
+
 export const validation = () => {
   return async dispatch => {
     try {
       const res = await getHeaders();
-      const user = await getUser();
-      if (
+      const hasToken =
         res?.token &&
         typeof res.token === 'string' &&
-        res.token.trim().length > 0 &&
-        user?.user &&
-        typeof user.user === 'string' &&
-        user.user.trim().length > 0
-      ) {
-        dispatch(setSignedIn(true));
-        try {
-          const parsedUser = JSON.parse(user.user);
-          dispatch(setUser(parsedUser));
-        } catch (parseError) {
-          console.error('Error parsing user data:', parseError);
-          dispatch(setUser({}));
-        }
-      } else {
+        res.token.trim().length > 0;
+
+      if (!hasToken) {
         dispatch(setSignedIn(false));
         dispatch(setUser({}));
+        return;
+      }
+
+      const meRes = await validationRequest();
+      const isSuccess =
+        meRes?.status >= 200 && meRes?.status < 300;
+
+      if (isSuccess) {
+        // /api/me returns { success, data: { id, email, firstName, ... }, policyVersion }
+        const meUser = meRes.data?.data ?? meRes.data;
+        if (meUser) {
+          await saveUser(meUser);
+        }
+        dispatch(setSignedIn(true));
+        dispatch(setUser(meUser ?? {}));
+      } else {
+        await performLogoutCleanup(dispatch);
       }
     } catch (error) {
       console.error('Validation error:', error);
-      dispatch(setSignedIn(false));
-      dispatch(setUser({}));
+      await performLogoutCleanup(dispatch);
     }
   };
 };
