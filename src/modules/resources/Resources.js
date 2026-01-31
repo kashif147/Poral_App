@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../../common/screenHeader';
+import DetailModal from '../../common/detailModal';
 
 const FILTER_TABS = ['All', 'Articles', 'Case Studies', 'Webinars'];
 
@@ -81,6 +82,7 @@ const Resources = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [bookmarkedItems, setBookmarkedItems] = useState(new Set());
+  const [selectedResource, setSelectedResource] = useState(null);
 
   const toggleBookmark = (id) => {
     setBookmarkedItems((prev) => {
@@ -163,7 +165,12 @@ const Resources = () => {
         {/* Resources Grid */}
         <View style={styles.resourcesGrid}>
           {filteredResources.map((resource) => (
-            <View key={resource.id} style={styles.resourceCard}>
+            <TouchableOpacity 
+              key={resource.id} 
+              style={styles.resourceCard}
+              activeOpacity={0.8}
+              onPress={() => setSelectedResource(resource)}
+            >
               {/* Card Image/Thumbnail */}
               <View style={styles.cardImageContainer}>
                 <Image
@@ -225,7 +232,7 @@ const Resources = () => {
                   </View>
                 )}
               </View>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -244,6 +251,55 @@ const Resources = () => {
           </View>
         )}
       </ScrollView>
+
+      <DetailModal
+        visible={!!selectedResource}
+        onClose={() => setSelectedResource(null)}
+        item={selectedResource}
+      >
+        <View style={styles.modalDetails}>
+           {/* Resource Type */}
+           <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="document-text-outline" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Type</Text>
+              <Text style={styles.detailValue}>{selectedResource?.type}</Text>
+            </View>
+          </View>
+
+          {/* Badge/Tags */}
+          {selectedResource?.badge && (
+             <View style={styles.detailRow}>
+              <View style={styles.detailIconContainer}>
+                <Ionicons name="pricetag-outline" size={20} color={selectedResource?.badgeTextColor || Colors.primary} />
+              </View>
+              <View style={styles.detailTextContainer}>
+                <Text style={styles.detailLabel}>Status</Text>
+                <View style={[
+                  styles.badge, 
+                  { 
+                    backgroundColor: selectedResource?.badgeColor, 
+                    alignSelf: 'flex-start',
+                    marginTop: 4,
+                  }
+                ]}>
+                  <Text style={[styles.badgeText, { color: selectedResource?.badgeTextColor }]}>
+                    {selectedResource?.badge}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+           {/* Access Action */}
+           <TouchableOpacity style={[styles.accessButton, { marginTop: 24 }]}>
+               <Text style={styles.accessButtonText}>Access Resource</Text>
+               <Ionicons name="arrow-forward" size={20} color={Colors.white} style={{ marginLeft: 8 }}/>
+           </TouchableOpacity>
+        </View>
+      </DetailModal>
     </View>
   );
 };
@@ -429,6 +485,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  modalDetails: {
+    marginTop: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  detailIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  detailTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: 2,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: 16,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  accessButton: {
+    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  accessButtonText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

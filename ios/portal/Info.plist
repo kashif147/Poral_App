@@ -67,6 +67,9 @@
 	<key>NSCameraUsageDescription</key>
 	<string>This app uses the camera to allow users to upload photos and documents.</string>
 
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app uses the photo library to allow users to upload photos and documents.</string>
+
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Your location is used to improve services based on your area.</string>
 

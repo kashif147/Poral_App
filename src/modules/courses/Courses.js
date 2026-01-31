@@ -12,10 +12,12 @@ import { Colors, wp, hp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../../common/screenHeader';
+import DetailModal from '../../common/detailModal';
 
 const Courses = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedCourse, setSelectedCourse] = useState(null);
 
   const filters = [
     { id: 'all', label: 'All Courses' },
@@ -257,6 +259,7 @@ const Courses = () => {
                 key={course.id}
                 style={styles.courseCard}
                 activeOpacity={0.8}
+                onPress={() => setSelectedCourse(course)}
               >
                 <Image
                   source={{ uri: course.image }}
@@ -306,7 +309,10 @@ const Courses = () => {
                   </View>
 
                   {course.status === 'available' && (
-                    <TouchableOpacity style={styles.enrollButton}>
+                    <TouchableOpacity 
+                      style={styles.enrollButton}
+                      onPress={() => setSelectedCourse(course)}
+                    >
                       <Text style={styles.enrollButtonText}>Enroll Now</Text>
                     </TouchableOpacity>
                   )}
@@ -324,6 +330,64 @@ const Courses = () => {
           </View>
         )}
       </ScrollView>
+
+      <DetailModal
+        visible={!!selectedCourse}
+        onClose={() => setSelectedCourse(null)}
+        item={selectedCourse}
+      >
+        <View style={styles.modalDetails}>
+          <Text style={styles.instructorText}>Instructor: {selectedCourse?.instructor}</Text>
+          
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="time-outline" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Duration</Text>
+              <Text style={styles.detailValue}>{selectedCourse?.duration}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="school-outline" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Level</Text>
+              <Text style={styles.detailValue}>{selectedCourse?.level}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="star-outline" size={20} color="#FFB800" />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Rating</Text>
+              <Text style={styles.detailValue}>{selectedCourse?.rating} ({selectedCourse?.students.toLocaleString()} students)</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="pricetag-outline" size={20} color={selectedCourse?.price === 'Free' ? Colors.success : Colors.primary} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Price</Text>
+              <Text style={[styles.detailValue, { color: selectedCourse?.price === 'Free' ? Colors.success : Colors.primary }]}>
+                {selectedCourse?.price}
+              </Text>
+            </View>
+          </View>
+
+           {selectedCourse?.status === 'available' && (
+             <TouchableOpacity style={[styles.enrollButton, { marginTop: 24 }]}>
+               <Text style={styles.enrollButtonText}>Enroll Now</Text>
+             </TouchableOpacity>
+          )}
+        </View>
+      </DetailModal>
     </View>
   );
 };
@@ -518,6 +582,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+  },
+  modalDetails: {
+    marginTop: 8,
+  },
+  instructorText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    marginBottom: 24,
+    fontWeight: '500',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  detailIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  detailTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: 2,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: 16,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    lineHeight: 22,
   },
 });
 

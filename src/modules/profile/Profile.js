@@ -8,7 +8,8 @@ import { useProfile } from '../../contexts/profileContext';
 import { updatePersonalDetailRequest } from '../../api/application.api';
 import { updateProfileRequest } from '../../api/profile.api';
 import { isDataFormat } from '../../helpers/date.helper';
-import { format } from 'date-fns';
+
+import moment from 'moment';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import CustomSwitch from '../../common/switch';
@@ -17,9 +18,10 @@ import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { signOut } from '../../services/auth.services';
 import ScreenHeader from '../../common/screenHeader';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 const Profile = () => {
-  const { personalDetail, getPersonalDetail } = useApplication();
+  const { personalDetail, getPersonalDetail, subscriptionDetail } = useApplication();
   const { profileByIdDetail, getProfileByIdDetail, profileDetail } = useProfile();
   const applicationId = personalDetail?.applicationId;
   const insets = useSafeAreaInsets();
@@ -29,13 +31,14 @@ const Profile = () => {
   const [loading, setLoading] = useState(false);
   const [personalInfo, setPersonalInfo] = useState({});
   const [showPersonalInfoForm, setShowPersonalInfoForm] = useState(false);
+  const [localProfileImage, setLocalProfileImage] = useState(null);
   
   // Communication preferences state
   const [emailNewsletter, setEmailNewsletter] = useState(true);
   const [promotionalOffers, setPromotionalOffers] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
 
-  // Hydrate local form state from context - prefer profile data over application data (matching web version)
+  // Hydrate local form state from context
   useEffect(() => {
     if (!personalDetail && !profileByIdDetail) return;
 
@@ -76,11 +79,45 @@ const Profile = () => {
     });
   }, [personalDetail, profileByIdDetail]);
 
-  const handleCancel = () => {
-    // Reset to server values
-    if (!personalDetail) return;
-    setPersonalInfo(prev => ({ ...prev }));
-    Alert.alert('Cancelled', 'Changes discarded');
+  const handleImagePick = () => {
+    Alert.alert(
+      'Select Profile Photo',
+      'Choose an option',
+      [
+        {
+          text: 'Camera',
+          onPress: async () => {
+            const result = await launchCamera({
+              mediaType: 'photo',
+              quality: 0.5,
+              includeBase64: true,
+            });
+             if (result.assets && result.assets.length > 0) {
+              setLocalProfileImage(result.assets[0]);
+              // Ideally upload here or save strictly for display
+              // For now we persist it in local state
+            }
+          },
+        },
+        {
+          text: 'Gallery',
+          onPress: async () => {
+            const result = await launchImageLibrary({
+              mediaType: 'photo',
+              quality: 0.5,
+              includeBase64: true,
+            });
+            if (result.assets && result.assets.length > 0) {
+              setLocalProfileImage(result.assets[0]);
+            }
+          },
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]
+    );
   };
 
   const handleSave = async () => {
@@ -150,6 +187,13 @@ const Profile = () => {
           consent: !!personalInfo.consent,
         },
       };
+
+      if (localProfileImage?.base64) {
+         // Assuming API might accept base64 image in a field like 'profilePhoto' or 'avatar'
+         // If not supported by backend, this might be ignored or error out.
+         // We are sending it as 'profileImage' for now based on common patterns.
+         profilePayload.personalInfo.profileImage = `data:${localProfileImage.type};base64,${localProfileImage.base64}`;
+      }
 
       Object.entries(profileContactFields).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
@@ -228,6 +272,19 @@ const Profile = () => {
     );
   };
 
+  // Dynamic Subscription Data
+  const membershipCategory = subscriptionDetail?.subscriptionDetails?.membershipCategory || 'No Membership';
+  const membershipStatus = subscriptionDetail?.subscriptionDetails?.membershipStatus || 'Inactive';
+  const renewalDate = subscriptionDetail?.subscriptionDetails?.renewalDate;
+  const isActive = membershipStatus.toLowerCase() === 'active';
+
+  // Profile Image Source
+  const profileImageSource = localProfileImage
+    ? { uri: localProfileImage.uri }
+    : profileByIdDetail?.personalInfo?.profileImage
+      ? { uri: profileByIdDetail.personalInfo.profileImage } // Assuming URL or Base64
+      : { uri: 'https://randomuser.me/api/portraits/women/44.jpg' }; // Fallback
+
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
@@ -239,12 +296,14 @@ const Profile = () => {
           {/* Profile Header Card */}
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
-              <Image 
-                source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} 
-                style={styles.avatar}
-              />
-              <TouchableOpacity style={styles.editBadge}>
-                <Ionicons name="pencil" size={14} color={Colors.white} />
+              <TouchableOpacity onPress={handleImagePick}>
+                <Image 
+                  source={profileImageSource} 
+                  style={styles.avatar}
+                />
+                <View style={styles.editBadge}>
+                  <Ionicons name="camera" size={14} color={Colors.white} />
+                </View>
               </TouchableOpacity>
             </View>
             <Text style={styles.profileName}>
@@ -326,7 +385,7 @@ const Profile = () => {
               </View>
               <View style={styles.listItemContent}>
                 <Text style={styles.listItemLabel}>Membership Level</Text>
-                <Text style={styles.listItemValue}>Gold Tier</Text>
+                <Text style={styles.listItemValue}>{membershipCategory}</Text>
               </View>
             </View>
 
@@ -336,10 +395,14 @@ const Profile = () => {
               </View>
               <View style={styles.listItemContent}>
                 <Text style={styles.listItemLabel}>Membership Status</Text>
-                <Text style={styles.listItemValue}>Renews on Dec 31, 2024</Text>
+                <Text style={styles.listItemValue}>
+                  {renewalDate ? `Renews on ${moment(renewalDate).format('MMM DD, YYYY')}` : membershipStatus}
+                </Text>
               </View>
-              <View style={styles.activeBadge}>
-                <Text style={styles.activeBadgeText}>Active</Text>
+              <View style={[styles.activeBadge, !isActive && { backgroundColor: '#FEE2E2' }]}>
+                <Text style={[styles.activeBadgeText, !isActive && { color: '#EF4444' }]}>
+                  {isActive ? 'Active' : 'Inactive'}
+                </Text>
               </View>
             </View>
           </View>

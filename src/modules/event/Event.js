@@ -14,11 +14,13 @@ import { Colors, wp, hp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../../common/screenHeader';
+import DetailModal from '../../common/detailModal';
 
 const Event = () => {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   const filters = [
     { id: 'all', label: 'All Events' },
@@ -242,6 +244,7 @@ const Event = () => {
                 key={event.id}
                 style={styles.eventCard}
                 activeOpacity={0.8}
+                onPress={() => setSelectedEvent(event)}
               >
                 <Image
                   source={{ uri: event.image }}
@@ -291,7 +294,10 @@ const Event = () => {
                   </View>
 
                   {event.status === 'available' && (
-                    <TouchableOpacity style={styles.registerButton}>
+                    <TouchableOpacity 
+                      style={styles.registerButton}
+                      onPress={() => setSelectedEvent(event)}
+                    >
                       <Text style={styles.registerButtonText}>Register Now</Text>
                     </TouchableOpacity>
                   )}
@@ -309,6 +315,70 @@ const Event = () => {
           </View>
         )}
       </ScrollView>
+
+      <DetailModal
+        visible={!!selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        item={selectedEvent}
+      >
+        <View style={styles.modalDetails}>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="calendar" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Date & Time</Text>
+              <Text style={styles.detailValue}>{selectedEvent?.date}</Text>
+              <Text style={styles.detailSubValue}>{selectedEvent?.time}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons 
+                name={selectedEvent?.location === 'Online' ? 'videocam' : 'location'} 
+                size={20} 
+                color={Colors.primary} 
+              />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Location</Text>
+              <Text style={styles.detailValue}>{selectedEvent?.location}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <MaterialCommunityIcons name="account-group" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Attendance</Text>
+              <Text style={styles.detailValue}>{selectedEvent?.attendees} registered</Text>
+              <View style={[
+                  styles.statusBadge, 
+                  { 
+                    backgroundColor: selectedEvent ? getStatusColor(selectedEvent.status).bg : 'transparent',
+                    alignSelf: 'flex-start',
+                    marginTop: 4,
+                  }
+                ]}>
+                <Text style={[
+                  styles.statusBadgeText, 
+                  { color: selectedEvent ? getStatusColor(selectedEvent.status).text : 'black' }
+                ]}>
+                  {selectedEvent ? getStatusLabel(selectedEvent.status) : ''}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {selectedEvent?.status === 'available' && (
+             <TouchableOpacity style={[styles.registerButton, { marginTop: 24 }]}>
+               <Text style={styles.registerButtonText}>Register Now</Text>
+             </TouchableOpacity>
+          )}
+        </View>
+      </DetailModal>
     </View>
   );
 };
@@ -476,6 +546,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
+  },
+  modalDetails: {
+    marginTop: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  detailIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  detailTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: 2,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: 16,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  detailSubValue: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });
 

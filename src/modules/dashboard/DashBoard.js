@@ -37,7 +37,7 @@ const DashBoard = () => {
       try {
         const userStr = await AsyncStorage.getItem('user');
         const userData = userStr ? JSON.parse(userStr) : null;    
-        setUserName(userData?.userFirstName || 'User');
+        setUserName(userData?.userFirstName || user?.firstName);
       } catch (error) {
         setUserName('User');
       }
@@ -45,6 +45,7 @@ const DashBoard = () => {
     fetchUserName();
   }, []);
 
+  console.log('Profile=======>',profileDetail)
   // Fetch all lookups when Dashboard loads
   useEffect(() => {
     const initializeLookups = async () => {
@@ -153,34 +154,33 @@ const DashBoard = () => {
   return (
     <View style={styles.container}>
       <ScreenHeader showBack={false} title={`Dashboard`} />
-
-      {/* <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 }]}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatarContainer}>
-            <Ionicons name="person" size={24} color={Colors.white} />
-          </View>
-          <Text style={styles.greetingText}>Hello, {userName}!</Text>
-        </View>
-        <View style={styles.headerRight}>
-          {profileDetail?.membershipNumber && (
-            <View style={styles.membershipBadge}>
-              <Text style={styles.membershipLabel}>Membership Number</Text>
-              <Text style={styles.membershipNumber}>{profileDetail.membershipNumber}</Text>
-            </View>
-          )}
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => navigation.navigate('Notifications')}
-          >
-            <Ionicons name="notifications-outline" size={24} color={Colors.textPrimary} />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
-        </View>
-      </View> */}
-
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {/* Application Status Card */}
-        {applicationStatus && (
+        <View style={styles.welcomeContainer}>
+           <Text style={styles.welcomeText}>Welcome, {userName || user?.firstName} 👋</Text>
+        </View>
+        {/* Application Status or Payment Card */}
+        {applicationStatus === 'approved' ? (
+           <View style={styles.paymentCard}>
+             <View style={styles.paymentCardHeader}>
+                <Text style={styles.paymentCardTitle}>Payments & Billing</Text>
+                <TouchableOpacity>
+                  <Ionicons name="ellipsis-vertical" size={24} color="#FFF" />
+                </TouchableOpacity>
+             </View>
+             
+             <View style={styles.paymentCardContent}>
+                {/* <Text style={styles.paymentLabel}>CATEGORY PRICE</Text> */}
+                <Text style={styles.paymentAmount}>
+                   {profileDetail?.categoryPrice ? `€${profileDetail.categoryPrice}` : '€0.00'}
+                </Text> 
+             </View>
+
+             <View style={styles.membershipContainer}>
+                 <Text style={styles.membershipLabel}>MEMBERSHIP NO</Text>
+                 <Text style={styles.membershipValue}>{profileDetail?.membershipNumber || 'N/A'}</Text>
+             </View>
+          </View>
+        ) : (
           <View style={styles.statusCard}>
             <View style={styles.statusCardHeader}>
               <Text style={styles.statusCardTitle}>Application Status</Text>
@@ -679,6 +679,79 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+  },
+  welcomeContainer: {
+    paddingHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 5,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+  },
+  paymentCard: {
+    marginHorizontal: 20,
+    marginVertical: 10,
+
+    backgroundColor: '#3B82F6', // Blue shade matching "wallet" feel
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+    minHeight: 150,
+    justifyContent: 'space-between',
+  },
+  paymentCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    // marginBottom: 16,
+  },
+  paymentCardTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  paymentCardContent: {
+    // marginBottom: 20,
+  },
+  paymentLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  paymentAmount: {
+    color: '#FFF',
+    fontSize: 36,
+    fontWeight: 'bold',
+  },
+  membershipContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  membershipLabel: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 10,
+    fontWeight: '600',
+    marginRight: 8,
+    textTransform: 'uppercase',
+  },
+  membershipValue: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
 
