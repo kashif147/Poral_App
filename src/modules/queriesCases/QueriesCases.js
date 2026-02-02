@@ -1,81 +1,28 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { STACKS } from '../../enums/ScreenEnums';
 import { Colors } from '../../utils/Styles';
+import { getStatusColor, getStatusBg } from '../../utils/status.utils';
+import { CASE_FILTERS, QUERIES_CASES_DUMMY_DATA } from '../../constants/queriesCases';
 import ScreenHeader from '../../common/screenHeader';
-import Ionicons from 'react-native-vector-icons/Ionicons';
 import DetailModal from '../../common/detailModal';
+import CaseDetailContent from '../../common/caseDetailContent';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const QueriesCases = () => {
+  const navigation = useNavigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [selectedCase, setSelectedCase] = useState(null);
 
-  const filters = ['All', 'Open', 'In Progress', 'Closed'];
-
-  const dummyData = [
-    {
-      id: 'CS-2023-001',
-      subject: 'Membership Renewal Issue',
-      title: 'Membership Renewal Issue', // Added title for DetailModal
-      date: 'Oct 24, 2023',
-      status: 'Open',
-      description: 'I cannot proceed with my payment for renewal.',
-      image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800&h=400&fit=crop', // Dummy image
-    },
-    {
-      id: 'CS-2023-002',
-      subject: 'Certificate Request',
-      title: 'Certificate Request',
-      date: 'Oct 20, 2023',
-      status: 'Closed',
-      image: 'https://images.unsplash.com/photo-1543269664-7eef42226a21?w=800&h=400&fit=crop',
-      description: 'Requesting a copy of my membership certificate.',
-    },
-    {
-      id: 'CS-2023-003',
-      subject: 'Event Registration',
-      title: 'Event Registration',
-      date: 'Oct 15, 2023',
-      status: 'In Progress',
-      description: 'Need help registering for the Annual Meetup.',
-      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop',
-    },
-    {
-      id: 'CS-2023-004',
-        subject: 'Profile Update',
-        title: 'Profile Update',
-        date: 'Oct 10, 2023',
-        status: 'Closed',
-        description: 'Updated my contact details but not reflecting.',
-        image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&h=400&fit=crop',
-      },
-  ];
-
-  const filteredData = dummyData.filter(item => {
+  const filteredData = QUERIES_CASES_DUMMY_DATA.filter((item) => {
     const matchesFilter = selectedFilter === 'All' || item.status === selectedFilter;
-    const matchesSearch = 
-      item.subject.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch =
+      item.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.id.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Open': return '#10B981'; // Green
-      case 'In Progress': return '#F59E0B'; // Amber
-      case 'Closed': return '#6B7280'; // Gray
-      default: return Colors.primary;
-    }
-  };
-
-  const getStatusBg = (status) => {
-      switch (status) {
-        case 'Open': return '#D1FAE5'; 
-        case 'In Progress': return '#FEF3C7'; 
-        case 'Closed': return '#F3F4F6'; 
-        default: return '#E0F2FE';
-      }
-    };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity 
@@ -109,7 +56,7 @@ const QueriesCases = () => {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Queries & Cases" showBack={true} />
+      <ScreenHeader title="Queries & Cases" />
       
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -133,7 +80,7 @@ const QueriesCases = () => {
       {/* Filter Tabs */}
       <View style={styles.filterContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {filters.map((filter) => (
+            {CASE_FILTERS.map((filter) => (
             <TouchableOpacity
                 key={filter}
                 style={[
@@ -170,61 +117,21 @@ const QueriesCases = () => {
         />
       </View>
 
-        <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
+        <TouchableOpacity
+            style={styles.fab}
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate(STACKS.CREATE_CASE)}
+        >
             <Ionicons name="add" size={28} color={Colors.white} />
         </TouchableOpacity> 
 
         <DetailModal
-        visible={!!selectedCase}
-        onClose={() => setSelectedCase(null)}
-        item={selectedCase}
-      >
-        <View style={styles.modalDetails}>
-            <View style={styles.detailRow}>
-                <View style={styles.detailIconContainer}>
-                    <Ionicons name="pricetag" size={20} color={Colors.primary} />
-                </View>
-                <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Case ID</Text>
-                    <Text style={styles.detailValue}>{selectedCase?.id}</Text>
-                </View>
-            </View>
-
-            <View style={styles.detailRow}>
-                <View style={styles.detailIconContainer}>
-                    <Ionicons name="calendar" size={20} color={Colors.primary} />
-                </View>
-                <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Date Created</Text>
-                    <Text style={styles.detailValue}>{selectedCase?.date}</Text>
-                </View>
-            </View>
-
-            <View style={styles.detailRow}>
-                <View style={styles.detailIconContainer}>
-                    <Ionicons name="information-circle" size={20} color={Colors.primary} />
-                </View>
-                <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Status</Text>
-                    <View style={[
-                        styles.statusBadge, 
-                        { 
-                            backgroundColor: selectedCase ? getStatusBg(selectedCase.status) : 'transparent',
-                            alignSelf: 'flex-start',
-                            marginTop: 4,
-                        }
-                        ]}>
-                        <Text style={[
-                            styles.statusText, 
-                            { color: selectedCase ? getStatusColor(selectedCase.status) : 'black' }
-                        ]}>
-                            {selectedCase?.status}
-                        </Text>
-                    </View>
-                </View>
-            </View>
-        </View>
-      </DetailModal>
+          visible={!!selectedCase}
+          onClose={() => setSelectedCase(null)}
+          item={selectedCase}
+        >
+          <CaseDetailContent item={selectedCase} />
+        </DetailModal>
     </View>
   );
 };
@@ -379,42 +286,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
-  },
-  modalDetails: {
-    marginTop: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    alignItems: 'flex-start',
-  },
-  detailIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  detailTextContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingTop: 2,
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  detailValue: {
-    fontSize: 16,
-    color: Colors.textPrimary,
-    fontWeight: '600',
-    lineHeight: 22,
   },
 });
 

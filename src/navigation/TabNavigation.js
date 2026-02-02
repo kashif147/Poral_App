@@ -14,6 +14,7 @@ import Profile from '../modules/profile/Profile';
 import Resources from '../modules/resources/Resources';
 import Notifications from '../modules/notifications/Notifications';
 import QueriesCases from '../modules/queriesCases/QueriesCases';
+import CreateCase from '../modules/queriesCases/CreateCase';
 import { STACKS } from '../enums/ScreenEnums';
 import { IMAGES } from '../assets/images';
 import { TabBarIcon } from '../common/tabBarIcon';
@@ -249,6 +250,7 @@ const TabNavigator = () => {
         <Tab.Screen name="Directory" component={Profile} />
         <Tab.Screen name="Notifications" component={Notifications} />
         <Tab.Screen name={STACKS.QUERIES_CASES_STACK} component={QueriesCases} />
+        <Tab.Screen name={STACKS.CREATE_CASE} component={CreateCase} />
       </Tab.Navigator>
   );
 };

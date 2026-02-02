@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -13,8 +12,9 @@ import { Colors } from '../../utils/Styles';
 import { IMAGES } from '../../assets/images';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useProfile } from '../../contexts/profileContext';
+import { Label } from '../text/label';
 
-const ScreenHeader = ({ title, showBack = true }) => {
+const ScreenHeader = ({ title, showBack }) => {
   const { profileDetail } = useProfile();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -49,7 +49,7 @@ const ScreenHeader = ({ title, showBack = true }) => {
         {title === 'Dashboard' && (
           <Image source={IMAGES.LOGO} style={styles.logo} />
         )}
-        <Text style={styles.headerTitle}>{title}</Text>
+        <Label style={styles.headerTitle}>{title}</Label>
       </View>
 
       <View style={styles.rightSection}>
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '700',
     color: Colors.textPrimary,
   },
