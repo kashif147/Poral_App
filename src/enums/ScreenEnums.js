@@ -14,6 +14,7 @@ const STACKS = {
   MEMBERSHIP_STACK: "Membership",
   PAYMENT_STACK: "Payment",
   PAYMENT_METHOD_STACK: "PaymentMethod",
+  QUERIES_CASES_STACK: "QueriesCases",
 };
 
 const TAB = {

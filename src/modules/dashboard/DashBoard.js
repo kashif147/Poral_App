@@ -23,14 +23,24 @@ const DashBoard = () => {
   const user = useSelector(state => state.auth.user);
   const [userName, setUserName] = useState('User');
   const insets = useSafeAreaInsets();
-  const { personalDetail } = useApplication();
+  const { personalDetail, subscriptionDetail, professionalDetail } = useApplication();
   const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
   const { getProfileDetail, profileDetail } = useProfile();
+  const { getCategoryData, categoryData } = useApplication();
+  
+  const membershipCategory = applicationStatus === 'approved' 
+    ? profileDetail?.membershipCategory 
+    : professionalDetail?.membershipCategory;
+  const { categoryLookups } = useLookup();
 
   useEffect(() => {
-    getProfileDetail();
-  }, []);
+    if (membershipCategory) {
+      getCategoryData(membershipCategory, categoryLookups || []);
+    }
+  }, [membershipCategory, categoryLookups, getCategoryData]);
+
+
 
   useEffect(() => {
     const fetchUserName = async () => {
@@ -45,7 +55,7 @@ const DashBoard = () => {
     fetchUserName();
   }, []);
 
-  console.log('Profile=======>',profileDetail)
+  console.log('Category Data=======>',categoryData)
   // Fetch all lookups when Dashboard loads
   useEffect(() => {
     const initializeLookups = async () => {
@@ -83,6 +93,36 @@ const DashBoard = () => {
 
     checkApplicationStatus();
   }, [personalDetail?.applicationId]);
+
+  const formatCurrency = value => {
+    const currency = (
+      categoryData?.currentPricing?.currency || 'EUR'
+    ).toUpperCase();
+    try {
+      return new Intl.NumberFormat('en-IE', {
+        style: 'currency',
+        currency,
+      }).format(value || 0);
+    } catch {
+      return `€${(value || 0).toFixed(2)}`;
+    }
+  };
+
+  // Get payment amount based on payment type
+  const getPaymentAmount = () => {
+    if (!categoryData?.currentPricing?.price) return 0;
+    const priceInEuros = categoryData.currentPricing.price / 100;
+
+    // If payment type is set in subscription details
+    const paymentType = subscriptionDetail?.subscriptionDetails?.paymentType;
+    if (paymentType === 'deduction') {
+      // Monthly payment (divide by 12 for monthly)
+      return priceInEuros / 12;
+    }
+
+    // Default to annual price
+    return priceInEuros;
+  };
 
   // Quick Links - 2x2 grid
   const quickLinks = [
@@ -171,7 +211,8 @@ const DashBoard = () => {
              <View style={styles.paymentCardContent}>
                 {/* <Text style={styles.paymentLabel}>CATEGORY PRICE</Text> */}
                 <Text style={styles.paymentAmount}>
-                   {profileDetail?.categoryPrice ? `€${profileDetail.categoryPrice}` : '€0.00'}
+                  €128.00
+                   {/* {formatCurrency(getPaymentAmount())} */}
                 </Text> 
              </View>
 

@@ -64,6 +64,15 @@ const PopupMenu = ({ visible, onClose, onNavigate }) => {
       bgColor: '#D1FAE5',
       route: 'PaymentMethod',
     },
+    {
+        id: 'queriesCases',
+        label: 'Queries & Cases',
+        icon: 'clipboard-list-outline', 
+        iconType: 'MaterialCommunityIcons',
+        color: '#F472B6', 
+        bgColor: '#FCE7F3',
+        route: 'QueriesCases',
+      },
   ];
 
   const handleItemPress = (item) => {

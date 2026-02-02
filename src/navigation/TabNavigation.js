@@ -13,6 +13,7 @@ import PaymentMethod from '../modules/payment/PaymentMethod';
 import Profile from '../modules/profile/Profile';
 import Resources from '../modules/resources/Resources';
 import Notifications from '../modules/notifications/Notifications';
+import QueriesCases from '../modules/queriesCases/QueriesCases';
 import { STACKS } from '../enums/ScreenEnums';
 import { IMAGES } from '../assets/images';
 import { TabBarIcon } from '../common/tabBarIcon';
@@ -94,6 +95,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       'Application': STACKS.APPLICATION_STACK,
       'Payment': STACKS.PAYMENT_STACK,
       'PaymentMethod': STACKS.PAYMENT_METHOD_STACK,
+      'QueriesCases': STACKS.QUERIES_CASES_STACK,
     };
     
     const targetRoute = routeMap[route];
@@ -246,6 +248,7 @@ const TabNavigator = () => {
         <Tab.Screen name="Resources" component={Resources} />
         <Tab.Screen name="Directory" component={Profile} />
         <Tab.Screen name="Notifications" component={Notifications} />
+        <Tab.Screen name={STACKS.QUERIES_CASES_STACK} component={QueriesCases} />
       </Tab.Navigator>
   );
 };
