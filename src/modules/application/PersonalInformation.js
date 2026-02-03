@@ -757,23 +757,27 @@ const PersonalInformation = ({
                   components.find(c => c.types?.includes(type))?.short_name ||
                   '';
 
-                const streetNumber = getComponent('street_number');
+                // Match web: premise, route, sublocality_level_1, sublocality, locality, postal_town, administrative_area_level_1, postal_code
+                const premise = getComponent('premise');
                 const route = getComponent('route');
-                const neighborhood = getComponent('neighborhood') || '';
-                const sublocality = getComponent('sublocality') || '';
-                const town =
-                  getComponent('locality') || getComponent('postal_town') || '';
-                const county =
-                  getComponent('administrative_area_level_1') || '';
+                const sublocalityLevel1 = getComponent('sublocality_level_1');
+                const sublocality = getComponent('sublocality');
+                const locality = getComponent('locality');
+                const postalTown = getComponent('postal_town');
+                const administrativeAreaLevel1 = getComponent('administrative_area_level_1');
                 const postalCode = getComponent('postal_code');
                 const countryLongName = getComponent('country');
                 const countryShortName = getComponentShortName('country');
 
-                const addressLine1 = `${streetNumber} ${route}`.trim();
-                const addressLine2 = neighborhood || sublocality; // Use neighborhood first, fallback to sublocality
-                const addressLine3 = town;
-                const addressLine4 = `${county}`.trim();
-                const eircode = `${postalCode}`.trim();
+                // Address Line 1: premise if exists, else route (match web)
+                const addressLine1 = (premise || route || '').trim();
+                // Address Line 2: route only when premise exists, otherwise empty (match web)
+                const addressLine2 = premise ? (route || '') : '';
+                // Address Line 3: sublocality_level_1, sublocality, or locality (Area/Town) (match web)
+                const addressLine3 = sublocalityLevel1 || sublocality || locality || '';
+                // Address Line 4: postal_town or administrative_area_level_1 (County, City or Postcode) (match web)
+                const addressLine4 = (postalTown || administrativeAreaLevel1 || '').trim();
+                const eircode = (postalCode || '').trim();
 
                 // Find the country displayname from countryLookups based on the country name or code (matching web version)
                 let countryDisplayName = formData?.country || 'Ireland'; // Default to Ireland if not found

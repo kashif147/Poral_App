@@ -6,17 +6,23 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Platform,
   Image,
 } from 'react-native';
-import { Colors, hp, wp } from '../../utils/Styles';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors, hp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../../common/screenHeader';
 import DetailModal from '../../common/detailModal';
 
-const FILTER_TABS = ['All', 'Articles', 'Case Studies', 'Webinars'];
+const filters = [
+  { id: 'all', label: 'All' },
+  { id: 'articles', label: 'Articles' },
+  { id: 'case-studies', label: 'Case Studies' },
+  { id: 'webinars', label: 'Webinars' },
+  { id: 'videos', label: 'Videos' },
+  { id: 'guides', label: 'Guides' },
+  { id: 'podcasts', label: 'Podcasts' },
+];
 
 const RESOURCES_DATA = [
   {
@@ -28,6 +34,8 @@ const RESOURCES_DATA = [
     badgeTextColor: '#16A34A',
     gradient: ['#667EEA', '#764BA2'],
     image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=300&fit=crop',
+    category: 'Case Studies',
+    format: 'case-studies',
   },
   {
     id: 2,
@@ -38,6 +46,8 @@ const RESOURCES_DATA = [
     badgeTextColor: '#D97706',
     gradient: ['#2C3E50', '#4CA1AF'],
     image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop',
+    category: 'Videos',
+    format: 'videos',
   },
   {
     id: 3,
@@ -48,6 +58,8 @@ const RESOURCES_DATA = [
     badgeTextColor: '#16A34A',
     gradient: ['#000000', '#434343'],
     image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=300&fit=crop',
+    category: 'Webinars',
+    format: 'webinars',
   },
   {
     id: 4,
@@ -56,6 +68,8 @@ const RESOURCES_DATA = [
     badge: null,
     gradient: ['#B2DFDB', '#E0F7FA'],
     image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=400&h=300&fit=crop',
+    category: 'Articles',
+    format: 'articles',
   },
   {
     id: 5,
@@ -66,6 +80,8 @@ const RESOURCES_DATA = [
     badgeTextColor: '#D97706',
     gradient: ['#4A6741', '#78A665'],
     image: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=400&h=300&fit=crop',
+    category: 'Guides',
+    format: 'guides',
   },
   {
     id: 6,
@@ -74,13 +90,14 @@ const RESOURCES_DATA = [
     badge: null,
     gradient: ['#000000', '#2C2C2C'],
     image: 'https://images.unsplash.com/photo-1478737270239-2f02b77fc618?w=400&h=300&fit=crop',
+    category: 'Podcasts',
+    format: 'podcasts',
   },
 ];
 
 const Resources = () => {
-  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('All');
+  const [selectedFilter, setSelectedFilter] = useState('all');
   const [bookmarkedItems, setBookmarkedItems] = useState(new Set());
   const [selectedResource, setSelectedResource] = useState(null);
 
@@ -96,89 +113,105 @@ const Resources = () => {
     });
   };
 
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+
   const filteredResources = RESOURCES_DATA.filter((resource) => {
-    const matchesSearch = resource.title
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
-    const matchesFilter =
-      activeFilter === 'All' ||
-      resource.type.toLowerCase().includes(activeFilter.toLowerCase());
-    return matchesSearch && matchesFilter;
+    if (selectedFilter === 'all') return true;
+    return resource.format === selectedFilter;
+  }).filter((resource) => {
+    if (!normalizedQuery) return true;
+    const searchable = [
+      resource.title,
+      resource.type,
+      resource.format,
+    ];
+    return searchable.some((field) =>
+      field?.toLowerCase().includes(normalizedQuery),
+    );
   });
 
+  const clearSearch = () => setSearchQuery('');
+
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.background }}>
-      {/* Header */}
+    <View style={styles.container}>
       <ScreenHeader title="Resources" />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: hp(12) }}
-      >
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Ionicons
-              name="search-outline"
-              size={20}
-              color={Colors.textSecondary}
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search articles, videos, documents..."
-              placeholderTextColor={Colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons
+            name="search-outline"
+            size={20}
+            color={Colors.textSecondary}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search resources..."
+            placeholderTextColor={Colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color={Colors.textSecondary}
+              />
+            </TouchableOpacity>
+          )}
         </View>
+      </View>
 
-        {/* Filter Tabs */}
+      <View style={styles.filterRowWrapper}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterTabsContainer}
+          contentContainerStyle={styles.filterContainer}
+          style={styles.filterScrollView}
         >
-          {FILTER_TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab}
+          {filters.map((filter) => (
+          <TouchableOpacity
+            key={filter.id}
+            style={[
+              styles.filterButton,
+              selectedFilter === filter.id && styles.filterButtonActive,
+            ]}
+            onPress={() => setSelectedFilter(filter.id)}
+            activeOpacity={0.7}
+          >
+            <Text
               style={[
-                styles.filterTab,
-                activeFilter === tab && styles.filterTabActive,
+                styles.filterButtonText,
+                selectedFilter === filter.id && styles.filterButtonTextActive,
               ]}
-              onPress={() => setActiveFilter(tab)}
-              activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  activeFilter === tab && styles.filterTabTextActive,
-                ]}
-              >
-                {tab}
-              </Text>
-            </TouchableOpacity>
-          ))}
+              {filter.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
         </ScrollView>
+      </View>
 
-        {/* Resources Grid */}
+      <ScrollView
+        style={styles.contentScrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={styles.resourcesGrid}>
           {filteredResources.map((resource) => (
-            <TouchableOpacity 
-              key={resource.id} 
+            <TouchableOpacity
+              key={resource.id}
               style={styles.resourceCard}
               activeOpacity={0.8}
               onPress={() => setSelectedResource(resource)}
             >
-              {/* Card Image/Thumbnail */}
               <View style={styles.cardImageContainer}>
                 <Image
                   source={{ uri: resource.image }}
                   style={styles.cardImage}
                   resizeMode="cover"
                 />
-                {/* Gradient Overlay */}
                 <View
                   style={[
                     styles.imageOverlay,
@@ -188,10 +221,12 @@ const Resources = () => {
                   ]}
                 />
 
-                {/* Bookmark Icon */}
                 <TouchableOpacity
                   style={styles.bookmarkButton}
-                  onPress={() => toggleBookmark(resource.id)}
+                  onPress={(event) => {
+                    event.stopPropagation?.();
+                    toggleBookmark(resource.id);
+                  }}
                   activeOpacity={0.7}
                 >
                   <Ionicons
@@ -206,14 +241,12 @@ const Resources = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Card Content */}
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle} numberOfLines={2}>
                   {resource.title}
                 </Text>
                 <Text style={styles.cardType}>{resource.type}</Text>
 
-                {/* Badge */}
                 {resource.badge && (
                   <View
                     style={[
@@ -236,7 +269,6 @@ const Resources = () => {
           ))}
         </View>
 
-        {/* Empty State */}
         {filteredResources.length === 0 && (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons
@@ -305,6 +337,11 @@ const Resources = () => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+
   // Header - Matching Application.js
   header: {
     flexDirection: 'row',
@@ -337,61 +374,85 @@ const styles = StyleSheet.create({
 
   // Search
   searchContainer: {
+    flex: 0,
+    backgroundColor: Colors.surface,
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  searchInputContainer: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.background,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderWidth: 1.5,
-    borderColor: '#E5E5E5',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    height: 48,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
     color: Colors.textPrimary,
-    fontWeight: '400',
   },
 
-  // Filter Tabs
-  filterTabsContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 12,
+  // Filter Tabs - fixed height; flex: 0 so this row never takes extra space when content shrinks
+  filterRowWrapper: {
+    flex: 0,
+    height: 70,
+    minHeight: 70,
+    maxHeight: 70,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  filterTab: {
+  filterScrollView: {
+    height: 70,
+    minHeight: 70,
+    maxHeight: 70,
+  },
+  filterContainer: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: '#E8EEF7',
-    marginRight: 12,
+    backgroundColor: Colors.surface,
+    paddingBottom: 32,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  filterTabActive: {
+  filterButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginRight: 8,
+    backgroundColor: '#F3F4F6',
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterButtonActive: {
     backgroundColor: Colors.primary,
   },
-  filterTabText: {
-    fontSize: 14,
+  filterButtonText: {
+    fontSize: 12,
     fontWeight: '600',
     color: Colors.textPrimary,
   },
-  filterTabTextActive: {
+  filterButtonTextActive: {
     color: Colors.white,
   },
 
-  // Resources Grid
+  // Resources Grid - flex: 1 and minHeight: 0 so this takes all space below filter without pushing it
+  contentScrollView: {
+    flex: 1,
+    minHeight: 0,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 100,
+  },
   resourcesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
