@@ -9,14 +9,18 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, wp, hp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../../common/screenHeader';
 import DetailModal from '../../common/detailModal';
+import { getEventWithRegistrationData } from '../../constants/eventData';
+import { STACKS } from '../../enums/ScreenEnums';
 
 const Event = () => {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -98,7 +102,7 @@ const Event = () => {
     },
     {
       id: 6,
-      title: 'Digital Marketing Masterclass',
+      title: 'Digital Marketing',
       date: 'Nov 8, 2024',
       time: '1:00 PM - 4:00 PM',
       location: 'Online',
@@ -294,9 +298,14 @@ const Event = () => {
                   </View>
 
                   {event.status === 'available' && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       style={styles.registerButton}
-                      onPress={() => setSelectedEvent(event)}
+                      onPress={() => {
+                        setSelectedEvent(null);
+                        navigation.navigate(STACKS.EVENT_REGISTRATION, {
+                          event: getEventWithRegistrationData(event),
+                        });
+                      }}
                     >
                       <Text style={styles.registerButtonText}>Register Now</Text>
                     </TouchableOpacity>
@@ -373,9 +382,17 @@ const Event = () => {
           </View>
 
           {selectedEvent?.status === 'available' && (
-             <TouchableOpacity style={[styles.registerButton, { marginTop: 24 }]}>
-               <Text style={styles.registerButtonText}>Register Now</Text>
-             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.registerButton, { marginTop: 24 }]}
+              onPress={() => {
+                setSelectedEvent(null);
+                navigation.navigate(STACKS.EVENT_REGISTRATION, {
+                  event: getEventWithRegistrationData(selectedEvent),
+                });
+              }}
+            >
+              <Text style={styles.registerButtonText}>Register Now</Text>
+            </TouchableOpacity>
           )}
         </View>
       </DetailModal>

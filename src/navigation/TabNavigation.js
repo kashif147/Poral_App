@@ -4,7 +4,7 @@ import { Image, NativeModules, Platform, StyleSheet, Text, View, Dimensions, Tou
 import { Colors, wp, hp } from '../utils/Styles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Application from '../modules/application/Application';
-import Event from '../modules/event/Event';
+import EventStack from './EventStack';
 import Categories from '../modules/categories/Categories';
 import Courses from '../modules/courses/Courses';
 import Membership from '../modules/membership/Membership';
@@ -236,7 +236,7 @@ const TabNavigator = () => {
         }}
       >
         <Tab.Screen name={STACKS.DASHBOARD_STACK} component={DashBoard} />
-        <Tab.Screen name={STACKS.EVENTS_STACK} component={Event} />
+        <Tab.Screen name={STACKS.EVENTS_STACK} component={EventStack} />
         <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
         <Tab.Screen name={STACKS.PAYMENT_STACK} component={Payment} />
         <Tab.Screen name="Menu" component={DashBoard} />
