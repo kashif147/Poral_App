@@ -9,31 +9,44 @@ export const EVENT_REGISTRATION_DATA = {
     days: [
       { id: 'd1', title: 'Day 1: Opening & Keynotes', date: 'December 15, 2024', price: 75 },
       { id: 'd2', title: 'Day 2: Workshops', date: 'December 16, 2024', price: 75 },
+      { id: 'd3', title: 'Day 3: Networking & Closing', date: 'December 17, 2024', price: 75 },
     ],
     sessions: [
       { dayId: 'd1', time: '09:00 - 10:30', title: 'Annual Report Overview' },
       { dayId: 'd1', time: '11:00 - 12:30', title: 'Elections & Board Updates' },
       { dayId: 'd2', time: '10:00 - 12:00', title: 'Member Q&A Session' },
+      { dayId: 'd3', time: '09:00 - 11:00', title: 'Panel Discussion' },
+      { dayId: 'd3', time: '11:30 - 13:00', title: 'Closing Ceremony' },
     ],
   },
   2: {
     venue: 'Grand Hotel Ballroom',
     credits: '6 CPD Credits',
     days: [
-      { id: 'd1', title: 'Full Event', date: 'October 25, 2024', price: 150 },
+      { id: 'd1', title: 'Day 1: Opening Night', date: 'October 25, 2024', price: 150 },
+      { id: 'd2', title: 'Day 2: Workshops', date: 'October 26, 2024', price: 150 },
+      { id: 'd3', title: 'Day 3: Closing', date: 'October 27, 2024', price: 150 },
     ],
     sessions: [
       { dayId: 'd1', time: '19:00 - 22:00', title: 'Networking Mixer' },
+      { dayId: 'd2', time: '10:00 - 12:30', title: 'Morning Workshop' },
+      { dayId: 'd2', time: '14:00 - 16:00', title: 'Afternoon Session' },
+      { dayId: 'd3', time: '09:00 - 12:00', title: 'Final Sessions & Farewell' },
     ],
   },
   3: {
     venue: 'Online',
     credits: '8 CPD Credits',
     days: [
-      { id: 'd1', title: 'Webinar Session', date: 'November 2, 2024', price: 99 },
+      { id: 'd1', title: 'Day 1: Leadership Webinar', date: 'November 2, 2024', price: 99 },
+      { id: 'd2', title: 'Day 2: Follow-up Sessions', date: 'November 3, 2024', price: 99 },
+      { id: 'd3', title: 'Day 3: Q&A & Wrap-up', date: 'November 4, 2024', price: 99 },
     ],
     sessions: [
       { dayId: 'd1', time: '10:00 - 12:00', title: 'Leadership Webinar' },
+      { dayId: 'd2', time: '10:00 - 11:30', title: 'Deep Dive Session' },
+      { dayId: 'd2', time: '14:00 - 15:30', title: 'Case Studies' },
+      { dayId: 'd3', time: '10:00 - 12:00', title: 'Q&A & Wrap-up' },
     ],
   },
 };

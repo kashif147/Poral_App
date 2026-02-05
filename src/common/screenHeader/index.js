@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '500',
     color: Colors.textPrimary,
   },
   logo: {

@@ -6,6 +6,13 @@ export const CASE_CATEGORY_OPTIONS = [
   { label: 'Other', value: 'other' },
 ];
 
+export const CASE_TYPE_OPTIONS = [
+  { label: 'Complaint', value: 'complaint' },
+  { label: 'Inquiry', value: 'inquiry' },
+  { label: 'Appeal', value: 'appeal' },
+  { label: 'Other', value: 'other' },
+];
+
 export const CASE_FILTERS = ['All', 'Open', 'In Progress', 'Closed'];
 
 export const CASE_STATUS_STYLES = {

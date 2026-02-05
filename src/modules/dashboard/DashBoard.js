@@ -17,6 +17,8 @@ import { applicationConfirmationRequest } from '../../api/application.api';
 import { useProfile } from '../../contexts/profileContext';
 import ScreenHeader from '../../common/screenHeader';
 import { useSelector } from 'react-redux';
+import DetailModal from '../../common/detailModal';
+import { getEventWithRegistrationData } from '../../constants/eventData';
 
 const DashBoard = () => {
   const navigation = useNavigation();
@@ -26,6 +28,7 @@ const DashBoard = () => {
   const { personalDetail, subscriptionDetail, professionalDetail } = useApplication();
   const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const { getProfileDetail, profileDetail } = useProfile();
   const { getCategoryData, categoryData } = useApplication();
   
@@ -164,30 +167,79 @@ const DashBoard = () => {
     },
   ];
 
-  // Upcoming Events
+  // Featured event (full detail)
+  const featuredEvent = {
+    id: 1,
+    title: 'Annual General Meeting Reminder',
+    date: 'Dec 15, 2024',
+    time: '10:00 AM - 2:00 PM',
+    location: 'Convention Center, Downtown',
+    category: 'Meeting',
+    description: 'Don\'t miss our most important meeting of the year. Register now to secure your spot.',
+    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop',
+    attendees: 250,
+    status: 'available',
+  };
+
+  // Upcoming Events (full detail)
   const upcomingEvents = [
     {
-      id: 1,
-      title: 'Networking Mixer',
-      date: 'Oct 25, 7:00 PM',
-      image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=200&h=200&fit=crop',
-      onPress: () => navigation.navigate(STACKS.EVENTS_STACK)
-    },
-    {
       id: 2,
-      title: 'Leadership Webinar',
-      date: 'Nov 2, 10:00 AM',
-      image: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=200&h=200&fit=crop',
-      onPress: () => navigation.navigate(STACKS.EVENTS_STACK)
+      title: 'Networking Mixer',
+      date: 'Oct 25, 2024',
+      time: '7:00 PM - 10:00 PM',
+      location: 'Grand Hotel Ballroom',
+      category: 'Networking',
+      description: 'Connect with industry professionals and expand your network in a relaxed atmosphere.',
+      image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=200&h=200&fit=crop',
+      attendees: 180,
+      status: 'available',
     },
     {
       id: 3,
+      title: 'Leadership Webinar',
+      date: 'Nov 2, 2024',
+      time: '10:00 AM - 12:00 PM',
+      location: 'Online',
+      category: 'Webinar',
+      description: 'Learn from industry leaders about effective leadership strategies and team management.',
+      image: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=200&h=200&fit=crop',
+      attendees: 320,
+      status: 'available',
+    },
+    {
+      id: 4,
       title: 'Tech Skills Workshop',
-      date: 'Nov 15, 2:00 PM',
+      date: 'Nov 15, 2024',
+      time: '2:00 PM - 5:00 PM',
+      location: 'Tech Hub, Innovation Center',
+      category: 'Workshop',
+      description: 'Hands-on workshop covering the latest technologies and development practices.',
       image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=200&h=200&fit=crop',
-      onPress: () => navigation.navigate(STACKS.EVENTS_STACK)
+      attendees: 45,
+      status: 'available',
     },
   ];
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'registered': return { bg: '#D1FAE5', text: '#059669' };
+      case 'available': return { bg: '#DBEAFE', text: '#2563EB' };
+      case 'waitlist': return { bg: '#FEF3C7', text: '#D97706' };
+      case 'completed': return { bg: '#F3F4F6', text: '#6B7280' };
+      default: return { bg: '#F3F4F6', text: '#6B7280' };
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'registered': return 'Registered';
+      case 'available': return 'Register Now';
+      case 'waitlist': return 'Waitlist';
+      case 'completed': return 'Completed';
+      default: return 'Available';
+    }
+  };
 
   console.log('Application Status=========>',applicationStatus)
 
@@ -324,28 +376,61 @@ const DashBoard = () => {
           </View>
         )}
 
-        {/* Featured Card - Annual General Meeting */}
-        <View style={styles.featuredCard}>
+        {/* Featured Card - full detail */}
+        <TouchableOpacity
+          style={styles.featuredCard}
+          activeOpacity={1}
+          onPress={() => setSelectedEvent(featuredEvent)}
+        >
           <ImageBackground
-            source={{ uri: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop' }}
+            source={{ uri: featuredEvent.image }}
             style={styles.featuredImageBackground}
             imageStyle={styles.featuredImage}
           >
             <View style={styles.featuredOverlay} />
           </ImageBackground>
           <View style={styles.featuredContent}>
-            <Text style={styles.featuredTitle}>Annual General Meeting Reminder</Text>
-            <Text style={styles.featuredDescription}>
-              Don't miss our most important meeting of the year. Register now to secure your spot.
+            {featuredEvent.category && (
+              <View style={styles.featuredCategory}>
+                <Text style={styles.featuredCategoryText}>{featuredEvent.category}</Text>
+              </View>
+            )}
+            <Text style={styles.featuredTitle}>{featuredEvent.title}</Text>
+            <View style={styles.featuredDetails}>
+              <View style={styles.featuredDetailRow}>
+                <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} />
+                <Text style={styles.featuredDetailText}>{featuredEvent.date}</Text>
+              </View>
+              <View style={styles.featuredDetailRow}>
+                <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+                <Text style={styles.featuredDetailText}>{featuredEvent.time}</Text>
+              </View>
+              <View style={styles.featuredDetailRow}>
+                <Ionicons
+                  name={featuredEvent.location === 'Online' ? 'videocam-outline' : 'location-outline'}
+                  size={14}
+                  color={Colors.textSecondary}
+                />
+                <Text style={styles.featuredDetailText} numberOfLines={1}>{featuredEvent.location}</Text>
+              </View>
+            </View>
+            <Text style={styles.featuredDescription} numberOfLines={2}>
+              {featuredEvent.description}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.registerButton}
-              onPress={() => navigation.navigate(STACKS.EVENTS_STACK)}
+              onPress={(e) => {
+                e.stopPropagation();
+                navigation.navigate(STACKS.EVENTS_STACK, {
+                  screen: STACKS.EVENT_REGISTRATION,
+                  params: { event: getEventWithRegistrationData(featuredEvent) },
+                });
+              }}
             >
               <Text style={styles.registerButtonText}>Register</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Quick Links Section */}
         <View style={styles.section}>
@@ -379,20 +464,42 @@ const DashBoard = () => {
             <TouchableOpacity
               key={event.id}
               style={styles.eventCard}
-              onPress={event.onPress}
+              onPress={() => setSelectedEvent(event)}
               activeOpacity={0.7}
             >
               <Image
                 source={{ uri: event.image }}
                 style={styles.eventImage}
+                resizeMode="cover"
               />
               <View style={styles.eventContent}>
                 <Text style={styles.eventTitle}>{event.title}</Text>
-                <Text style={styles.eventDate}>{event.date}</Text>
+                <View style={styles.eventDetailRow}>
+                  <Ionicons name="calendar-outline" size={14} color={Colors.textSecondary} />
+                  <Text style={styles.eventDetailText}>{event.date}</Text>
+                </View>
+                <View style={styles.eventDetailRow}>
+                  <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
+                  <Text style={styles.eventDetailText}>{event.time}</Text>
+                </View>
+                <View style={styles.eventDetailRow}>
+                  <Ionicons
+                    name={event.location === 'Online' ? 'videocam-outline' : 'location-outline'}
+                    size={14}
+                    color={Colors.textSecondary}
+                  />
+                  <Text style={styles.eventDetailText} numberOfLines={1}>{event.location}</Text>
+                </View>
+                {event.description ? (
+                  <Text style={styles.eventDescription} numberOfLines={1}>{event.description}</Text>
+                ) : null}
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.viewButton}
-                onPress={event.onPress}
+                onPress={(e) => {
+                  e.stopPropagation();
+                  setSelectedEvent(event);
+                }}
               >
                 <Text style={styles.viewButtonText}>View</Text>
               </TouchableOpacity>
@@ -409,6 +516,78 @@ const DashBoard = () => {
       >
         <Ionicons name="add" size={28} color={Colors.white} />
       </TouchableOpacity>
+
+      {/* Event detail modal */}
+      <DetailModal
+        visible={!!selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        item={selectedEvent}
+      >
+        <View style={styles.modalDetails}>
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons name="calendar" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Date & Time</Text>
+              <Text style={styles.detailValue}>{selectedEvent?.date}</Text>
+              <Text style={styles.detailSubValue}>{selectedEvent?.time}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailIconContainer}>
+              <Ionicons
+                name={selectedEvent?.location === 'Online' ? 'videocam' : 'location'}
+                size={20}
+                color={Colors.primary}
+              />
+            </View>
+            <View style={styles.detailTextContainer}>
+              <Text style={styles.detailLabel}>Location</Text>
+              <Text style={styles.detailValue}>{selectedEvent?.location}</Text>
+            </View>
+          </View>
+
+          {selectedEvent?.attendees != null && (
+            <View style={styles.detailRow}>
+              <View style={styles.detailIconContainer}>
+                <MaterialCommunityIcons name="account-group" size={20} color={Colors.primary} />
+              </View>
+              <View style={styles.detailTextContainer}>
+                <Text style={styles.detailLabel}>Attendance</Text>
+                <Text style={styles.detailValue}>{selectedEvent?.attendees} registered</Text>
+                <View style={[
+                  styles.modalStatusBadge,
+                  { backgroundColor: selectedEvent ? getStatusColor(selectedEvent.status).bg : 'transparent' }
+                ]}>
+                  <Text style={[
+                    styles.modalStatusBadgeText,
+                    { color: selectedEvent ? getStatusColor(selectedEvent.status).text : '#000' }
+                  ]}>
+                    {selectedEvent ? getStatusLabel(selectedEvent.status) : ''}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {selectedEvent?.status === 'available' && (
+            <TouchableOpacity
+              style={styles.modalRegisterButton}
+              onPress={() => {
+                setSelectedEvent(null);
+                navigation.navigate(STACKS.EVENTS_STACK, {
+                  screen: STACKS.EVENT_REGISTRATION,
+                  params: { event: getEventWithRegistrationData(selectedEvent) },
+                });
+              }}
+            >
+              <Text style={styles.registerButtonText}>Register Now</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </DetailModal>
     </View>
   );
 };
@@ -529,6 +708,38 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 20,
   },
+  featuredCategory: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  featuredCategoryText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.white,
+    textTransform: 'uppercase',
+  },
+  featuredDetails: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 12,
+  },
+  featuredDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  featuredDetailText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginLeft: 4,
+    maxWidth: 140,
+  },
   registerButton: {
     backgroundColor: Colors.primary,
     paddingVertical: 12,
@@ -625,6 +836,22 @@ const styles = StyleSheet.create({
   eventDate: {
     fontSize: 13,
     color: Colors.textSecondary,
+  },
+  eventDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  eventDetailText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginLeft: 6,
+    flex: 1,
+  },
+  eventDescription: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 6,
   },
   viewButton: {
     paddingVertical: 6,
@@ -793,6 +1020,67 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  modalDetails: {
+    marginTop: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  detailIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  detailTextContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingTop: 2,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  detailValue: {
+    fontSize: 16,
+    color: Colors.textPrimary,
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  detailSubValue: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  modalStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  modalStatusBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  modalRegisterButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 24,
   },
 });
 

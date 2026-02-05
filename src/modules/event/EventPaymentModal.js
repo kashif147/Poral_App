@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Modal,
   View,
   Text,
   StyleSheet,
@@ -10,17 +11,15 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  SafeAreaView,
+  Pressable,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors, wp, hp } from '../../utils/Styles';
+import { Colors, hp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import ScreenHeader from '../../common/screenHeader';
 import { Button } from '../../common/button';
 import { createPaymentIntentRequest } from '../../api/payment.api';
-import { STACKS } from '../../enums/ScreenEnums';
 
 const formatCurrency = (value) => {
   try {
@@ -33,13 +32,15 @@ const formatCurrency = (value) => {
   }
 };
 
-const EventPayment = () => {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const insets = useSafeAreaInsets();
+const EventPaymentModal = ({
+  visible,
+  onClose,
+  onSuccess,
+  event,
+  selectedDays = [],
+}) => {
   const { confirmPayment } = useStripe();
 
-  const { event, selectedDays } = route.params || {};
   const [cardholderName, setCardholderName] = useState('');
   const [email, setEmail] = useState('');
   const [cardComplete, setCardComplete] = useState(false);
@@ -47,16 +48,27 @@ const EventPayment = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userDetail, setUserDetail] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
 
   const totalAmount = (selectedDays || []).reduce((sum, d) => sum + (d.price || 0), 0);
   const amountInCents = Math.round(totalAmount * 100);
 
   useEffect(() => {
+    if (!visible) {
+      setClientSecret(null);
+      setCardComplete(false);
+      setIsLoading(false);
+      setError(null);
+      setInitLoading(true);
+      setRetryKey(0);
+      return;
+    }
     const loadUser = async () => {
       try {
         const userStr = await AsyncStorage.getItem('user');
         const user = userStr ? JSON.parse(userStr) : null;
+        setUserDetail(user);
         const name =
           user?.userFirstName && user?.userLastName
             ? `${user.userFirstName} ${user.userLastName}`
@@ -69,15 +81,17 @@ const EventPayment = () => {
       }
     };
     loadUser();
-  }, []);
+  }, [visible]);
 
   useEffect(() => {
-    const initPayment = async () => {
-      if (!event || !selectedDays?.length || amountInCents <= 0) {
+    if (!visible || !event || !selectedDays?.length || amountInCents <= 0) {
+      if (visible && event && selectedDays?.length && amountInCents <= 0) {
         setInitLoading(false);
         setError('Invalid event or selection');
-        return;
       }
+      return;
+    }
+    const initPayment = async () => {
       setInitLoading(true);
       setError(null);
       try {
@@ -115,7 +129,7 @@ const EventPayment = () => {
       }
     };
     initPayment();
-  }, [event?.id, event?.title, selectedDays?.length, amountInCents, retryKey]);
+  }, [visible, event?.id, event?.title, selectedDays?.length, amountInCents, retryKey]);
 
   const handlePay = async () => {
     if (!cardholderName || !email) {
@@ -147,9 +161,7 @@ const EventPayment = () => {
         throw new Error(stripeError.message);
       }
       if (paymentIntent?.status === 'Succeeded') {
-        navigation.replace(STACKS.EVENT_CONFIRMATION, {
-          event,
-          selectedDays,
+        onSuccess({
           paymentIntent,
           transactionId: paymentIntent?.id?.replace('pi_', '') || 'GTS-99201-B',
           totalPaid: totalAmount,
@@ -169,58 +181,36 @@ const EventPayment = () => {
       ? `Day ${selectedDays.map((d, i) => i + 1).join(' & Day ')} Access`
       : selectedDays?.[0]?.title || 'Event Access';
 
-  if (initLoading) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Preparing payment...</Text>
-      </View>
-    );
-  }
-
-  if (error && !clientSecret) {
-    return (
-      <View style={styles.container}>
-        <ScreenHeader title="Payment" showBack />
-        <View style={[styles.centered, styles.errorBox]}>
-          <Text style={styles.errorTitle}>Payment setup failed</Text>
-          <Text style={styles.errorText}>{error}</Text>
-          <View style={styles.errorActions}>
-            <TouchableOpacity
-              onPress={() => {
-                setError(null);
-                setRetryKey((k) => k + 1);
-              }}
-              style={styles.retryButton}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
-            >
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-          </View>
+  const renderContent = () => {
+    if (initLoading) {
+      return (
+        <View style={[styles.centered, styles.loadingBox]}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Preparing payment...</Text>
         </View>
-      </View>
-    );
-  }
+      );
+    }
 
-  return (
-    <View style={styles.container}>
-      <ScreenHeader title="Register & Pay" showBack />
+    const showErrorBanner = error && !clientSecret;
 
+    return (
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {showErrorBanner && (
+            <View style={styles.errorBanner}>
+              <Text style={styles.errorBannerTitle}>Payment setup failed</Text>
+              <Text style={styles.errorBannerText}>{error}</Text>
+            </View>
+          )}
+
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>EVENT</Text>
             <Text style={styles.summaryTitle}>{event?.title}</Text>
@@ -253,6 +243,21 @@ const EventPayment = () => {
             />
           </View>
 
+          <TouchableOpacity
+            onPress={() => {
+              const name =
+                userDetail?.userFirstName && userDetail?.userLastName
+                  ? `${userDetail.userFirstName} ${userDetail.userLastName}`
+                  : userDetail?.userName || '';
+              const em = userDetail?.userEmail || userDetail?.email || '';
+              setCardholderName(name);
+              setEmail(em);
+            }}
+            style={styles.autofillLink}
+          >
+            <Text style={styles.autofillLinkText}>Auto-fill from profile</Text>
+          </TouchableOpacity>
+
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Card Details *</Text>
             <View style={styles.cardFieldWrapper}>
@@ -276,42 +281,142 @@ const EventPayment = () => {
           </View>
         </ScrollView>
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom || 16 }]}>
+        <View style={styles.footer}>
+          {showErrorBanner && (
+            <TouchableOpacity
+              onPress={() => {
+                setError(null);
+                setRetryKey((k) => k + 1);
+              }}
+              style={styles.retryButton}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          )}
           <Button
             title={isLoading ? 'Processing…' : 'Register & Pay'}
             onPress={handlePay}
-            disabled={!cardComplete || isLoading}
+            disabled={!clientSecret || !cardComplete || isLoading}
             primary
             style={styles.payButton}
             textStyle={styles.payButtonText}
           />
         </View>
       </KeyboardAvoidingView>
-    </View>
+    );
+  };
+
+  return (
+    <Modal
+      transparent
+      animationType="slide"
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+          <SafeAreaView style={styles.safe}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Register & Pay</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton} hitSlop={12}>
+                <Ionicons name="close" size={24} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            {renderContent()}
+          </SafeAreaView>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
     backgroundColor: Colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    minHeight: hp(75),
+    maxHeight: hp(90),
+  },
+  safe: {
+    flex: 1,
+    minHeight: hp(70),
+    maxHeight: hp(90),
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+  },
+  closeButton: {
+    padding: 4,
   },
   centered: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingBox: {
+    paddingVertical: 48,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 15,
     color: Colors.textSecondary,
   },
+  errorBanner: {
+    backgroundColor: Colors.surface,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  errorBannerTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  retryButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  retryButtonText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: '600',
+  },
   keyboardView: {
     flex: 1,
+    minHeight: hp(50),
   },
   scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
+    paddingBottom: 24,
   },
   summaryCard: {
     backgroundColor: Colors.surface,
@@ -376,6 +481,14 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: 15,
   },
+  autofillLink: {
+    marginBottom: 20,
+  },
+  autofillLinkText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   cardFieldWrapper: {
     borderWidth: 1.5,
     borderColor: Colors.divider,
@@ -392,7 +505,10 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 20,
     paddingTop: 16,
+    paddingBottom: 24,
     backgroundColor: Colors.background,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
   },
   payButton: {
     height: 56,
@@ -404,51 +520,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
   },
-  errorBox: {
-    padding: 24,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  errorActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  retryButton: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.white,
-  },
-  backButton: {
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: Colors.divider,
-  },
-  backButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
 });
 
-export default EventPayment;
+export default EventPaymentModal;

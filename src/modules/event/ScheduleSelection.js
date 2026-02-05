@@ -14,6 +14,8 @@ import { Colors, wp, hp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { STACKS } from '../../enums/ScreenEnums';
+import ScreenHeader from '../../common/screenHeader';
+import EventPaymentModal from './EventPaymentModal';
 
 const DAY_ICONS = {
   calendar: 'calendar-outline',
@@ -34,6 +36,7 @@ const ScheduleSelection = () => {
   const [selectedDays, setSelectedDays] = useState(
     initialSelectedDays?.map((d) => d.id) || []
   );
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
 
   const toggleDay = (day) => {
     const id = day.id;
@@ -58,9 +61,17 @@ const ScheduleSelection = () => {
 
   const handleContinue = () => {
     if (selectedDaysData.length === 0) return;
-    navigation.navigate(STACKS.EVENT_PAYMENT, {
+    setPaymentModalVisible(true);
+  };
+
+  const handlePaymentSuccess = (data) => {
+    setPaymentModalVisible(false);
+    navigation.navigate(STACKS.EVENT_CONFIRMATION, {
       event: eventData,
       selectedDays: selectedDaysData,
+      paymentIntent: data.paymentIntent,
+      transactionId: data.transactionId,
+      totalPaid: data.totalPaid,
     });
   };
 
@@ -68,12 +79,7 @@ const ScheduleSelection = () => {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={Colors.textPrimary} />
-        </TouchableOpacity>
-      </View>
-
+      <ScreenHeader title="Schedule Selection" showBack />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -192,6 +198,14 @@ const ScheduleSelection = () => {
           <Ionicons name="chevron-forward" size={20} color={Colors.white} />
         </TouchableOpacity>
       </View>
+
+      <EventPaymentModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        onSuccess={handlePaymentSuccess}
+        event={eventData}
+        selectedDays={selectedDaysData}
+      />
     </View>
   );
 };
