@@ -89,7 +89,7 @@ const CreateCase = () => {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Create New Case" showBack={true} />
+      <ScreenHeader title="Query" showBack={true} />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -104,7 +104,7 @@ const CreateCase = () => {
         >
           {/* Case Title */}
           <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Case Title</Label>
+            <Label style={styles.fieldLabel}>Title</Label>
             <View style={styles.titleRow}>
               <InputField
                 placeholder="Enter descriptive title."
@@ -128,7 +128,7 @@ const CreateCase = () => {
 
           {/* Incident Description */}
           <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Incident Description</Label>
+            <Label style={styles.fieldLabel}>Description</Label>
             <InputField
               placeholder="Detailed description of the incident..."
               value={incidentDescription}
@@ -141,10 +141,10 @@ const CreateCase = () => {
           </View>
 
           {/* Incident Details */}
-          <Label style={[styles.sectionTitle, styles.sectionSpacing,{marginTop: 50}]}>
+          {/* <Label style={[styles.sectionTitle, styles.sectionSpacing,{marginTop: 50}]}>
             Incident Details
-          </Label>
-          <View style={styles.fieldGroup}>
+          </Label> */}
+          <View style={{...styles.fieldGroup,marginTop:50}}>
             <Label style={styles.fieldLabel}>Incident Date</Label>
             <DatePicker
               name="incidentDate"
@@ -164,9 +164,9 @@ const CreateCase = () => {
           </View>
 
           {/* Classification */}
-          <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
+          {/* <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
             Classification
-          </Label>
+          </Label> */}
           <View style={styles.fieldGroup}>
             <Label style={styles.fieldLabel}>Category</Label>
             <Picker
@@ -184,7 +184,7 @@ const CreateCase = () => {
               ))}
             </Picker>
           </View>
-          <View style={styles.fieldGroup}>
+          {/* <View style={styles.fieldGroup}>
             <Label style={styles.fieldLabel}>Case Type</Label>
             <Picker
               selectedValue={caseType}
@@ -200,14 +200,14 @@ const CreateCase = () => {
                 />
               ))}
             </Picker>
-          </View>
+          </View> */}
 
           {/* Ownership */}
-          <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
-            Ownership
-          </Label>
+          {/* <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
+            Department
+          </Label> */}
           <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Assigned Lead</Label>
+            <Label style={styles.fieldLabel}>Assigned To</Label>
             <Picker
               selectedValue={assignedLead}
               onValueChange={setAssignedLead}
@@ -223,7 +223,7 @@ const CreateCase = () => {
               ))}
             </Picker>
           </View>
-          <View style={styles.fieldGroup}>
+          {/* <View style={styles.fieldGroup}>
             <Label style={styles.fieldLabel}>Internal Stakeholders</Label>
             <View style={styles.staffContainer}>
               {internalStakeholders.map(staff => (
@@ -256,14 +256,14 @@ const CreateCase = () => {
                 <Label style={styles.addStaffText}>Search...</Label>
               </TouchableOpacity>
             </View>
-          </View>
+          </View> */}
 
           {/* Documentation */}
-          <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
-            Documentation
-          </Label>
+          {/* <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
+            Attachment
+          </Label> */}
           <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Initial Documentation</Label>
+            <Label style={styles.fieldLabel}>Attachment</Label>
             <Pressable
               style={styles.uploadZone}
               onPress={handlePickDocument}

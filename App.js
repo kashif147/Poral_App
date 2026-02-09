@@ -32,6 +32,7 @@ import {
 } from './src/services/firebase.services';
 import { validation } from './src/services/auth.services';
 import { setSignedIn, setUser, setLoading } from './src/store/slice/auth.slice';
+import FlashMessage from 'react-native-flash-message';
 
 function App() {
   const dispatch = useDispatch();
@@ -425,6 +426,7 @@ function App() {
             onSuccess={handleLoginSuccess}
             onError={handleLoginError}
           />
+          <FlashMessage position="top" />
         </StripeProvider>
       </SafeAreaView>
     </View>

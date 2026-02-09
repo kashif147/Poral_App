@@ -11,6 +11,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
+import SearchablePicker from '../../common/SearchablePicker';
 import { Colors, wp } from '../../utils/Styles';
 import { useLookup } from '../../contexts/lookupContext';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -557,7 +558,11 @@ const SubscriptionDetails = ({
         {/* Primary Section */}
         <Text style={styles.label}>Primary Section</Text>
         <View style={styles.pickerField}>
-          <Picker
+          <SearchablePicker
+            items={[
+              ...primaryNames.map(name => ({ label: name, value: name })),
+              { label: 'Other', value: 'other' },
+            ]}
             selectedValue={formData.primarySection || ''}
             onValueChange={val => {
               if (val) {
@@ -568,13 +573,8 @@ const SubscriptionDetails = ({
                 });
               }
             }}
-          >
-            <Picker.Item label="Select primary section" value="" />
-            {primaryNames.map(name => (
-              <Picker.Item key={name} label={name} value={name} />
-            ))}
-            <Picker.Item label="Other" value="other" />
-          </Picker>
+            placeholder="Select primary section"
+          />
         </View>
 
         {/* Other Primary Section */}
@@ -596,7 +596,11 @@ const SubscriptionDetails = ({
         {/* Secondary Section */}
         <Text style={styles.label}>Secondary Section</Text>
         <View style={styles.pickerField}>
-          <Picker
+          <SearchablePicker
+            items={[
+              ...secondaryNames.map(name => ({ label: name, value: name })),
+              { label: 'Other', value: 'other' },
+            ]}
             selectedValue={formData.secondarySection || ''}
             onValueChange={val => {
               if (val) {
@@ -607,13 +611,8 @@ const SubscriptionDetails = ({
                 });
               }
             }}
-          >
-            <Picker.Item label="Select secondary section" value="" />
-            {secondaryNames.map(name => (
-              <Picker.Item key={name} label={name} value={name} />
-            ))}
-            <Picker.Item label="Other" value="other" />
-          </Picker>
+            placeholder="Select secondary section"
+          />
         </View>
 
         {/* Other Secondary Section */}

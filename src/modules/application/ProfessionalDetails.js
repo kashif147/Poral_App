@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
+import SearchablePicker from '../../common/SearchablePicker';
 import CustomSwitch from '../../common/switch';
 import { Colors, wp } from '../../utils/Styles';
 import { useLookup } from '../../contexts/lookupContext';
@@ -379,23 +380,25 @@ const ProfessionalDetails = ({
         {/* Membership Category */}
         <Text style={styles.label}>Membership Category *</Text>
         <View style={styles.pickerField}>
-          <Picker
+          <SearchablePicker
+            items={
+              membershipCategoryOptions.length === 0
+                ? []
+                : membershipCategoryOptions
+            }
             selectedValue={formData.membershipCategory || ''}
             onValueChange={val => {
               if (val) {
                 onFormDataChange({ ...formData, membershipCategory: val });
               }
             }}
-          >
-            <Picker.Item label="Select membership category" value="" />
-            {membershipCategoryOptions.length === 0 ? (
-              <Picker.Item label="Loading categories..." value="" disabled />
-            ) : (
-              membershipCategoryOptions.map(c => (
-                <Picker.Item key={c.value} label={c.label} value={c.value} />
-              ))
-            )}
-          </Picker>
+            placeholder={
+              membershipCategoryOptions.length === 0
+                ? 'Loading categories...'
+                : 'Select membership category'
+            }
+            enabled={membershipCategoryOptions.length > 0}
+          />
         </View>
 
         {/* Conditional fields for Undergraduate Students */}
@@ -424,23 +427,21 @@ const ProfessionalDetails = ({
 
             <Text style={styles.label}>Study Location</Text>
             <View style={styles.pickerField}>
-              <Picker
+              <SearchablePicker
+                items={studyLocationOptions}
                 selectedValue={formData.studyLocation || ''}
                 onValueChange={val => {
                   if (val) {
                     onFormDataChange({ ...formData, studyLocation: val });
                   }
                 }}
-              >
-                <Picker.Item label="Select study location" value="" />
-                {studyLocationOptions.length > 0 ? (
-                  studyLocationOptions.map(option => (
-                    <Picker.Item key={option.value} label={option.label} value={option.value} />
-                  ))
-                ) : (
-                  <Picker.Item label="Loading locations..." value="" disabled />
-                )}
-              </Picker>
+                placeholder={
+                  studyLocationOptions.length === 0
+                    ? 'Loading locations...'
+                    : 'Select study location'
+                }
+                enabled={studyLocationOptions.length > 0}
+              />
             </View>
 
             <Text style={styles.label}>Start Date</Text>
@@ -501,30 +502,31 @@ const ProfessionalDetails = ({
         {/* Work Location */}
         <Text style={styles.label}>Work Location</Text>
         <View style={styles.pickerField}>
-          <Picker
+          <SearchablePicker
+            items={workLocationNames.map(w => ({ label: w, value: w }))}
             selectedValue={formData.workLocation || ''}
             onValueChange={handleWorkLocationChange}
-          >
-            <Picker.Item label="Select Location..." value="" />
-            {workLocationNames.map(w => (
-              <Picker.Item key={w} label={w} value={w} />
-            ))}
-          </Picker>
-        </View>
-
-        {/* Other Work Location */}
-        <Text style={styles.label}>Other Work Location</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.otherWorkLocation}
-            editable={formData.workLocation === 'other'}
-            holderTextColor={'#94A3B8'}
-            onChange={text =>
-              onFormDataChange({ ...formData, otherWorkLocation: text })
-            }
-            placeholder="Enabled if 'Other' is selected"
+            placeholder="Select Location..."
           />
         </View>
+
+        {/* Other Work Location - only show when Work Location is "other" */}
+        {formData.workLocation === 'other' && (
+          <>
+            <Text style={styles.label}>Other Work Location</Text>
+            <View style={styles.inputField}>
+              <InputField
+                value={formData.otherWorkLocation}
+                editable={true}
+                holderTextColor={'#94A3B8'}
+                onChange={text =>
+                  onFormDataChange({ ...formData, otherWorkLocation: text })
+                }
+                placeholder="Specify work location"
+              />
+            </View>
+          </>
+        )}
 
         {/* Branch */}
         <Text style={styles.label}>Branch</Text>
@@ -561,34 +563,35 @@ const ProfessionalDetails = ({
         {/* Grade */}
         <Text style={styles.label}>Grade</Text>
         <View style={styles.pickerField}>
-          <Picker
+          <SearchablePicker
+            items={gradeOptions}
             selectedValue={formData.grade || ''}
             onValueChange={val => {
               if (val) {
                 onFormDataChange({ ...formData, grade: val });
               }
             }}
-          >
-            <Picker.Item label="Select Grade..." value="" />
-            {gradeOptions.map(option => (
-              <Picker.Item key={option.value} label={option.label} value={option.value} />
-            ))}
-          </Picker>
-        </View>
-
-        {/* Other Grade */}
-        <Text style={styles.label}>Other Grade</Text>
-        <View style={styles.inputField}>
-          <InputField
-            value={formData.otherGrade}
-            editable={formData.grade === 'other'}
-            holderTextColor={'#94A3B8'}
-            onChange={text =>
-              onFormDataChange({ ...formData, otherGrade: text })
-            }
-            placeholder="Enabled if 'Other' is selected"
+            placeholder="Select Grade..."
           />
         </View>
+
+        {/* Other Grade - only show when Grade is "other" */}
+        {formData.grade === 'other' && (
+          <>
+            <Text style={styles.label}>Other Grade</Text>
+            <View style={styles.inputField}>
+              <InputField
+                value={formData.otherGrade}
+                editable={true}
+                holderTextColor={'#94A3B8'}
+                onChange={text =>
+                  onFormDataChange({ ...formData, otherGrade: text })
+                }
+                placeholder="Specify grade"
+              />
+            </View>
+          </>
+        )}
       </View>
 
       {/* Professional Credentials Card */}

@@ -10,6 +10,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
+import SearchablePicker from '../../common/SearchablePicker';
 import CustomSwitch from '../../common/switch';
 import { Colors, form, wp } from '../../utils/Styles';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
@@ -617,7 +618,17 @@ const PersonalInformation = ({
               },
           ]}
         >
-          <Picker
+          <SearchablePicker
+            items={
+              countryOptions.length
+                ? countryOptions
+                : [
+                    { value: 'Ireland', label: 'Ireland' },
+                    { value: 'United Kingdom', label: 'United Kingdom' },
+                    { value: 'United States', label: 'United States' },
+                    { value: 'Other', label: 'Other' },
+                  ]
+            }
             selectedValue={
               getCountryDisplayName(formData?.countryPrimaryQualification) ||
               countryOptions[0]?.value ||
@@ -629,20 +640,8 @@ const PersonalInformation = ({
                 countryPrimaryQualification: val,
               })
             }
-          >
-            {countryOptions.length
-              ? countryOptions.map(c => (
-                  <Picker.Item key={c.value} label={c.label} value={c.value} />
-                ))
-              : [
-                  { value: 'Ireland', label: 'Ireland' },
-                  { value: 'United Kingdom', label: 'United Kingdom' },
-                  { value: 'United States', label: 'United States' },
-                  { value: 'Other', label: 'Other' },
-                ].map(c => (
-                  <Picker.Item key={c.value} label={c.label} value={c.value} />
-                ))}
-          </Picker>
+            placeholder="Select country..."
+          />
         </View>
       </View>
 
@@ -685,18 +684,13 @@ const PersonalInformation = ({
           >
             <Picker
               selectedValue={
-                !personalDetail
-                  ? ''
-                  : normalizePreferredAddress(formData.preferredAddress) ||
-                    preferredAddresses[0]
+                normalizePreferredAddress(formData?.preferredAddress) || ''
               }
               onValueChange={val =>
                 onFormDataChange({ ...formData, preferredAddress: val })
               }
             >
-              {!personalDetail && (
-                <Picker.Item label="Select preferred address..." value="" />
-              )}
+              <Picker.Item label="Select preferred address..." value="" />
               {preferredAddresses.map(a => (
                 <Picker.Item key={a} label={a} value={a} />
               ))}
@@ -759,6 +753,7 @@ const PersonalInformation = ({
 
                 // Match web: premise, route, sublocality_level_1, sublocality, locality, postal_town, administrative_area_level_1, postal_code
                 const premise = getComponent('premise');
+                const streetNumber = getComponent('street_number');
                 const route = getComponent('route');
                 const sublocalityLevel1 = getComponent('sublocality_level_1');
                 const sublocality = getComponent('sublocality');
@@ -770,7 +765,9 @@ const PersonalInformation = ({
                 const countryShortName = getComponentShortName('country');
 
                 // Address Line 1: premise if exists, else route (match web)
-                const addressLine1 = (premise || route || '').trim();
+                const addressLine1 = (
+                  (streetNumber ? streetNumber + ' ' : '') + (premise || route || '')
+                ).trim();
                 // Address Line 2: route only when premise exists, otherwise empty (match web)
                 const addressLine2 = premise ? (route || '') : '';
                 // Address Line 3: sublocality_level_1, sublocality, or locality (Area/Town) (match web)
@@ -977,7 +974,17 @@ const PersonalInformation = ({
 
         <Text style={styles.label}>Country</Text>
         <View style={styles.pickerField}>
-          <Picker
+          <SearchablePicker
+            items={
+              countryOptions.length
+                ? countryOptions
+                : [
+                    { value: 'Ireland', label: 'Ireland' },
+                    { value: 'United Kingdom', label: 'United Kingdom' },
+                    { value: 'United States', label: 'United States' },
+                    { value: 'Other', label: 'Other' },
+                  ]
+            }
             selectedValue={
               getCountryDisplayName(formData?.country) ||
               countryOptions[0]?.value ||
@@ -986,20 +993,8 @@ const PersonalInformation = ({
             onValueChange={val =>
               onFormDataChange({ ...formData, country: val })
             }
-          >
-            {countryOptions.length
-              ? countryOptions.map(c => (
-                  <Picker.Item key={c.value} label={c.label} value={c.value} />
-                ))
-              : [
-                  { value: 'Ireland', label: 'Ireland' },
-                  { value: 'United Kingdom', label: 'United Kingdom' },
-                  { value: 'United States', label: 'United States' },
-                  { value: 'Other', label: 'Other' },
-                ].map(c => (
-                  <Picker.Item key={c.value} label={c.label} value={c.value} />
-                ))}
-          </Picker>
+            placeholder="Select country..."
+          />
         </View>
       </View>
 

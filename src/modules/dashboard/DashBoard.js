@@ -434,7 +434,7 @@ const DashBoard = () => {
 
         {/* Quick Links Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Links</Text>
+          <Text style={{...styles.sectionTitle,marginBottom: 16}}>Quick Links</Text>
           <View style={styles.quickLinksGrid}>
             {quickLinks.map((link) => (
               <TouchableOpacity
@@ -766,7 +766,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: Colors.textPrimary,
-    marginBottom: 16,
   },
   viewAllText: {
     fontSize: 14,

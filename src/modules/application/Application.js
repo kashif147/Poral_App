@@ -20,6 +20,7 @@ import {
   createSubscriptionDetailRequest,
   updateSubscriptionDetailRequest,
 } from '../../api/application.api';
+import { toast } from '../../utils/toast.utils';
 
 const steps = [
   { number: 1, title: 'Personal' },
@@ -149,7 +150,12 @@ const Application = () => {
       // Remove automatic step increment - it will be handled by API success callbacks
       setShowValidation(false);
     } else {
-      console.log('❌ Validation failed for step', currentStep);
+      const missing = getMissingRequiredFields();
+      const message =
+        missing.length > 0
+          ? `Please fill in the required fields: ${missing.join(', ')}`
+          : 'Please complete all required fields.';
+      toast.warning('Validation', message);
     }
   };
   const handlePrevious = () => {
@@ -193,6 +199,93 @@ const Application = () => {
       [stepName]: { ...initialFormData[stepName], ...sanitizedData }
     };
     setFormData(newData);
+  };
+
+  const getMissingRequiredFields = () => {
+    const missing = [];
+    switch (currentStep) {
+      case 1: {
+        const {
+          title,
+          forename,
+          surname,
+          gender,
+          dob,
+          personalEmail,
+          workEmail,
+          mobileNo,
+          addressLine1,
+          addressLine4,
+          preferredAddress,
+          preferredEmail,
+        } = formData.personalInfo || {};
+        if (!preferredEmail) missing.push('Preferred email');
+        if (!title) missing.push('Title');
+        if (!forename) missing.push('Forename');
+        if (!surname) missing.push('Surname');
+        if (!gender) missing.push('Gender');
+        if (!dob) missing.push('Date of Birth');
+        if (preferredEmail === 'Personal' && !personalEmail) missing.push('Personal email');
+        if (preferredEmail === 'Work' && !workEmail) missing.push('Work email');
+        if (!mobileNo) missing.push('Mobile number');
+        if (!addressLine1) missing.push('Address Line 1');
+        if (!addressLine4) missing.push('Address Line 4');
+        if (!preferredAddress) missing.push('Preferred address');
+        break;
+      }
+      case 2: {
+        const {
+          workLocation,
+          grade,
+          membershipCategory,
+          nursingAdaptation,
+          nursingAdaptationProgramme,
+          nurseType,
+          nmbiNo,
+        } = formData.professionalDetails || {};
+        if (!membershipCategory) missing.push('Membership category');
+        const isUndergraduateStudent = membershipCategory === 'undergraduate_student';
+        if (!isUndergraduateStudent && !workLocation) missing.push('Work location');
+        if (!grade) missing.push('Grade');
+        const isNursingAdaptation = nursingAdaptation === true || nursingAdaptationProgramme === 'yes';
+        if (isNursingAdaptation) {
+          if (!nurseType) missing.push('Nurse type');
+          if (!nmbiNo) missing.push('NMBI number');
+        }
+        break;
+      }
+      case 3: {
+        const {
+          paymentType,
+          payrollNo,
+          otherIrishTradeUnion,
+          otherScheme,
+          memberStatus,
+          termsAndConditions,
+          primarySection,
+          otherPrimarySection,
+          secondarySection,
+          otherSecondarySection,
+        } = formData.subscriptionDetails || {};
+        if (!paymentType) missing.push('Payment type');
+        const requiresPayrollNo = ['Direct Debit', 'Salary Deduction', 'Deduction at Source'].includes(paymentType);
+        if (requiresPayrollNo && !payrollNo) missing.push('Payroll number');
+        if (!memberStatus) missing.push('Member status');
+        if (!otherIrishTradeUnion) missing.push('Other Irish trade union');
+        if (!otherScheme) missing.push('Other scheme');
+        if (!termsAndConditions) missing.push('Terms and conditions');
+        if ((primarySection === 'other' || primarySection === 'Other') && !otherPrimarySection) {
+          missing.push('Other primary section');
+        }
+        if ((secondarySection === 'other' || secondarySection === 'Other') && !otherSecondarySection) {
+          missing.push('Other secondary section');
+        }
+        break;
+      }
+      default:
+        break;
+    }
+    return missing;
   };
 
   const validateCurrentStep = () => {
@@ -325,7 +418,6 @@ const Application = () => {
           return false;
         }
         
-        break;
         break;
       }
     }
