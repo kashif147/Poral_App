@@ -5,11 +5,7 @@ import {
   fetchSubscriptionDetail,
 } from '../api/application.api';
 import { fetchCategoryByCategoryId } from '../api/category.api';
-import {
-  getPersonalDetailFromCrmCreateRequest,
-  getProfessionalDetailFromCrmCreateRequest,
-  getSubscriptionDetailFromCrmCreateRequest,
-} from '../api/profile.api';
+import { getAggregatedUserDetailsFromCrmCreateRequest } from '../api/profile.api';
 
 const ApplicationContext = createContext();
 
@@ -22,6 +18,16 @@ export const ApplicationProvider = ({ children }) => {
   const [categoryData, setCategoryData] = useState(null);
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [isCrmUser, setIsCrmUser] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState(null);
+
+  const applyAggregatedResponse = data => {
+    if (data?.personalDetails) setPersonalDetail(data.personalDetails);
+    if (data?.professionalDetails) setProfessionalDetail(data.professionalDetails);
+    if (data?.subscriptionDetails) setSubscriptionDetail(data.subscriptionDetails);
+    setApplicationStatus(data?.personalDetails?.applicationStatus ?? null);
+    setIsCrmUser(true);
+    setLoading(false);
+  };
 
   // Simple setter without localStorage persistence
   const setCurrentStep = stepUpdater => {
@@ -31,38 +37,34 @@ export const ApplicationProvider = ({ children }) => {
   const getPersonalDetail = () => {
     setLoading(true);
 
-    // First Priority: Try CRM API
-    getPersonalDetailFromCrmCreateRequest()
+    getAggregatedUserDetailsFromCrmCreateRequest()
       .then(res => {
-        console.log('CRM Personal Detail response===============>', res);
         if (res?.status === 200 && res?.data?.data) {
-          // CRM data exists, use it exclusively
-          setPersonalDetail(res.data.data);
-          setIsCrmUser(true);
-          setLoading(false);
-          return Promise.resolve(); // Prevent fallback execution
-        } else {
-          // CRM API failed or returned empty, fallback to portal API
-          return fetchPersonalDetail();
+          const data = res.data.data;
+          if (data?.personalDetails) {
+            applyAggregatedResponse(data);
+            return Promise.resolve();
+          }
         }
+        return fetchPersonalDetail();
       })
       .then(res => {
-        // This will only execute if CRM API failed and portal API was called
         if (res && res?.status === 200) {
           setPersonalDetail(res?.data?.data);
           setIsCrmUser(false);
+          setApplicationStatus(null);
           setLoading(false);
         } else if (res) {
           setLoading(false);
         }
       })
       .catch(() => {
-        // If CRM API throws error, try portal API as fallback
         fetchPersonalDetail()
           .then(res => {
             if (res?.status === 200) {
               setPersonalDetail(res?.data?.data);
               setIsCrmUser(false);
+              setApplicationStatus(null);
             }
             setLoading(false);
           })
@@ -72,110 +74,68 @@ export const ApplicationProvider = ({ children }) => {
       });
   };
 
-  const getProfessionalDetail = (applicationId) => {
-    setLoading(true);
-
-    // First Priority: Try CRM API (doesn't require applicationId)
-    getProfessionalDetailFromCrmCreateRequest()
-      .then(res => {
-        if (res?.status === 200 && res?.data?.data) {
-          // CRM data exists, use it exclusively
-          setProfessionalDetail(res.data.data);
-          setIsCrmUser(true);
-          setLoading(false);
-          return Promise.resolve(); // Prevent fallback execution
-        } else {
-          // CRM API failed or returned empty, fallback to portal API
-          const appId = applicationId || personalDetail?.applicationId;
-          if (!appId) {
+  const getProfessionalDetail = applicationId => {
+    if (isCrmUser) {
+      setLoading(true);
+      getAggregatedUserDetailsFromCrmCreateRequest()
+        .then(res => {
+          if (res?.status === 200 && res?.data?.data) {
+            applyAggregatedResponse(res.data.data);
+          } else {
             setLoading(false);
-            return Promise.resolve();
           }
-          return fetchProfessionalDetail(appId);
-        }
-      })
+        })
+        .catch(() => setLoading(false));
+      return;
+    }
+
+    setLoading(true);
+    const appId = applicationId || personalDetail?.applicationId;
+    if (!appId) {
+      setLoading(false);
+      return;
+    }
+    fetchProfessionalDetail(appId)
       .then(res => {
-        // This will only execute if CRM API failed and portal API was called
-        if (res && res?.status === 200) {
+        if (res?.status === 200) {
           setProfessionalDetail(res?.data?.data);
           setIsCrmUser(false);
-          setLoading(false);
-        } else if (res) {
-          setLoading(false);
         }
+        setLoading(false);
       })
-      .catch(() => {
-        // If CRM API throws error, try portal API as fallback
-        const appId = applicationId || personalDetail?.applicationId;
-        if (!appId) {
-          setLoading(false);
-          return;
-        }
-        fetchProfessionalDetail(appId)
-          .then(res => {
-            if (res?.status === 200) {
-              setProfessionalDetail(res?.data?.data);
-              setIsCrmUser(false);
-            }
-            setLoading(false);
-          })
-          .catch(() => {
-            setLoading(false);
-          });
-      });
+      .catch(() => setLoading(false));
   };
 
-  const getSubscriptionDetail = (applicationId) => {
-    setLoading(true);
-
-    // First Priority: Try CRM API (doesn't require applicationId)
-    getSubscriptionDetailFromCrmCreateRequest()
-      .then(res => {
-        if (res?.status === 200 && res?.data?.data) {
-          // CRM data exists, use it exclusively
-          setSubscriptionDetail(res.data.data);
-          setIsCrmUser(true);
-          setLoading(false);
-          return Promise.resolve(); // Prevent fallback execution
-        } else {
-          // CRM API failed or returned empty, fallback to portal API
-          const appId = applicationId || personalDetail?.applicationId;
-          if (!appId) {
+  const getSubscriptionDetail = applicationId => {
+    if (isCrmUser) {
+      setLoading(true);
+      getAggregatedUserDetailsFromCrmCreateRequest()
+        .then(res => {
+          if (res?.status === 200 && res?.data?.data) {
+            applyAggregatedResponse(res.data.data);
+          } else {
             setLoading(false);
-            return Promise.resolve();
           }
-          return fetchSubscriptionDetail(appId);
-        }
-      })
+        })
+        .catch(() => setLoading(false));
+      return;
+    }
+
+    setLoading(true);
+    const appId = applicationId || personalDetail?.applicationId;
+    if (!appId) {
+      setLoading(false);
+      return;
+    }
+    fetchSubscriptionDetail(appId)
       .then(res => {
-        // This will only execute if CRM API failed and portal API was called
-        if (res && res?.status === 200) {
+        if (res?.status === 200) {
           setSubscriptionDetail(res?.data?.data);
           setIsCrmUser(false);
-          setLoading(false);
-        } else if (res) {
-          setLoading(false);
         }
+        setLoading(false);
       })
-      .catch(() => {
-        // If CRM API throws error, try portal API as fallback
-        const appId = applicationId || personalDetail?.applicationId;
-        if (!appId) {
-          setLoading(false);
-          return;
-        }
-        fetchSubscriptionDetail(appId)
-          .then(res => {
-            if (res?.status === 200) {
-              setSubscriptionDetail(res?.data?.data);
-              setIsCrmUser(false);
-            }
-            setLoading(false);
-          })
-          .catch(() => {
-            setLoading(false);
-          });
-      });
+      .catch(() => setLoading(false));
   };
 
   const getCategoryData = useCallback((categoryNameOrId, categoryLookups = []) => {
@@ -297,6 +257,7 @@ export const ApplicationProvider = ({ children }) => {
     personalDetail,
     professionalDetail,
     subscriptionDetail,
+    applicationStatus,
     currentStep,
     setCurrentStep,
     categoryData,
@@ -311,6 +272,7 @@ export const ApplicationProvider = ({ children }) => {
     personalDetail,
     professionalDetail,
     subscriptionDetail,
+    applicationStatus,
     currentStep,
     categoryData,
     categoryLoading,
