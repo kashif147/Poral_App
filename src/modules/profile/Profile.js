@@ -17,12 +17,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { signOut } from '../../services/auth.services';
+import { useMemberRole } from '../../hooks/useMemberRole';
 import ScreenHeader from '../../common/screenHeader';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 const Profile = () => {
   const { personalDetail, getPersonalDetail, subscriptionDetail } = useApplication();
   const { profileByIdDetail, getProfileByIdDetail, profileDetail } = useProfile();
+  const { isMember } = useMemberRole();
   const applicationId = personalDetail?.applicationId;
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
@@ -296,15 +298,22 @@ const Profile = () => {
           {/* Profile Header Card */}
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
-              <TouchableOpacity onPress={handleImagePick}>
+              {isMember ? (
+                <TouchableOpacity onPress={handleImagePick}>
+                  <Image 
+                    source={profileImageSource} 
+                    style={styles.avatar}
+                  />
+                  <View style={styles.editBadge}>
+                    <Ionicons name="camera" size={14} color={Colors.white} />
+                  </View>
+                </TouchableOpacity>
+              ) : (
                 <Image 
                   source={profileImageSource} 
                   style={styles.avatar}
                 />
-                <View style={styles.editBadge}>
-                  <Ionicons name="camera" size={14} color={Colors.white} />
-                </View>
-              </TouchableOpacity>
+              )}
             </View>
             <Text style={styles.profileName}>
               {`${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || 'User Name'}
@@ -318,22 +327,36 @@ const Profile = () => {
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Personal Information</Text>
             
-            <TouchableOpacity 
-              style={styles.listItem} 
-              onPress={() => setShowPersonalInfoForm(!showPersonalInfoForm)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.listItemIcon}>
-                <Ionicons name="person-outline" size={20} color={Colors.textPrimary} />
+            {isMember ? (
+              <TouchableOpacity 
+                style={styles.listItem} 
+                onPress={() => setShowPersonalInfoForm(!showPersonalInfoForm)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.listItemIcon}>
+                  <Ionicons name="person-outline" size={20} color={Colors.textPrimary} />
+                </View>
+                <View style={styles.listItemContent}>
+                  <Text style={styles.listItemLabel}>Full Name</Text>
+                  <Text style={styles.listItemValue}>
+                    {`${personalInfo?.title || ''} ${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || '—'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.listItem}>
+                <View style={styles.listItemIcon}>
+                  <Ionicons name="person-outline" size={20} color={Colors.textPrimary} />
+                </View>
+                <View style={styles.listItemContent}>
+                  <Text style={styles.listItemLabel}>Full Name</Text>
+                  <Text style={styles.listItemValue}>
+                    {`${personalInfo?.title || ''} ${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || '—'}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.listItemContent}>
-                <Text style={styles.listItemLabel}>Full Name</Text>
-                <Text style={styles.listItemValue}>
-                  {`${personalInfo?.title || ''} ${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || '—'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-            </TouchableOpacity>
+            )}
 
             <TouchableOpacity style={styles.listItem} activeOpacity={0.7}>
               <View style={styles.listItemIcon}>

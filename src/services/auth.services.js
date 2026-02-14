@@ -7,7 +7,8 @@ import {
   setHeaders,
 } from '../helpers/auth.helper';
 import { deleteVerifier } from '../helpers/verifier.helper';
-import { setSignedIn, setUser } from '../store/slice/auth.slice';
+import { setSignedIn, setUser, setDetail } from '../store/slice/auth.slice';
+import { getMemberDetail } from '../helpers/decode.helper';
 
 const performLogoutCleanup = async dispatch => {
   await deleteHeaders();
@@ -15,6 +16,7 @@ const performLogoutCleanup = async dispatch => {
   await deleteVerifier();
   dispatch(setSignedIn(false));
   dispatch(setUser({}));
+  dispatch(setDetail(null));
 };
 
 export const validation = () => {
@@ -29,6 +31,7 @@ export const validation = () => {
       if (!hasToken) {
         dispatch(setSignedIn(false));
         dispatch(setUser({}));
+        dispatch(setDetail(null));
         return;
       }
 
@@ -44,6 +47,8 @@ export const validation = () => {
         }
         dispatch(setSignedIn(true));
         dispatch(setUser(meUser ?? {}));
+        const memberDetail = await getMemberDetail();
+        dispatch(setDetail(memberDetail));
       } else {
         await performLogoutCleanup(dispatch);
       }
@@ -57,13 +62,15 @@ export const validation = () => {
 export const signInMicrosoft = data => {
   return dispatch => {
     signInMicrosoftRequest(data)
-      .then(res => {
+      .then(async res => {
         if (res.status === 200) {
-          setHeaders(res.data);
-          saveUser(res.data.user);
+          await setHeaders(res.data);
+          await saveUser(res.data.user);
           deleteVerifier();
           dispatch(setSignedIn(true));
           dispatch(setUser(res.data.user));
+          const memberDetail = await getMemberDetail();
+          dispatch(setDetail(memberDetail));
         } else {
           toast.error(res.data.errors[0] ?? 'Unable to Sign In');
         }
@@ -83,10 +90,12 @@ export const signOut = navigation => {
       await deleteVerifier();
       dispatch(setSignedIn(false));
       dispatch(setUser({}));
+      dispatch(setDetail(null));
     } catch (error) {
       console.error('Sign out error:', error);
       dispatch(setSignedIn(false));
       dispatch(setUser({}));
+      dispatch(setDetail(null));
     }
   };
 };

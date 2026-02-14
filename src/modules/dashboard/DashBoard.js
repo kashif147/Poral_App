@@ -19,10 +19,12 @@ import ScreenHeader from '../../common/screenHeader';
 import { useSelector } from 'react-redux';
 import DetailModal from '../../common/detailModal';
 import { getEventWithRegistrationData } from '../../constants/eventData';
+import { useMemberRole } from '../../hooks/useMemberRole';
 
 const DashBoard = () => {
   const navigation = useNavigation();
   const user = useSelector(state => state.auth.user);
+  const { isMember } = useMemberRole();
   const [userName, setUserName] = useState('User');
   const insets = useSafeAreaInsets();
   const { personalDetail, subscriptionDetail, professionalDetail } = useApplication();
@@ -250,8 +252,8 @@ const DashBoard = () => {
         <View style={styles.welcomeContainer}>
            <Text style={styles.welcomeText}>Welcome, {userName || user?.firstName} 👋</Text>
         </View>
-        {/* Application Status or Payment Card */}
-        {applicationStatus === 'approved' ? (
+        {/* Application Status or Payment Card - show payment only when approved AND member */}
+        {applicationStatus === 'approved' && isMember ? (
            <View style={styles.paymentCard}>
              <View style={styles.paymentCardHeader}>
                 <Text style={styles.paymentCardTitle}>Payments & Billing</Text>
@@ -508,14 +510,16 @@ const DashBoard = () => {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom }]}
-        onPress={() => navigation.navigate(STACKS.APPLICATION_STACK)}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={28} color={Colors.white} />
-      </TouchableOpacity>
+      {/* Floating Action Button - hide when application is approved */}
+      {applicationStatus !== 'approved' && (
+        <TouchableOpacity
+          style={[styles.fab, { bottom: insets.bottom }]}
+          onPress={() => navigation.navigate(STACKS.APPLICATION_STACK)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={28} color={Colors.white} />
+        </TouchableOpacity>
+      )}
 
       {/* Event detail modal */}
       <DetailModal
