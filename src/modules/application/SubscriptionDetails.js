@@ -124,7 +124,17 @@ const SubscriptionDetails = ({
 
         {/* Payment Type */}
         <Text style={styles.label}>Payment Type *</Text>
-        <View style={styles.pickerField}>
+        <View
+          style={[
+            styles.pickerField,
+            showValidation &&
+              !formData.paymentType && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+              },
+          ]}
+        >
           <Picker
             selectedValue={formData.paymentType || ''}
             onValueChange={val => {
@@ -175,6 +185,7 @@ const SubscriptionDetails = ({
           <InputField
             value={formData.payrollNo}
             editable={requiresPayrollNo(formData.paymentType)}
+            checkValue={showValidation && requiresPayrollNo(formData.paymentType) && !formData.payrollNo}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({ ...formData, payrollNo: text })
@@ -191,7 +202,17 @@ const SubscriptionDetails = ({
         <Text style={styles.radioGroupLabel}>
           Please select the most appropriate option below *
         </Text>
-        <View style={styles.radioGroupVertical}>
+        <View
+          style={[
+            styles.radioGroupVertical,
+            showValidation &&
+              !formData.memberStatus && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+              },
+          ]}
+        >
           {[
             { value: 'new', label: 'New member' },
             { value: 'graduate', label: 'Newly graduated' },
@@ -405,6 +426,17 @@ const SubscriptionDetails = ({
         <Text style={styles.radioGroupLabel}>
           Are you a member of another Trade Union? If yes, which Union? *
         </Text>
+        <View
+          style={[
+            showValidation &&
+              !formData.otherIrishTradeUnion && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 12,
+              },
+          ]}
+        >
         <View style={styles.radioRow}>
           <TouchableOpacity
             style={styles.radioOption}
@@ -456,6 +488,7 @@ const SubscriptionDetails = ({
             <Text style={styles.label}>If yes, which Union? *</Text>
             <InputField
               value={formData.otherIrishTradeUnionName || ''}
+              checkValue={showValidation && formData.otherIrishTradeUnion === 'yes' && !formData.otherIrishTradeUnionName}
               holderTextColor={'#94A3B8'}
               onChange={text =>
                 onFormDataChange({
@@ -467,11 +500,23 @@ const SubscriptionDetails = ({
             />
           </View>
         )}
+        </View>
 
         <Text style={styles.radioGroupLabel}>
           Are you or were you a member of another Irish trade Union salary or
           Income Protection Scheme? *
         </Text>
+        <View
+          style={[
+            showValidation &&
+              !formData.otherScheme && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 12,
+              },
+          ]}
+        >
         <View style={styles.radioRow}>
           <TouchableOpacity
             style={styles.radioOption}
@@ -509,6 +554,7 @@ const SubscriptionDetails = ({
             </View>
             <Text style={styles.radioOptionLabel}>No</Text>
           </TouchableOpacity>
+        </View>
         </View>
       </View>
 
@@ -585,6 +631,7 @@ const SubscriptionDetails = ({
           <InputField
             value={formData.otherPrimarySection || ''}
             editable={formData.primarySection === 'other'}
+            checkValue={showValidation && (formData.primarySection === 'other' || formData.primarySection === 'Other') && !formData.otherPrimarySection}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({ ...formData, otherPrimarySection: text })
@@ -623,6 +670,7 @@ const SubscriptionDetails = ({
           <InputField
             value={formData.otherSecondarySection || ''}
             editable={formData.secondarySection === 'other'}
+            checkValue={showValidation && (formData.secondarySection === 'other' || formData.secondarySection === 'Other') && !formData.otherSecondarySection}
             holderTextColor={'#94A3B8'}
             onChange={text =>
               onFormDataChange({ ...formData, otherSecondarySection: text })
@@ -662,6 +710,17 @@ const SubscriptionDetails = ({
             </Text>
           </TouchableOpacity>
 
+          <View
+            style={[
+              showValidation &&
+                !formData?.termsAndConditions && {
+                  borderColor: Colors.red,
+                  borderWidth: 1,
+                  borderRadius: 12,
+                  padding: 12,
+                },
+            ]}
+          >
           <TouchableOpacity
             style={[styles.checkboxItem, { alignItems: 'flex-start' }]}
             onPress={() =>
@@ -714,6 +773,7 @@ const SubscriptionDetails = ({
               )}
             </Text>
           </TouchableOpacity>
+          </View>
         </View>
       </View>
     </View>

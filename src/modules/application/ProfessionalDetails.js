@@ -24,28 +24,28 @@ const nurseTypes = [
 ];
 
 // Map API nurseType values to component display values
-const mapNurseTypeFromAPI = (apiValue) => {
+const mapNurseTypeFromAPI = apiValue => {
   if (!apiValue) return '';
-  
+
   const mapping = {
-    'generalNursing': 'General Nurse',
-    'publicHealthNurse': 'Public Health Nurse',
-    'mentalHealthNurse': 'Mental health nurse',
-    'midwifery': 'Midwife',
-    'sickChildrenNurse': "Sick Children's Nurse",
-    'intellectualDisability': 'Registered Nurse for Intellectual Disability',
+    generalNursing: 'General Nurse',
+    publicHealthNurse: 'Public Health Nurse',
+    mentalHealthNurse: 'Mental health nurse',
+    midwifery: 'Midwife',
+    sickChildrenNurse: "Sick Children's Nurse",
+    intellectualDisability: 'Registered Nurse for Intellectual Disability',
   };
-  
+
   // If exact match found, return mapped value
   if (mapping[apiValue]) {
     return mapping[apiValue];
   }
-  
+
   // If already in display format, return as is
   if (nurseTypes.includes(apiValue)) {
     return apiValue;
   }
-  
+
   // Try case-insensitive match
   const lowerApiValue = apiValue.toLowerCase();
   for (const [key, value] of Object.entries(mapping)) {
@@ -53,34 +53,35 @@ const mapNurseTypeFromAPI = (apiValue) => {
       return value;
     }
   }
-  
+
   return apiValue; // Return original if no match found
 };
 
 // Map component display values back to API format
-const mapNurseTypeToAPI = (displayValue) => {
+const mapNurseTypeToAPI = displayValue => {
   if (!displayValue) return '';
-  
+
   const reverseMapping = {
     'General Nurse': 'generalNursing',
     'Public Health Nurse': 'publicHealthNursing',
     'Mental health nurse': 'mentalHealthNursing',
-    'Midwife': 'midwifery',
+    Midwife: 'midwifery',
     "Sick Children's Nurse": 'sickChildrenNursing',
-    'Registered Nurse for Intellectual Disability': 'intellectualDisabilityNursing',
+    'Registered Nurse for Intellectual Disability':
+      'intellectualDisabilityNursing',
   };
-  
+
   // If exact match found, return API value
   if (reverseMapping[displayValue]) {
     return reverseMapping[displayValue];
   }
-  
+
   // If already in API format, return as is
   const apiValues = Object.values(reverseMapping);
   if (apiValues.includes(displayValue)) {
     return displayValue;
   }
-  
+
   return displayValue; // Return original if no match found
 };
 
@@ -105,9 +106,7 @@ const ProfessionalDetails = ({
   const safeCategoryLookups = Array.isArray(categoryLookups)
     ? categoryLookups
     : [];
-  const safeGradeLookups = Array.isArray(gradeLookups)
-    ? gradeLookups
-    : [];
+  const safeGradeLookups = Array.isArray(gradeLookups) ? gradeLookups : [];
   const safeStudyLocationLookups = Array.isArray(studyLocationLookups)
     ? studyLocationLookups
     : [];
@@ -116,7 +115,12 @@ const ProfessionalDetails = ({
     console.log('Study location lookups:', safeStudyLocationLookups?.length);
     const mapped = (safeStudyLocationLookups || [])
       .map(item => {
-        const name = item?.DisplayName || item?.lookupname || item?.name || item?.label || '';
+        const name =
+          item?.DisplayName ||
+          item?.lookupname ||
+          item?.name ||
+          item?.label ||
+          '';
         return { value: name, label: name };
       })
       .filter(option => option.value); // Filter out empty values
@@ -180,7 +184,12 @@ const ProfessionalDetails = ({
     console.log('Grade lookups:', safeGradeLookups?.length);
     const mapped = (safeGradeLookups || [])
       .map(item => {
-        const name = item?.DisplayName || item?.lookupname || item?.name || item?.label || '';
+        const name =
+          item?.DisplayName ||
+          item?.lookupname ||
+          item?.name ||
+          item?.label ||
+          '';
         return { value: name, label: name };
       })
       .filter(option => option.value); // Filter out empty values
@@ -275,7 +284,10 @@ const ProfessionalDetails = ({
     let hasUpdates = false;
 
     // Map nmbiNumber from API to nmbiNo in component (handle both field names)
-    if (formData.nmbiNumber !== undefined && formData.nmbiNumber !== formData.nmbiNo) {
+    if (
+      formData.nmbiNumber !== undefined &&
+      formData.nmbiNumber !== formData.nmbiNo
+    ) {
       updates.nmbiNo = formData.nmbiNumber || '';
       hasUpdates = true;
     }
@@ -283,13 +295,20 @@ const ProfessionalDetails = ({
     // Convert boolean nursingAdaptationProgramme to "yes"/"no" string
     // Only normalize if there's an actual value (don't set default to 'no')
     // Also handle nursingAdaptation boolean field for backward compatibility
-    const currentAdaptationValue = formData.nursingAdaptationProgramme !== undefined 
-      ? formData.nursingAdaptationProgramme 
-      : (formData.nursingAdaptation !== undefined ? formData.nursingAdaptation : undefined);
+    const currentAdaptationValue =
+      formData.nursingAdaptationProgramme !== undefined
+        ? formData.nursingAdaptationProgramme
+        : formData.nursingAdaptation !== undefined
+        ? formData.nursingAdaptation
+        : undefined;
 
-    if (currentAdaptationValue !== undefined && currentAdaptationValue !== null && currentAdaptationValue !== '') {
+    if (
+      currentAdaptationValue !== undefined &&
+      currentAdaptationValue !== null &&
+      currentAdaptationValue !== ''
+    ) {
       let normalizedValue;
-      
+
       if (typeof currentAdaptationValue === 'boolean') {
         normalizedValue = currentAdaptationValue ? 'yes' : 'no';
       } else if (typeof currentAdaptationValue === 'string') {
@@ -308,7 +327,10 @@ const ProfessionalDetails = ({
       }
 
       // Only update if we have a valid normalized value and it's different
-      if (normalizedValue !== undefined && normalizedValue !== formData.nursingAdaptationProgramme) {
+      if (
+        normalizedValue !== undefined &&
+        normalizedValue !== formData.nursingAdaptationProgramme
+      ) {
         updates.nursingAdaptationProgramme = normalizedValue;
         hasUpdates = true;
       }
@@ -372,33 +394,50 @@ const ProfessionalDetails = ({
   }, [formData?.nursingAdaptationProgramme]);
 
   return (
-    <View style={{ backgroundColor: Colors.background, paddingBottom: 16, paddingTop: 4 }}>
+    <View
+      style={{
+        backgroundColor: Colors.background,
+        paddingBottom: 16,
+        paddingTop: 4,
+      }}
+    >
       {/* Membership Information Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Membership Information</Text>
 
         {/* Membership Category */}
         <Text style={styles.label}>Membership Category *</Text>
-        <View style={styles.pickerField}>
-          <SearchablePicker
-            items={
-              membershipCategoryOptions.length === 0
-                ? []
-                : membershipCategoryOptions
-            }
+        <View
+          style={[
+            styles.pickerField,
+            showValidation &&
+              !formData.membershipCategory && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+              },
+          ]}
+        >
+          <Picker
             selectedValue={formData.membershipCategory || ''}
+            
             onValueChange={val => {
-              if (val) {
-                onFormDataChange({ ...formData, membershipCategory: val });
-              }
+              onFormDataChange({ ...formData, membershipCategory: val });
             }}
-            placeholder={
-              membershipCategoryOptions.length === 0
-                ? 'Loading categories...'
-                : 'Select membership category'
-            }
-            enabled={membershipCategoryOptions.length > 0}
-          />
+          >
+            <Picker.Item label="Select membership category" value="" />
+            {membershipCategoryOptions.length === 0 ? (
+              <Picker.Item label="Loading categories..." value="" disabled />
+            ) : (
+              membershipCategoryOptions.map(item => (
+                <Picker.Item
+                  key={item.value}
+                  label={item.label}
+                  value={item.value}
+                />
+              ))
+            )}
+          </Picker>
         </View>
 
         {/* Conditional fields for Undergraduate Students */}
@@ -501,7 +540,18 @@ const ProfessionalDetails = ({
 
         {/* Work Location */}
         <Text style={styles.label}>Work Location</Text>
-        <View style={styles.pickerField}>
+        <View
+          style={[
+            styles.pickerField,
+            showValidation &&
+              !isUndergraduateStudent &&
+              !formData.workLocation && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+              },
+          ]}
+        >
           <SearchablePicker
             items={workLocationNames.map(w => ({ label: w, value: w }))}
             selectedValue={formData.workLocation || ''}
@@ -540,7 +590,10 @@ const ProfessionalDetails = ({
             }}
           >
             <Picker.Item label="Select Branch..." value="" />
-            <Picker.Item label={formData.branch || 'Auto-filled'} value={formData.branch || ''} />
+            <Picker.Item
+              label={formData.branch || 'Auto-filled'}
+              value={formData.branch || ''}
+            />
           </Picker>
         </View>
 
@@ -556,13 +609,26 @@ const ProfessionalDetails = ({
             }}
           >
             <Picker.Item label="Select Region..." value="" />
-            <Picker.Item label={formData.region || 'Auto-filled'} value={formData.region || ''} />
+            <Picker.Item
+              label={formData.region || 'Auto-filled'}
+              value={formData.region || ''}
+            />
           </Picker>
         </View>
 
         {/* Grade */}
         <Text style={styles.label}>Grade</Text>
-        <View style={styles.pickerField}>
+        <View
+          style={[
+            styles.pickerField,
+            showValidation &&
+              !formData.grade && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+              },
+          ]}
+        >
           <SearchablePicker
             items={gradeOptions}
             selectedValue={formData.grade || ''}
@@ -659,11 +725,12 @@ const ProfessionalDetails = ({
           <InputField
             value={formData.nmbiNo || ''}
             editable={adaptationYes}
+            checkValue={showValidation && adaptationYes && !formData.nmbiNo}
             holderTextColor={'#94A3B8'}
             onChange={text => {
               // Update both nmbiNo and nmbiNumber for consistency
-              onFormDataChange({ 
-                ...formData, 
+              onFormDataChange({
+                ...formData,
                 nmbiNo: text,
                 nmbiNumber: text, // Keep nmbiNumber in sync for API
               });
@@ -674,7 +741,19 @@ const ProfessionalDetails = ({
 
         {/* Nurse Type radio group */}
         <Text style={styles.label}>Please tick one of the following</Text>
-        <View style={styles.radioGroup}>
+        <View
+          style={[
+            showValidation &&
+              adaptationYes &&
+              !formData.nurseType && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 12,
+              },
+          ]}
+        >
+          <View style={styles.radioGroup}>
           {nurseTypes.map(type => {
             const isSelected = formData.nurseType === type;
             return (
@@ -711,6 +790,7 @@ const ProfessionalDetails = ({
               </TouchableOpacity>
             );
           })}
+          </View>
         </View>
       </View>
 
@@ -718,8 +798,8 @@ const ProfessionalDetails = ({
       {/* <View style={styles.card}>
         <Text style={styles.cardTitle}>Retirement Status</Text> */}
 
-        {/* Retired Switch */}
-        {/* <View style={styles.switchRow}>
+      {/* Retired Switch */}
+      {/* <View style={styles.switchRow}>
           <Text style={styles.switchLabel}>Retired</Text>
           <CustomSwitch
             value={!!formData.isRetired}
@@ -807,10 +887,10 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 4,
   },
-  inputField: { 
+  inputField: {
     marginBottom: 8,
   },
-  pickerField: { 
+  pickerField: {
     marginBottom: 8,
   },
   switchRow: {
