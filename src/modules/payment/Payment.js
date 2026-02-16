@@ -1,485 +1,200 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Alert, ActivityIndicator, TextInput, KeyboardAvoidingView, SafeAreaView, StatusBar, TouchableOpacity } from 'react-native';
-import { Colors, wp, hp } from '../../utils/Styles';
-import { Button } from '../../common/button';
-import { CardField, useStripe } from '@stripe/stripe-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createPaymentIntentRequest } from '../../api/payment.api';
-import { useApplication } from '../../contexts/applicationContext';
-import { useLookup } from '../../contexts/lookupContext';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  ActivityIndicator,
+  StatusBar,
+} from 'react-native';
+import { Colors } from '../../utils/Styles';
+import { useProfile } from '../../contexts/profileContext';
+import { getAccountStatementRequest } from '../../api/account.api';
+import { formatToDDMMYYYY } from '../../helpers/date.helper';
 import ScreenHeader from '../../common/screenHeader';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 const Payment = () => {
-  const insets = useSafeAreaInsets();
-  const { confirmPayment } = useStripe();
-  const { personalDetail, categoryData, getCategoryData, categoryLoading } = useApplication();
-  const { categoryLookups } = useLookup();
-  
-  const [loading, setLoading] = useState(false);
-  const [cardComplete, setCardComplete] = useState(false);
-  const [editablePrice, setEditablePrice] = useState('');
-  const [clientSecret, setClientSecret] = useState(null);
-  const [userDetail, setUserDetail] = useState(null);
-  const [cardholderName, setCardholderName] = useState('');
-  const [email, setEmail] = useState('');
-  
-  // Get membership category from personalDetail
-  const membershipCategory = personalDetail?.professionalDetails?.membershipCategory;
-  
-  const canPay = editablePrice && parseFloat(editablePrice) > 0 && cardholderName && email && cardComplete;
+  const { profileDetail, getProfileDetail } = useProfile();
+  const [statementData, setStatementData] = useState(null);
+  const [statementLoading, setStatementLoading] = useState(false);
 
-  // Load user data and pre-fill form
+  const memberId = profileDetail?.membershipNumber;
+  const txns = statementData?.txns ?? [];
+
   useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const userStr = await AsyncStorage.getItem('user');
-        const userData = userStr ? JSON.parse(userStr) : null;
-        setUserDetail(userData);
-
-        // Pre-fill name
-        const userName = userData?.userFirstName && userData?.userLastName
-          ? `${userData.userFirstName} ${userData.userLastName}`
-          : userData?.userName || '';
-        
-        // Pre-fill email
-        const userEmail = userData?.userEmail || userData?.email || '';
-
-        setCardholderName(userName);
-        setEmail(userEmail);
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      }
-    };
-
-    loadUserData();
+    getProfileDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch category data to get default price
   useEffect(() => {
-    if (membershipCategory) {
-      getCategoryData(membershipCategory, categoryLookups || []);
+    if (!memberId) {
+      return;
     }
-  }, [membershipCategory, categoryLookups, getCategoryData]);
+    setStatementLoading(true);
+    getAccountStatementRequest(memberId)
+      .then(res => {
+        if (res?.status === 200) {
+          const data = res.data?.data || res.data;
+          setStatementData(data && typeof data === 'object' ? data : { memberId, txns: [] });
+        } else {
+          setStatementData({ memberId, txns: [] });
+        }
+      })
+      .catch(() => {
+        setStatementData({ memberId, txns: [] });
+      })
+      .finally(() => {
+        setStatementLoading(false);
+      });
+  }, [memberId]);
 
-  // Set default price when category data is loaded
-  useEffect(() => {
-    if (categoryData?.currentPricing?.price && !editablePrice) {
-      const priceInEuros = (categoryData.currentPricing.price / 100).toFixed(2);
-      setEditablePrice(priceInEuros);
-    }
-  }, [categoryData, editablePrice]);
-
-  // Format currency
   const formatCurrency = value => {
-    const currency = (categoryData?.currentPricing?.currency || 'EUR').toUpperCase();
     try {
       return new Intl.NumberFormat('en-IE', {
         style: 'currency',
-        currency,
-      }).format(value || 0);
+        currency: 'EUR',
+      }).format(value ?? 0);
     } catch {
-      return `€${(value || 0).toFixed(2)}`;
+      return `€${(value ?? 0).toFixed(2)}`;
     }
   };
 
-  // Payment handler
-  const handlePayNow = async () => {
-    if (!cardholderName || !email) {
-      Alert.alert('Error', 'Name and email are required');
-      return;
+  const renderStatementItem = ({ item: txn, index }) => {
+    const dateStr = formatToDDMMYYYY(txn.date || txn.transactionDate) || 'N/A';
+    const description =
+      txn.description || txn.type || txn.descriptionLabel || 'Transaction';
+    const rawAmount = txn.amount ?? txn.total ?? 0;
+    const amount = typeof rawAmount === 'number' && rawAmount > 100 ? rawAmount / 100 : rawAmount;
+    const status = txn.status || 'Paid';
+
+    return (
+      <View style={styles.statementCard}>
+        <View style={styles.statementRow}>
+          <Text style={styles.statementDate}>{dateStr}</Text>
+          <Text style={styles.statementAmount}>{formatCurrency(amount)}</Text>
+        </View>
+        <Text style={styles.statementDescription} numberOfLines={2}>
+          {description}
+        </Text>
+        <View style={styles.statementRow}>
+          <Text style={styles.statementStatus}>{status}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderEmptyState = (message) => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="document-text-outline" size={64} color={Colors.textSecondary} />
+      <Text style={styles.emptyTitle}>{message}</Text>
+    </View>
+  );
+
+  const renderContent = () => {
+    if (statementLoading && memberId) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading transactions...</Text>
+        </View>
+      );
     }
 
-    if (!editablePrice || parseFloat(editablePrice) <= 0) {
-      Alert.alert('Error', 'Please enter a valid amount');
-      return;
+    if (!memberId) {
+      return renderEmptyState('Member account required to view statements.');
     }
 
-    if (!cardComplete) {
-      Alert.alert('Error', 'Please complete all card details');
-      return;
+    if (!txns.length) {
+      return renderEmptyState('No transactions found.');
     }
 
-    setLoading(true);
-    try {
-      // Step 1: Create Payment Intent with the edited price
-      const amountInCents = Math.round(parseFloat(editablePrice) * 100);
-      const currency = categoryData?.currentPricing?.currency || 'eur';
-      const applicationId = personalDetail?.applicationId;
-      const userId = userDetail?.id || userDetail?._id;
-      const tenantId = userDetail?.tenantId || userDetail?.userTenantId;
-
-      const paymentData = {
-        purpose: 'subscriptionFee',
-        amount: amountInCents,
-        currency,
-        metadata: {
-          memberId: applicationId,
-          description: 'Membership payment from dashboard',
-          tenantId,
-          userId,
-          membershipCategory,
-          paymentType: 'Card Payment',
-        },
-      };
-
-      console.log('Creating Payment Intent with:', paymentData);
-      const intentResponse = await createPaymentIntentRequest(paymentData);
-      
-      const secret =
-        intentResponse?.data?.data?.clientSecret ||
-        intentResponse?.data?.client_secret ||
-        intentResponse?.data?.clientSecret;
-
-      if (!secret) {
-        throw new Error('Missing client secret from payment intent response');
-      }
-
-      setClientSecret(secret);
-
-      // Step 2: Confirm the payment
-      const { error, paymentIntent } = await confirmPayment(secret, {
-        paymentMethodType: 'Card',
-        paymentMethodData: {
-          billingDetails: {
-            name: cardholderName,
-            email: email,
-          },
-        },
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      // Check if payment was successful
-      if (paymentIntent?.status === 'Succeeded') {
-        Alert.alert('Success', 'Payment completed successfully!', [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Reset form
-              setCardComplete(false);
-              setClientSecret(null);
-            }
-          }
-        ]);
-      } else {
-        throw new Error(`Payment status: ${paymentIntent?.status || 'unknown'}`);
-      }
-    } catch (err) {
-      console.error('Payment Error:', err);
-      Alert.alert('Payment Failed', err.message || 'Payment failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    return (
+      <FlatList
+        data={txns}
+        keyExtractor={(item, index) => item.id || item.key || `txn-${index}`}
+        renderItem={renderStatementItem}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
+    );
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: Colors.background }}>
+    <View style={styles.container}>
       <StatusBar backgroundColor={Colors.background} barStyle="dark-content" />
-      
-      {/* Header */}
       <ScreenHeader title="Payment" />
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
-      >
-        <ScrollView
-          contentContainerStyle={{ paddingBottom: 120 }}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.container}>
-            <Text style={styles.title}>Membership Subscription</Text>
-            <Text style={styles.caption}>Review your membership and complete payment</Text>
-
-            {/* Loading state */}
-            {categoryLoading ? (
-              <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={{ color: Colors.textPrimary, marginTop: 12 }}>Loading payment details...</Text>
-              </View>
-            ) : (
-              <View>
-                {/* Membership category card */}
-                {categoryData && (
-                  <View style={styles.categoryCard}>
-                    <View style={{ flex: 1, paddingRight: 12 }}>
-                      <Text style={styles.smallLabel}>MEMBERSHIP CATEGORY</Text>
-                      <Text style={styles.categoryText}>{categoryData?.name || 'Membership Category'}</Text>
-                      {categoryData?.description && (
-                        <Text style={styles.categoryDescription}>{categoryData.description}</Text>
-                      )}
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={styles.smallLabel}>DEFAULT PRICE</Text>
-                      <Text style={styles.priceText}>
-                        {formatCurrency(categoryData?.currentPricing?.price / 100 || 0)}
-                      </Text>
-                      {categoryData?.currentPricing?.frequency && (
-                        <Text style={styles.frequencyText}>{categoryData.currentPricing.frequency}</Text>
-                      )}
-                    </View>
-                  </View>
-                )}
-
-                {/* Editable Amount */}
-                <View style={{ marginTop: 20 }}>
-                  <Text style={styles.requiredLabel}>Amount to Pay *</Text>
-                  <TextInput
-                    value={editablePrice}
-                    onChangeText={setEditablePrice}
-                    placeholder="Enter amount"
-                    placeholderTextColor={Colors.textSecondary}
-                    keyboardType="decimal-pad"
-                    style={styles.input}
-                  />
-                  <Text style={styles.hintText}>
-                    Default price: {formatCurrency(categoryData?.currentPricing?.price / 100 || 0)}
-                  </Text>
-                </View>
-
-                {/* Name + Email */}
-                <View style={{ marginTop: 20 }}>
-                  <View>
-                    <Text style={styles.requiredLabel}>Name on Card *</Text>
-                    <TextInput
-                      value={cardholderName}
-                      onChangeText={setCardholderName}
-                      placeholder="Full name"
-                      placeholderTextColor={Colors.textSecondary}
-                      style={styles.input}
-                    />
-                  </View>
-                  <View style={{ marginTop: 16 }}>
-                    <Text style={styles.requiredLabel}>Email *</Text>
-                    <TextInput
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="you@example.com"
-                      placeholderTextColor={Colors.textSecondary}
-                      keyboardType="email-address"
-                      style={styles.input}
-                    />
-                  </View>
-                </View>
-                <Text style={styles.autofillText}>✓ Pre-filled from your profile</Text>
-
-                {/* Card details */}
-                <View style={{ marginTop: 20 }}>
-                  <Text style={styles.requiredLabel}>Card Details *</Text>
-                  <View style={styles.cardFieldWrapper}>
-                    <CardField
-                      postalCodeEnabled={false}
-                      placeholders={{ number: '4242 4242 4242 4242', cvc: 'CVC', expiration: 'MM/YY' }}
-                      cardStyle={{
-                        backgroundColor: '#00000000',
-                        textColor: Colors.textPrimary,
-                        placeholderColor: Colors.textSecondary,
-                        borderWidth: 0,
-                        borderColor: '#00000000',
-                        borderRadius: 12,
-                        fontSize: 15,
-                      }}
-                      style={{ width: '100%', height: 52 }}
-                      onCardChange={details => setCardComplete(details?.complete)}
-                    />
-                  </View>
-                </View>
-
-                {/* Total + Actions */}
-                <View style={styles.totalSection}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                    <Text style={{ fontSize: 14, color: Colors.textSecondary, fontWeight: '500' }}>Total Amount</Text>
-                    <Text style={styles.totalAmount}>
-                      {formatCurrency(parseFloat(editablePrice) || 0)}
-                    </Text>
-                  </View>
-
-                  <Button
-                    title={loading ? 'Processing…' : 'Pay Now'}
-                    onPress={handlePayNow}
-                    disabled={!canPay || loading}
-                    primary
-                    style={{ height: 52, borderRadius: 12 }}
-                    textStyle={{ fontSize: 15, fontWeight: '700' }}
-                  />
-                </View>
-              </View>
-            )}
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      {renderContent()}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  // Header - Matching Application.js
-  header: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  listContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  statementCard: {
+    backgroundColor: Colors.cardBackground,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  statementRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    paddingBottom: 16,
-    backgroundColor: Colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  statementDate: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  statementAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  statementDescription: {
+    fontSize: 14,
     color: Colors.textPrimary,
-    letterSpacing: 0.3,
+    marginTop: 6,
+    marginBottom: 6,
   },
-  headerAvatarContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F5A77B',
+  statementStatus: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 40,
   },
-  container: {
-    padding: 20,
-    paddingTop: 24,
-  },
-  title: {
-    fontWeight: '700',
-    fontSize: hp(2.8),
+  loadingText: {
     color: Colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  caption: {
-    marginTop: 6,
-    color: Colors.textSecondary,
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  smallLabel: {
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  requiredLabel: {
-    fontWeight: '600',
-    color: Colors.textPrimary,
+    marginTop: 12,
     fontSize: 14,
-    marginBottom: 8,
   },
-  categoryCard: {
-    marginTop: 16,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    padding: 18,
-    borderRadius: 16,
-    backgroundColor: Colors.cardBackground,
-    borderWidth: 1.5,
-    borderColor: Colors.divider,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  categoryText: {
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    fontSize: 16,
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  categoryDescription: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    lineHeight: 16,
-  },
-  priceText: {
-    fontWeight: '800',
-    color: Colors.primary,
-    fontSize: 24,
-    letterSpacing: -0.5,
-  },
-  frequencyText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  input: {
-    height: 52,
-    borderWidth: 1.5,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    backgroundColor: Colors.white,
-    marginTop: 2,
-    color: Colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '500',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  row: {
-    flexDirection: 'row',
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 40,
   },
-  hintText: {
+  emptyTitle: {
+    marginTop: 16,
+    fontSize: 16,
     color: Colors.textSecondary,
-    fontSize: 12,
-    marginTop: 8,
-  },
-  autofillText: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 8,
-    alignSelf: 'flex-end',
-  },
-  cardFieldWrapper: {
-    marginTop: 2,
-    borderWidth: 1.5,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: Colors.white,
-    minHeight: 52,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  totalSection: {
-    marginTop: 24,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: Colors.divider,
-  },
-  totalAmount: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: -0.5,
+    textAlign: 'center',
   },
 });
 

@@ -14,12 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApplication } from '../../contexts/applicationContext';
 import { useLookup } from '../../contexts/lookupContext';
 import { applicationConfirmationRequest } from '../../api/application.api';
+import { getAccountNetBalanceRequest } from '../../api/account.api';
 import { useProfile } from '../../contexts/profileContext';
 import ScreenHeader from '../../common/screenHeader';
 import { useSelector } from 'react-redux';
 import DetailModal from '../../common/detailModal';
 import { getEventWithRegistrationData } from '../../constants/eventData';
 import { useMemberRole } from '../../hooks/useMemberRole';
+import DashboardPaymentModal from './DashboardPaymentModal';
 
 const DashBoard = () => {
   const navigation = useNavigation();
@@ -31,11 +33,15 @@ const DashBoard = () => {
   const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [accountNetBalance, setAccountNetBalance] = useState(null);
+  const [accountNetBalanceLoading, setAccountNetBalanceLoading] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const { getProfileDetail, profileDetail } = useProfile();
   const { getCategoryData, categoryData } = useApplication();
   
-  const membershipCategory = applicationStatus === 'approved' 
-    ? profileDetail?.membershipCategory 
+  // Match web: use subscriptionDetails.membershipCategory when available, then profile
+  const membershipCategory = applicationStatus === 'approved'
+    ? (subscriptionDetail?.subscriptionDetails?.membershipCategory || profileDetail?.membershipCategory)
     : professionalDetail?.membershipCategory;
   const { categoryLookups } = useLookup();
 
@@ -60,7 +66,6 @@ const DashBoard = () => {
     fetchUserName();
   }, []);
 
-  console.log('Category Data=======>',categoryData)
   // Fetch all lookups when Dashboard loads
   useEffect(() => {
     const initializeLookups = async () => {
@@ -98,6 +103,23 @@ const DashBoard = () => {
 
     checkApplicationStatus();
   }, [personalDetail?.applicationId]);
+
+  useEffect(() => {
+    const memberId = profileDetail?.membershipNumber;
+    if (!memberId || !isMember) return;
+
+    setAccountNetBalanceLoading(true);
+    getAccountNetBalanceRequest(memberId)
+      .then(res => {
+        if (res?.status === 200 && res?.data?.data) {
+          setAccountNetBalance(res.data.data);
+        } else {
+          setAccountNetBalance(null);
+        }
+      })
+      .catch(() => setAccountNetBalance(null))
+      .finally(() => setAccountNetBalanceLoading(false));
+  }, [profileDetail?.membershipNumber, isMember]);
 
   const formatCurrency = value => {
     const currency = (
@@ -243,8 +265,6 @@ const DashBoard = () => {
     }
   };
 
-  console.log('Application Status=========>',applicationStatus)
-
   return (
     <View style={styles.container}>
       <ScreenHeader showBack={false} title={`Dashboard`} />
@@ -263,17 +283,30 @@ const DashBoard = () => {
              </View>
              
              <View style={styles.paymentCardContent}>
-                {/* <Text style={styles.paymentLabel}>CATEGORY PRICE</Text> */}
-                <Text style={styles.paymentAmount}>
-                  €128.00
-                   {/* {formatCurrency(getPaymentAmount())} */}
-                </Text> 
+                {accountNetBalance?.year && (
+                  <Text style={styles.paymentLabel}>Net Balance ({accountNetBalance.year})</Text>
+                )}
+                {accountNetBalanceLoading ? (
+                  <Text style={styles.paymentAmount}>Loading...</Text>
+                ) : (
+                  <Text style={styles.paymentAmount}>
+                    {formatCurrency(accountNetBalance?.net ?? 0)}
+                  </Text>
+                )}
              </View>
 
              <View style={styles.membershipContainer}>
                  <Text style={styles.membershipLabel}>MEMBERSHIP NO</Text>
                  <Text style={styles.membershipValue}>{profileDetail?.membershipNumber || 'N/A'}</Text>
              </View>
+
+             <TouchableOpacity
+               style={styles.payNowButton}
+               onPress={() => setPaymentModalVisible(true)}
+               activeOpacity={0.8}
+             >
+               <Text style={styles.payNowButtonText}>Pay Now</Text>
+             </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.statusCard}>
@@ -592,6 +625,24 @@ const DashBoard = () => {
           )}
         </View>
       </DetailModal>
+
+      <DashboardPaymentModal
+        visible={paymentModalVisible}
+        onClose={() => setPaymentModalVisible(false)}
+        onSuccess={() => {
+          setPaymentModalVisible(false);
+          const memberId = profileDetail?.membershipNumber;
+          if (memberId) {
+            getAccountNetBalanceRequest(memberId)
+              .then(res => {
+                if (res?.status === 200 && res?.data?.data) {
+                  setAccountNetBalance(res.data.data);
+                }
+              })
+              .catch(() => {});
+          }
+        }}
+      />
     </View>
   );
 };
@@ -1022,6 +1073,21 @@ const styles = StyleSheet.create({
   membershipValue: {
     color: '#FFF',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  payNowButton: {
+    marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  payNowButtonText: {
+    color: '#FFF',
+    fontSize: 15,
     fontWeight: '700',
   },
   modalDetails: {

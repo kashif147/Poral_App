@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import {
   fetchProfileByIdRequest,
@@ -13,7 +13,7 @@ export const ProfileProvider = ({ children }) => {
   const [profileDetail, setProfileDetail] = useState(null);
   const [profileByIdDetail, setProfileByIdDetail] = useState(null);
 
-  const getProfileDetail = () => {
+  const getProfileDetail = useCallback(() => {
     setLoading(true);
     fetchProfileRequest()
       .then(res => {
@@ -29,9 +29,9 @@ export const ProfileProvider = ({ children }) => {
         setLoading(false);
         Alert.alert('Error', 'Something went wrong');
       });
-  };
+  }, []);
 
-  const getProfileByIdDetail = id => {
+  const getProfileByIdDetail = useCallback(id => {
     if (!id) return;
     setLoading(true);
     fetchProfileByIdRequest(id)
@@ -48,7 +48,7 @@ export const ProfileProvider = ({ children }) => {
         setLoading(false);
         Alert.alert('Error', 'Something went wrong');
       });
-  };
+  }, []);
 
   useEffect(() => {
     const initializeProfile = async () => {
@@ -58,7 +58,7 @@ export const ProfileProvider = ({ children }) => {
       }
     };
     initializeProfile();
-  }, []);
+  }, [getProfileDetail]);
 
   useEffect(() => {
     const fetchProfileById = async () => {
@@ -70,15 +70,18 @@ export const ProfileProvider = ({ children }) => {
       }
     };
     fetchProfileById();
-  }, [profileDetail?.profileId]);
+  }, [profileDetail?.profileId, getProfileByIdDetail]);
 
-  const value = {
-    loading,
-    profileDetail,
-    getProfileDetail,
-    getProfileByIdDetail,
-    profileByIdDetail,
-  };
+  const value = useMemo(
+    () => ({
+      loading,
+      profileDetail,
+      getProfileDetail,
+      getProfileByIdDetail,
+      profileByIdDetail,
+    }),
+    [loading, profileDetail, getProfileDetail, getProfileByIdDetail, profileByIdDetail]
+  );
 
   return (
     <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
