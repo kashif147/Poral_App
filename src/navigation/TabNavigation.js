@@ -116,7 +116,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         style={{
           height: hp(8),
           flexDirection: 'row',
-          backgroundColor: Colors.primary,
+          backgroundColor: Colors.white,
           alignItems: 'center',
           justifyContent: 'space-between',
           borderTopWidth: 0,
@@ -133,12 +133,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
           const tab = TAB_ICONS[index];
-          
+          const iconColor = isFocused ? Colors.primary : Colors.textPrimary;
+
           // Only render tabs for visible tab bar items (first 4)
           if (index >= TAB_ICONS.length) {
             return null;
           }
-          
+
           const onPress = () => {
             if (tab.name === 'menu') {
               handleMenuPress();
@@ -174,12 +175,12 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               }}>
                 {tab.name === 'menu' ? (
                   <HamburgerIcon
-                    color={Colors.white}
+                    color={iconColor}
                     size={wp(5)}
                   />
                 ) : tab.name === STACKS.PAYMENT_STACK ? (
                   <PaymentIcon
-                    color={Colors.white}
+                    color={iconColor}
                     size={wp(5)}
                   />
                 ) : (
@@ -188,13 +189,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                     resizeMode="contain"
                     style={{
                       ...styles.image,
-                      tintColor: Colors.white,
+                      tintColor: iconColor,
                     }}
                   />
                 )}
               </View>
               <Text style={{
-                color: Colors.white,
+                color: iconColor,
                 fontSize: 10,
                 fontWeight: isFocused ? '600' : '500',
                 marginTop: 2,
@@ -206,7 +207,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                   left: wp(3),
                   right: wp(3),
                   height: 3,
-                  backgroundColor: Colors.white,
+                  backgroundColor: Colors.primary,
                   borderRadius: 2,
                 }} />
               )}
