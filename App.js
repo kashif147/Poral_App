@@ -67,9 +67,9 @@ function App() {
         (event.url.startsWith('com.portal://com.portal/ios/callback') ||
           event.url.startsWith('com.portal://com.portal/android/callback'))
       ) {
+        dispatch(setLoading(true));
+        setShowWebView(false);
         try {
-          setShowWebView(false);
-
           if (event.url.includes('error=')) {
             const errorMatch = event.url.match(/error=([^&]+)/);
             const errorDescriptionMatch = event.url.match(
@@ -82,6 +82,7 @@ function App() {
               ? decodeURIComponent(errorDescriptionMatch[1])
               : 'Unknown error';
 
+            dispatch(setLoading(false));
             Alert.alert('Login Failed', `${error}: ${description}`);
             return;
           }
@@ -94,6 +95,7 @@ function App() {
 
             const codeVerifier = await getVerifier();
             if (!codeVerifier) {
+              dispatch(setLoading(false));
               Alert.alert(
                 'Error',
                 'Code verifier not found. Please try logging in again.',
@@ -120,6 +122,7 @@ function App() {
                   await AsyncStorage.setItem('token', accessToken);
                   await setBearerToken(accessToken);
                 } else {
+                  dispatch(setLoading(false));
                   Alert.alert('Error', 'No access token received from server');
                   return;
                 }
@@ -128,6 +131,7 @@ function App() {
                   await saveUser(response.data.user);
                 }
               } else {
+                dispatch(setLoading(false));
                 Alert.alert('Error', 'Invalid response from server');
                 return;
               }
@@ -139,14 +143,17 @@ function App() {
                 dispatch(setUser(response.data.user));
               }
             } else {
+              dispatch(setLoading(false));
               const errorMsg =
                 response?.data?.errors?.[0] || 'Unable to Sign In';
               Alert.alert('Login Failed', errorMsg);
             }
           } else {
+            dispatch(setLoading(false));
             Alert.alert('Login Failed', 'No authorization code received');
           }
         } catch (error) {
+          dispatch(setLoading(false));
           Alert.alert('Login Error', error.message || 'Authentication failed');
         }
       }
@@ -195,6 +202,7 @@ function App() {
     setShowWebView(false);
 
     if (result.code && result.codeVerifier) {
+      dispatch(setLoading(true));
       try {
         const data = {
           code: result.code,
@@ -215,6 +223,7 @@ function App() {
               await AsyncStorage.setItem('token', accessToken);
               await setBearerToken(accessToken);
             } else {
+              dispatch(setLoading(false));
               Alert.alert('Error', 'No access token received from server');
               return;
             }
@@ -223,6 +232,7 @@ function App() {
               await saveUser(response.data.user);
             }
           } else {
+            dispatch(setLoading(false));
             Alert.alert('Error', 'Invalid response from server');
             return;
           }
@@ -234,6 +244,7 @@ function App() {
             dispatch(setUser(response.data.user));
           }
         } else {
+          dispatch(setLoading(false));
           const status = response?.status;
           const errorData = response?.data;
 
@@ -262,9 +273,11 @@ function App() {
           Alert.alert('Login Failed', errorMsg);
         }
       } catch (error) {
+        dispatch(setLoading(false));
         Alert.alert('Error', 'Failed to authenticate. Please try again.');
       }
     } else if (result.accessToken) {
+      dispatch(setLoading(true));
       try {
         await AsyncStorage.setItem('token', result.accessToken);
         await setBearerToken(result.accessToken);
@@ -285,9 +298,11 @@ function App() {
 
         dispatch(setSignedIn(true));
       } catch (error) {
+        dispatch(setLoading(false));
         Alert.alert('Error', 'Failed to save authentication data');
       }
     } else {
+      dispatch(setLoading(false));
       Alert.alert('Error', 'Invalid authentication response');
     }
   };
