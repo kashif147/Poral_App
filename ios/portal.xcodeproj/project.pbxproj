@@ -294,7 +294,7 @@
 				CODE_SIGN_ENTITLEMENTS = portal/portalDebug.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 5AXG35V23N;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = portal/Info.plist;
@@ -329,7 +329,7 @@
 				CODE_SIGN_ENTITLEMENTS = portal/portalRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 5AXG35V23N;
 				INFOPLIST_FILE = portal/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Portal;

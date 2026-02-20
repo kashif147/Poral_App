@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, wp, hp } from '../../utils/Styles';
 import ScreenHeader from '../../common/screenHeader';
@@ -20,6 +21,15 @@ import moment from 'moment';
 
 const Notifications = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const auth = useSelector(state => state.auth);
+  const user = auth.user || auth.userDetail;
+  const userId =
+    user?.id || user?._id || auth.userDetail?.id || auth.userDetail?._id;
+  const tenantId =
+    user?.tenantId ||
+    user?.userTenantId ||
+    auth.userDetail?.tenantId ||
+    auth.userDetail?.userTenantId;
   const {
     notifications,
     unreadCount,
@@ -134,14 +144,31 @@ const Notifications = ({ navigation }) => {
   };
 
   const markAsRead = async (messageId) => {
+    if (!userId || !tenantId) {
+      console.warn('markAsRead: missing userId or tenantId');
+      return;
+    }
+
     try {
       // Call API to mark as read
-      const response = await readNotificationRequest({ messageId });
-      if (response?.status === 200 || response?.status === 201) {
+      const response = await readNotificationRequest({
+        notificationIds: [messageId],
+        userId,
+        tenantId,
+      });
+
+      if (response?.status === 200 && response?.data?.success) {
         // Update context
         markAsReadContext(messageId);
       } else {
-        Alert.alert('Error', 'Failed to mark notification as read');
+        console.error(
+          'Failed to mark notification as read:',
+          response?.data || response,
+        );
+        Alert.alert(
+          'Error',
+          response?.data?.message || 'Failed to mark notification as read',
+        );
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
@@ -150,18 +177,35 @@ const Notifications = ({ navigation }) => {
   };
 
   const markAllAsRead = async () => {
+    if (!userId || !tenantId) {
+      console.warn('markAllAsRead: missing userId or tenantId');
+      return;
+    }
+
     try {
       // Get all unread notification IDs
       const unreadIds = notifications.filter(n => !n.read).map(n => n.messageId);
       if (unreadIds.length === 0) return;
 
       // Call API to mark all as read
-      const response = await readNotificationRequest({ messageIds: unreadIds });
-      if (response?.status === 200 || response?.status === 201) {
+      const response = await readNotificationRequest({
+        notificationIds: unreadIds,
+        userId,
+        tenantId,
+      });
+
+      if (response?.status === 200 && response?.data?.success) {
         // Update context
         markAllAsReadContext();
       } else {
-        Alert.alert('Error', 'Failed to mark all notifications as read');
+        console.error(
+          'Failed to mark all notifications as read:',
+          response?.data || response,
+        );
+        Alert.alert(
+          'Error',
+          response?.data?.message || 'Failed to mark all notifications as read',
+        );
       }
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
