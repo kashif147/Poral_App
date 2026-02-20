@@ -95,6 +95,11 @@ const WebViewLogin = ({ visible, onClose, onSuccess, onError }) => {
     return params;
   };
 
+  /**
+   * Process redirect URL from B2C (code or error).
+   * Note: AADB2C90091 (user cancelled self-asserted/sign-up) is treated as a benign cancel;
+   * we close the WebView without calling onError so no "Login Failed" is shown.
+   */
   const processAuthRedirect = async url => {
     // Prevent processing the same redirect multiple times
     if (isProcessing) {
@@ -118,6 +123,16 @@ const WebViewLogin = ({ visible, onClose, onSuccess, onError }) => {
       const errorDescription = params.error_description;
 
       if (error) {
+        // AADB2C90091 = user cancelled sign-up / self-asserted screen; treat as benign, do not show Login Failed
+        const desc = (errorDescription || '').toString();
+        const isUserCancel =
+          desc.includes('AADB2C90091') ||
+          desc.includes('The user has cancelled entering self-asserted information');
+        if (isUserCancel) {
+          console.log('User cancelled sign-up (AADB2C90091).');
+          onClose();
+          return;
+        }
         console.error('Auth error from Azure:', error, errorDescription);
         onError(errorDescription || error || 'Authentication failed');
         onClose();

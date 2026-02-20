@@ -310,8 +310,17 @@ function App() {
   const handleLoginError = error => {
     setShowWebView(false);
 
-    let errorMessage = 'Authentication failed. Please try again.';
+    const raw =
+      typeof error === 'string' ? error : (error?.message || '').toString();
+    if (
+      raw.includes('AADB2C90091') ||
+      raw.includes('The user has cancelled entering self-asserted information')
+    ) {
+      console.log('User cancelled login, suppressing error alert');
+      return;
+    }
 
+    let errorMessage = 'Authentication failed. Please try again.';
     if (error && typeof error === 'string') {
       errorMessage = error;
     } else if (error?.message) {
