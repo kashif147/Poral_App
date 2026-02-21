@@ -15,10 +15,12 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 
 const { width } = Dimensions.get('window');
 
-const PopupMenu = ({ visible, onClose, onNavigate }) => {
+const MEMBER_ONLY_ROUTES = ['Category', 'Membership', 'PaymentMethod', 'QueriesCases'];
+
+const PopupMenu = ({ visible, onClose, onNavigate, isMember = true }) => {
   const insets = useSafeAreaInsets();
-  
-  const menuItems = [
+
+  const allMenuItems = [
     {
       id: 'category',
       label: 'Transfer of Request',
@@ -65,15 +67,19 @@ const PopupMenu = ({ visible, onClose, onNavigate }) => {
       route: 'PaymentMethod',
     },
     {
-        id: 'queriesCases',
-        label: 'Queries & Cases',
-        icon: 'clipboard-list-outline', 
-        iconType: 'MaterialCommunityIcons',
-        color: '#F472B6', 
-        bgColor: '#FCE7F3',
-        route: 'QueriesCases',
-      },
+      id: 'queriesCases',
+      label: 'Queries & Cases',
+      icon: 'clipboard-list-outline',
+      iconType: 'MaterialCommunityIcons',
+      color: '#F472B6',
+      bgColor: '#FCE7F3',
+      route: 'QueriesCases',
+    },
   ];
+
+  const menuItems = isMember
+    ? allMenuItems
+    : allMenuItems.filter(item => !MEMBER_ONLY_ROUTES.includes(item.route));
 
   const handleItemPress = (item) => {
     onNavigate(item.route);

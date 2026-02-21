@@ -22,35 +22,16 @@ import DashBoard from '../modules/dashboard/DashBoard';
 import HamburgerIcon from '../common/hamburgerIcon';
 import PopupMenu from '../common/popupMenu';
 import PaymentIcon from '../common/paymentIcon';
+import { useMemberRole } from '../hooks/useMemberRole';
 
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = [
-  {
-    name: STACKS.DASHBOARD_STACK,
-    label: 'Home',
-    icon: IMAGES.HOME,
-  },
-  {
-    name: STACKS.EVENTS_STACK,
-    label: 'Event',
-    icon: IMAGES.EVENT,
-  },
-  {
-    name: STACKS.COURSES_STACK,
-    label: 'Courses',
-    icon: IMAGES.COURSES,
-  },
-  {
-    name: STACKS.PAYMENT_STACK,
-    label: 'Payment',
-    icon: IMAGES.PAYMENT,
-  },
-  {
-    name: 'menu',
-    label: 'More',
-    icon: null,
-  },
+  { name: STACKS.DASHBOARD_STACK, label: 'Home', icon: IMAGES.HOME },
+  { name: STACKS.EVENTS_STACK, label: 'Event', icon: IMAGES.EVENT },
+  { name: STACKS.COURSES_STACK, label: 'Courses', icon: IMAGES.COURSES },
+  { name: STACKS.PAYMENT_STACK, label: 'Payment', icon: IMAGES.PAYMENT },
+  { name: 'menu', label: 'More', icon: null },
 ];
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
@@ -58,6 +39,17 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const { width } = Dimensions.get('window');
   const insets = useSafeAreaInsets();
+  const { isMember } = useMemberRole();
+
+  // Member-only: hide Payment tab when not member (match web)
+  const mainRouteCount = 5; // Dashboard, Events, Courses, Payment, Menu
+  const routes = state.routes.slice(0, mainRouteCount);
+  const visibleRoutes = isMember
+    ? routes
+    : [routes[0], routes[1], routes[2], routes[4]];
+  const visibleTabIcons = isMember
+    ? TAB_ICONS
+    : [TAB_ICONS[0], TAB_ICONS[1], TAB_ICONS[2], TAB_ICONS[4]];
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -129,23 +121,18 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
           paddingHorizontal: wp(6),
         }}
       >
-        {state.routes.map((route, index) => {
+        {visibleRoutes.map((route, idx) => {
+          const actualIndex = isMember ? idx : [0, 1, 2, 4][idx];
           const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
-          const tab = TAB_ICONS[index];
+          const isFocused = state.index === actualIndex;
+          const tab = visibleTabIcons[idx];
           const iconColor = isFocused ? Colors.primary : Colors.textPrimary;
-
-          // Only render tabs for visible tab bar items (first 4)
-          if (index >= TAB_ICONS.length) {
-            return null;
-          }
 
           const onPress = () => {
             if (tab.name === 'menu') {
               handleMenuPress();
               return;
             }
-            
             const event = navigation.emit({
               type: 'tabPress',
               target: route.key,
@@ -219,6 +206,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         visible={popupVisible}
         onClose={handlePopupClose}
         onNavigate={handlePopupNavigate}
+        isMember={isMember}
       />
     </>
   );
