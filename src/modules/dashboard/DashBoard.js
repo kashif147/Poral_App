@@ -11,7 +11,6 @@ import { useNavigation } from '@react-navigation/native';
 import { STACKS } from '../../enums/ScreenEnums';
 import { Colors } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApplication } from '../../contexts/applicationContext';
 import { useLookup } from '../../contexts/lookupContext';
@@ -36,18 +35,19 @@ import {
   EventDetailModalContent,
   DashboardPaymentCard,
   ApplicationStatusCard,
+  StatusCardSkeleton,
 } from './components';
 
 const DashBoard = () => {
   const navigation = useNavigation();
   const user = useSelector(state => state.auth.user);
   const { isMember } = useMemberRole();
-  const [userName, setUserName] = useState('User');
   const insets = useSafeAreaInsets();
   const { personalDetail, subscriptionDetail, professionalDetail } =
     useApplication();
   const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
+  const [applicationStatusLoading, setApplicationStatusLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [accountNetBalance, setAccountNetBalance] = useState(null);
   const [accountNetBalanceLoading, setAccountNetBalanceLoading] =
@@ -70,19 +70,6 @@ const DashBoard = () => {
     }
   }, [membershipCategory, categoryLookups, getCategoryData]);
 
-  useEffect(() => {
-    const fetchUserName = async () => {
-      try {
-        const userStr = await AsyncStorage.getItem('user');
-        const userData = userStr ? JSON.parse(userStr) : null;
-        setUserName(userData?.userFirstName || user?.firstName);
-      } catch (error) {
-        setUserName('User');
-      }
-    };
-    fetchUserName();
-  }, []);
-
   // Fetch all lookups when Dashboard loads
   useEffect(() => {
     const initializeLookups = async () => {
@@ -104,7 +91,6 @@ const DashBoard = () => {
           const response = await applicationConfirmationRequest(
             personalDetail.applicationId,
           );
-          console.log('response status=======>', response);
           if (
             response?.status === 200 ||
             response?.data?.status === 'success'
@@ -112,16 +98,15 @@ const DashBoard = () => {
             const status =
               response?.data?.data?.applicationStatus ||
               response?.data?.applicationStatus;
-            console.log('statue=======>', status);
-            setApplicationStatus(status || 'submitted'); // Default to 'submitted' if no status
-          } else {
-            setApplicationStatus('submitted');
+            setApplicationStatus(status || 'submitted');
           }
         } catch (error) {
-          setApplicationStatus('submitted');
+          // Error handled silently
+        } finally {
+          setApplicationStatusLoading(false);
         }
       } else {
-        setApplicationStatus('submitted');
+        setApplicationStatusLoading(false);
       }
     };
 
@@ -182,7 +167,7 @@ const DashBoard = () => {
       ? 'In Review'
       : applicationStatus === 'submitted'
       ? 'Submitted'
-      : 'In Progress';
+      : 'Start Application';
 
   const quickActions = useMemo(() => {
     const isUndergraduateStudent =
@@ -246,11 +231,13 @@ const DashBoard = () => {
       >
         <View style={styles.welcomeContainer}>
           <Label style={styles.welcomeText}>
-            Welcome, {userName || user?.firstName} 👋
+            Welcome, {user?.fullName || user?.userFullName} 👋
           </Label>
         </View>
-        {/* Application Status or Payment Card - show payment only when approved AND member */}
-        {applicationStatus === 'approved' && isMember ? (
+        {/* Application Status or Payment Card - show skeleton when loading */}
+        {applicationStatusLoading ? (
+          <StatusCardSkeleton />
+        ) : applicationStatus === 'approved' && isMember ? (
           <DashboardPaymentCard
             accountNetBalance={accountNetBalance}
             accountNetBalanceLoading={accountNetBalanceLoading}
@@ -259,7 +246,12 @@ const DashBoard = () => {
             onPayNowPress={() => setPaymentModalVisible(true)}
           />
         ) : (
-          <ApplicationStatusCard applicationStatus={applicationStatus} />
+          <ApplicationStatusCard
+            applicationStatus={applicationStatus}
+            onStartApplication={() =>
+              navigation.navigate(STACKS.APPLICATION_STACK)
+            }
+          />
         )}
 
         {/* Featured Card - full detail */}

@@ -14,7 +14,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import CustomSwitch from '../../common/switch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useNavigation } from '@react-navigation/native';
 import { signOut } from '../../services/auth.services';
 import { useMemberRole } from '../../hooks/useMemberRole';
@@ -22,6 +22,7 @@ import ScreenHeader from '../../common/screenHeader';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
 const Profile = () => {
+  const user = useSelector(state => state.auth.user);
   const { personalDetail, getPersonalDetail, subscriptionDetail } = useApplication();
   const { profileByIdDetail, getProfileByIdDetail, profileDetail } = useProfile();
   const { isMember } = useMemberRole();
@@ -316,7 +317,7 @@ const Profile = () => {
               )}
             </View>
             <Text style={styles.profileName}>
-              {`${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || 'User Name'}
+              {`${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || user?.fullName || user?.userFullName}
             </Text>
             <Text style={styles.profileId}>
               {profileDetail?.membershipNumber ? `Member ID: ${profileDetail.membershipNumber}` : profileDetail?.profileId ? 'Member' : 'Non Member'}
@@ -339,7 +340,7 @@ const Profile = () => {
                 <View style={styles.listItemContent}>
                   <Text style={styles.listItemLabel}>Full Name</Text>
                   <Text style={styles.listItemValue}>
-                    {`${personalInfo?.title || ''} ${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || '—'}
+                    {`${personalInfo?.title || ''} ${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || user?.fullName || user?.userFullName || '—'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
@@ -352,7 +353,7 @@ const Profile = () => {
                 <View style={styles.listItemContent}>
                   <Text style={styles.listItemLabel}>Full Name</Text>
                   <Text style={styles.listItemValue}>
-                    {`${personalInfo?.title || ''} ${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || '—'}
+                    {`${personalInfo?.title || ''} ${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || user?.fullName || user?.userFullName || '—'}
                   </Text>
                 </View>
               </View>
@@ -365,7 +366,7 @@ const Profile = () => {
               <View style={styles.listItemContent}>
                 <Text style={styles.listItemLabel}>Email Address</Text>
                 <Text style={styles.listItemValue} numberOfLines={1}>
-                  {personalInfo?.personalEmail || personalInfo?.workEmail || '—'}
+                  {personalInfo?.personalEmail || personalInfo?.workEmail || user?.email || '—'}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />

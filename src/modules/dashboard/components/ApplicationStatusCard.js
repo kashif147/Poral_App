@@ -1,49 +1,86 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Label } from '../../../common/text/label';
 import { Colors } from '../../../utils/Styles';
 
-export const ApplicationStatusCard = ({ applicationStatus }) => (
-  <View style={styles.statusCard}>
-    <View style={styles.statusCardHeader}>
-      <Label style={styles.statusCardTitle}>Application Status</Label>
-      <View
-        style={[
-          styles.statusBadge,
-          {
-            backgroundColor:
-              applicationStatus === 'approved'
-                ? '#D1FAE5'
-                : applicationStatus === 'in_review'
-                ? '#FEF3C7'
-                : '#DBEAFE',
-          },
-        ]}
-      >
-        <Text
+const hasNoApplication = status =>
+  status == null || status === 'none' || status === '';
+
+export const ApplicationStatusCard = ({
+  applicationStatus,
+  onStartApplication,
+}) => {
+  if (hasNoApplication(applicationStatus)) {
+    return (
+      <View style={styles.statusCard}> */}
+        <View style={styles.noApplicationContent}>
+          <Label style={styles.noApplicationMessage}>
+            You haven't started an application yet.
+          </Label>
+          <Label style={styles.noApplicationSubtext}>
+            Start your application to get started.
+          </Label>
+          {onStartApplication && (
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={onStartApplication}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#fff" />
+              <Text style={styles.startButtonText}>Start Application</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.statusCard}>
+      <View style={styles.statusCardHeader}>
+        <Label style={styles.statusCardTitle}>Application Status</Label>
+        <View
           style={[
-            styles.statusBadgeText,
+            styles.statusBadge,
             {
-              color:
+              backgroundColor:
                 applicationStatus === 'approved'
-                  ? '#059669'
+                  ? '#D1FAE5'
                   : applicationStatus === 'in_review'
-                  ? '#D97706'
-                  : '#2563EB',
+                  ? '#FEF3C7'
+                  : '#DBEAFE',
             },
           ]}
         >
-          {applicationStatus === 'approved'
-            ? 'Approved'
-            : applicationStatus === 'in_review'
-            ? 'In Review'
-            : 'Submitted'}
-        </Text>
+          <Text
+            style={[
+              styles.statusBadgeText,
+              {
+                color:
+                  applicationStatus === 'approved'
+                    ? '#059669'
+                    : applicationStatus === 'in_review'
+                    ? '#D97706'
+                    : '#2563EB',
+              },
+            ]}
+          >
+            {applicationStatus === 'approved'
+              ? 'Approved'
+              : applicationStatus === 'in_review'
+              ? 'In Review'
+              : 'Submitted'}
+          </Text>
+        </View>
       </View>
-    </View>
 
-    <View style={styles.statusTimeline}>
+      <View style={styles.statusTimeline}>
       <View style={styles.statusStep}>
         <View
           style={[
@@ -184,7 +221,8 @@ export const ApplicationStatusCard = ({ applicationStatus }) => (
       </View>
     </View>
   </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   statusCard: {
@@ -209,6 +247,42 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: Colors.textPrimary,
+  },
+  noApplicationContent: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 8,
+  },
+  noApplicationIcon: {
+    marginBottom: 12,
+  },
+  noApplicationMessage: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  noApplicationSubtext: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  startButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+  },
+  startButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   statusBadge: {
     paddingHorizontal: 10,

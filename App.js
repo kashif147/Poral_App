@@ -31,8 +31,14 @@ import {
   setNotificationContextMethods,
 } from './src/services/firebase.services';
 import { validation } from './src/services/auth.services';
-import { setSignedIn, setUser, setLoading } from './src/store/slice/auth.slice';
+import {
+  setSignedIn,
+  setUser,
+  setLoading,
+  setDetail,
+} from './src/store/slice/auth.slice';
 import FlashMessage from 'react-native-flash-message';
+import { getMemberDetail } from './src/helpers/decode.helper';
 
 function App() {
   const dispatch = useDispatch();
@@ -242,6 +248,12 @@ function App() {
           dispatch(setSignedIn(true));
           if (response.data.user) {
             dispatch(setUser(response.data.user));
+          }
+          try {
+            const memberDetail = await getMemberDetail();
+            dispatch(setDetail(memberDetail));
+          } catch (e) {
+            // Token may not be readable yet or decode failed; leave userDetail for validation to set
           }
         } else {
           dispatch(setLoading(false));
