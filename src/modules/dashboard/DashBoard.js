@@ -98,7 +98,7 @@ const DashBoard = () => {
             const status =
               response?.data?.data?.applicationStatus ||
               response?.data?.applicationStatus;
-            setApplicationStatus(status || 'submitted');
+            setApplicationStatus(status || null);
           }
         } catch (error) {
           // Error handled silently

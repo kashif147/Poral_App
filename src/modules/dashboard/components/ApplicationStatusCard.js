@@ -18,7 +18,7 @@ export const ApplicationStatusCard = ({
 }) => {
   if (hasNoApplication(applicationStatus)) {
     return (
-      <View style={styles.statusCard}> */}
+      <View style={styles.statusCard}> 
         <View style={styles.noApplicationContent}>
           <Label style={styles.noApplicationMessage}>
             You haven't started an application yet.
