@@ -7,6 +7,7 @@ import { hasMemberRole } from '../helpers/role.helper';
  */
 export const useMemberRole = () => {
   const userDetail = useSelector(state => state.auth.userDetail);
+  console.log('userdatail=======>',userDetail)
   const isMember = hasMemberRole(userDetail);
   return { isMember, userDetail };
 };

@@ -222,6 +222,8 @@ const DashBoard = () => {
     return base;
   }, [applicationStatus, isMember, categoryData?.code, navigation]);
 
+  console.log('user==============>',isMember)
+
   return (
     <View style={styles.container}>
       <ScreenHeader showBack={false} title={`Dashboard`} />
