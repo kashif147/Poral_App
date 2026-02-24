@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -22,12 +22,7 @@ const Payment = () => {
   const memberId = profileDetail?.membershipNumber;
   const txns = statementData?.txns ?? [];
 
-  useEffect(() => {
-    getProfileDetail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
+  const fetchStatement = useCallback(() => {
     if (!memberId) {
       return;
     }
@@ -36,7 +31,9 @@ const Payment = () => {
       .then(res => {
         if (res?.status === 200) {
           const data = res.data?.data || res.data;
-          setStatementData(data && typeof data === 'object' ? data : { memberId, txns: [] });
+          setStatementData(
+            data && typeof data === 'object' ? data : { memberId, txns: [] },
+          );
         } else {
           setStatementData({ memberId, txns: [] });
         }
@@ -48,6 +45,15 @@ const Payment = () => {
         setStatementLoading(false);
       });
   }, [memberId]);
+
+  useEffect(() => {
+    getProfileDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchStatement();
+  }, [fetchStatement]);
 
   const formatCurrency = value => {
     try {
@@ -92,7 +98,7 @@ const Payment = () => {
   );
 
   const renderContent = () => {
-    if (statementLoading && memberId) {
+    if (statementLoading && !statementData) {
       return (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
@@ -116,6 +122,8 @@ const Payment = () => {
         renderItem={renderStatementItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshing={statementLoading}
+        onRefresh={fetchStatement}
       />
     );
   };

@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  RefreshControl,
 } from 'react-native';
 import { Colors, hp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -100,6 +101,7 @@ const Resources = () => {
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [bookmarkedItems, setBookmarkedItems] = useState(new Set());
   const [selectedResource, setSelectedResource] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const toggleBookmark = (id) => {
     setBookmarkedItems((prev) => {
@@ -131,6 +133,11 @@ const Resources = () => {
   });
 
   const clearSearch = () => setSearchQuery('');
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setRefreshing(false);
+  };
 
   return (
     <View style={styles.container}>
@@ -197,6 +204,14 @@ const Resources = () => {
         style={styles.contentScrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
         <View style={styles.resourcesGrid}>
           {filteredResources.map((resource) => (

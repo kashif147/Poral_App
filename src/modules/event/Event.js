@@ -8,6 +8,7 @@ import {
   Image,
   TextInput,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +26,7 @@ const Event = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const filters = [
     { id: 'all', label: 'All Events' },
@@ -183,6 +185,11 @@ const Event = () => {
     }
   };
 
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -239,6 +246,14 @@ const Event = () => {
         // style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
         {filteredEvents.length > 0 ? (
           filteredEvents.map((event) => {

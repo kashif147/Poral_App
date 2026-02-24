@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import { Colors, wp, hp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -18,6 +19,7 @@ const Courses = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const filters = [
     { id: 'all', label: 'All Courses' },
@@ -194,6 +196,11 @@ const Courses = () => {
     }
   };
 
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setRefreshing(false);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -249,6 +256,14 @@ const Courses = () => {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
         {filteredCourses.length > 0 ? (
           filteredCourses.map((course) => {

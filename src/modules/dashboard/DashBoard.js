@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Text,
+  RefreshControl,
 } from 'react-native';
 import { Label } from '../../common/text/label';
 import { useNavigation } from '@react-navigation/native';
@@ -53,6 +54,7 @@ const DashBoard = () => {
   const [accountNetBalanceLoading, setAccountNetBalanceLoading] =
     useState(false);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { getProfileDetail, profileDetail } = useProfile();
   const { getCategoryData, categoryData } = useApplication();
 
@@ -64,70 +66,97 @@ const DashBoard = () => {
       : professionalDetail?.membershipCategory;
   const { categoryLookups } = useLookup();
 
-  useEffect(() => {
-    if (membershipCategory) {
-      getCategoryData(membershipCategory, categoryLookups || []);
+  const loadCategoryData = async () => {
+    if (!membershipCategory) return;
+    try {
+      await getCategoryData(membershipCategory, categoryLookups || []);
+    } catch (error) {
+      // Silently handle errors
     }
+  };
+
+  const loadLookups = async () => {
+    try {
+      await fetchAllLookups?.();
+    } catch (error) {
+      // Silently handle errors
+    }
+  };
+
+  const loadApplicationStatus = async () => {
+    try {
+      setApplicationStatusLoading(true);
+      if (personalDetail?.applicationId) {
+        const response = await applicationConfirmationRequest(
+          personalDetail.applicationId,
+        );
+        if (
+          response?.status === 200 ||
+          response?.data?.status === 'success'
+        ) {
+          const status =
+            response?.data?.data?.applicationStatus ||
+            response?.data?.applicationStatus;
+          setApplicationStatus(status || null);
+        }
+      }
+    } catch (error) {
+      // Error handled silently
+    } finally {
+      setApplicationStatusLoading(false);
+    }
+  };
+
+  const loadAccountNetBalance = async () => {
+    const memberId = profileDetail?.membershipNumber;
+    if (!memberId || !isMember) {
+      return;
+    }
+    try {
+      setAccountNetBalanceLoading(true);
+      const res = await getAccountNetBalanceRequest(memberId);
+      if (res?.status === 200 && res?.data?.data) {
+        setAccountNetBalance(res.data.data);
+      } else {
+        setAccountNetBalance(null);
+      }
+    } catch (error) {
+      setAccountNetBalance(null);
+    } finally {
+      setAccountNetBalanceLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await Promise.all([
+        loadLookups(),
+        loadApplicationStatus(),
+        loadAccountNetBalance(),
+        loadCategoryData(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategoryData();
   }, [membershipCategory, categoryLookups, getCategoryData]);
 
   // Fetch all lookups when Dashboard loads
   useEffect(() => {
-    const initializeLookups = async () => {
-      try {
-        await fetchAllLookups?.();
-      } catch (error) {
-        // Silently handle errors
-      }
-    };
-
-    initializeLookups();
+    loadLookups();
   }, []);
 
   // Fetch application status
   useEffect(() => {
-    const checkApplicationStatus = async () => {
-      if (personalDetail?.applicationId) {
-        try {
-          const response = await applicationConfirmationRequest(
-            personalDetail.applicationId,
-          );
-          if (
-            response?.status === 200 ||
-            response?.data?.status === 'success'
-          ) {
-            const status =
-              response?.data?.data?.applicationStatus ||
-              response?.data?.applicationStatus;
-            setApplicationStatus(status || null);
-          }
-        } catch (error) {
-          // Error handled silently
-        } finally {
-          setApplicationStatusLoading(false);
-        }
-      } else {
-        setApplicationStatusLoading(false);
-      }
-    };
-
-    checkApplicationStatus();
+    loadApplicationStatus();
   }, [personalDetail?.applicationId]);
 
   useEffect(() => {
-    const memberId = profileDetail?.membershipNumber;
-    if (!memberId || !isMember) return;
-
-    setAccountNetBalanceLoading(true);
-    getAccountNetBalanceRequest(memberId)
-      .then(res => {
-        if (res?.status === 200 && res?.data?.data) {
-          setAccountNetBalance(res.data.data);
-        } else {
-          setAccountNetBalance(null);
-        }
-      })
-      .catch(() => setAccountNetBalance(null))
-      .finally(() => setAccountNetBalanceLoading(false));
+    loadAccountNetBalance();
   }, [profileDetail?.membershipNumber, isMember]);
 
   const formatCurrency = value => {
@@ -230,6 +259,14 @@ const DashBoard = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
       >
         <View style={styles.welcomeContainer}>
           <Label style={styles.welcomeText}>

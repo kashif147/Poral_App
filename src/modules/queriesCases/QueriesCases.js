@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { STACKS } from '../../enums/ScreenEnums';
 import { Colors } from '../../utils/Styles';
@@ -15,6 +15,12 @@ const QueriesCases = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [selectedCase, setSelectedCase] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setRefreshing(false);
+  };
 
   const filteredData = QUERIES_CASES_DUMMY_DATA.filter((item) => {
     const matchesFilter = selectedFilter === 'All' || item.status === selectedFilter;
@@ -109,6 +115,14 @@ const QueriesCases = () => {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={Colors.primary}
+              colors={[Colors.primary]}
+            />
+          }
           ListEmptyComponent={
               <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No queries found</Text>
