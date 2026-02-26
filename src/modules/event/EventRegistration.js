@@ -85,18 +85,10 @@ const EventRegistration = () => {
 
   const handleRegisterAndPay = () => {
     if (selectedDays.length === 0) return;
-    const isFullEvent = selectedDays.length === days.length;
-    if (isFullEvent) {
-      navigation.navigate(STACKS.EVENT_PAYMENT, {
-        event,
-        selectedDays,
-      });
-    } else {
-      navigation.navigate(STACKS.EVENT_SCHEDULE_SELECTION, {
-        event,
-        selectedDays,
-      });
-    }
+    navigation.navigate(STACKS.EVENT_PAYMENT, {
+      event,
+      selectedDays,
+    });
   };
 
   const canProceed = selectedDays.length > 0;

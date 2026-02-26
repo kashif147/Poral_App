@@ -21,6 +21,8 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Button } from '../../common/button';
 import { createPaymentIntentRequest } from '../../api/payment.api';
 
+const MOCK_EVENT_PAYMENTS = true;
+
 const formatCurrency = (value) => {
   try {
     return new Intl.NumberFormat('en-US', {
@@ -92,6 +94,13 @@ const EventPaymentModal = ({
       return;
     }
     const initPayment = async () => {
+      if (MOCK_EVENT_PAYMENTS) {
+        setInitLoading(false);
+        setError(null);
+        setClientSecret('mock_client_secret');
+        return;
+      }
+
       setInitLoading(true);
       setError(null);
       try {
@@ -136,6 +145,28 @@ const EventPaymentModal = ({
       Alert.alert('Error', 'Name and email are required');
       return;
     }
+    if (!cardComplete) {
+      Alert.alert('Error', 'Please complete all card details');
+      return;
+    }
+
+    if (MOCK_EVENT_PAYMENTS) {
+      const fakePaymentIntentId = `pi_mock_${Date.now()}`;
+      const fakePaymentIntent = {
+        id: fakePaymentIntentId,
+        status: 'Succeeded',
+        amount: amountInCents,
+        currency: 'usd',
+      };
+
+      onSuccess({
+        paymentIntent: fakePaymentIntent,
+        transactionId: fakePaymentIntentId.replace('pi_', '') || 'GTS-99201-B',
+        totalPaid: totalAmount,
+      });
+      return;
+    }
+
     if (!clientSecret) {
       Alert.alert('Error', 'Payment not ready. Please wait or try again.');
       return;

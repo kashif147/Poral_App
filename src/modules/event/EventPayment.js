@@ -22,6 +22,8 @@ import { Button } from '../../common/button';
 import { createPaymentIntentRequest } from '../../api/payment.api';
 import { STACKS } from '../../enums/ScreenEnums';
 
+const MOCK_EVENT_PAYMENTS = true;
+
 const formatCurrency = (value) => {
   try {
     return new Intl.NumberFormat('en-US', {
@@ -78,6 +80,14 @@ const EventPayment = () => {
         setError('Invalid event or selection');
         return;
       }
+
+      if (MOCK_EVENT_PAYMENTS) {
+        setInitLoading(false);
+        setError(null);
+        setClientSecret('mock_client_secret');
+        return;
+      }
+
       setInitLoading(true);
       setError(null);
       try {
@@ -122,12 +132,32 @@ const EventPayment = () => {
       Alert.alert('Error', 'Name and email are required');
       return;
     }
-    if (!clientSecret) {
-      Alert.alert('Error', 'Payment not ready. Please wait or try again.');
-      return;
-    }
     if (!cardComplete) {
       Alert.alert('Error', 'Please complete all card details');
+      return;
+    }
+
+    if (MOCK_EVENT_PAYMENTS) {
+      const fakePaymentIntentId = `pi_mock_${Date.now()}`;
+      const fakePaymentIntent = {
+        id: fakePaymentIntentId,
+        status: 'Succeeded',
+        amount: amountInCents,
+        currency: 'usd',
+      };
+
+      navigation.replace(STACKS.EVENT_CONFIRMATION, {
+        event,
+        selectedDays,
+        paymentIntent: fakePaymentIntent,
+        transactionId: fakePaymentIntentId.replace('pi_', '') || 'GTS-99201-B',
+        totalPaid: totalAmount,
+      });
+      return;
+    }
+
+    if (!clientSecret) {
+      Alert.alert('Error', 'Payment not ready. Please wait or try again.');
       return;
     }
 
