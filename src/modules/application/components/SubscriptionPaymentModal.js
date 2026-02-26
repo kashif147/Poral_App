@@ -7,6 +7,7 @@ import { createPaymentIntentRequest } from '../../../api/payment.api';
 import { useApplication } from '../../../contexts/applicationContext';
 import { useLookup } from '../../../contexts/lookupContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSelector } from 'react-redux';
 
 const SubscriptionPaymentModal = ({
   visible,
@@ -18,6 +19,8 @@ const SubscriptionPaymentModal = ({
   applicationId,
 }) => {
   const { confirmPayment } = useStripe();
+  const userInfo = useSelector(state => state.auth.userDetail);
+  const user = useSelector(state => state.auth.user);
   const { categoryData, getCategoryData, categoryLoading } = useApplication();
   const { categoryLookups } = useLookup();
   const [isLoading, setIsLoading] = useState(false);
@@ -26,12 +29,9 @@ const SubscriptionPaymentModal = ({
   const [clientSecret, setClientSecret] = useState(null);
   const [error, setError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
-  const [customPrice, setCustomPrice] = useState('');
-  const [userDetail, setUserDetail] = useState(null);
   const [cardholderName, setCardholderName] = useState('');
   const [email, setEmail] = useState('');
 
-  // Calculate price info from API data (matching web version)
   const priceInfo = useMemo(() => {
     const cents = categoryData?.currentPricing?.price;
     if (typeof cents === 'number' && !Number.isNaN(cents)) {
@@ -63,22 +63,15 @@ const SubscriptionPaymentModal = ({
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const userStr = await AsyncStorage.getItem('user');
-        const userData = userStr ? JSON.parse(userStr) : null;
-        setUserDetail(userData);
-
-        console.log('💳 User data loaded for payment:', userData);
-
-        // Pre-fill name
-        const userName = userData?.userFirstName && userData?.userLastName
-          ? `${userData.userFirstName} ${userData.userLastName}`
-          : userData?.userName || 
+        const userName = user?.userFirstName || user?.firstName && user?.userLastName || user?.lastName
+          ? `${user.userFirstName || user?.firstName} ${user.userLastName || user?.lastName}`
+          : (user?.userName || user?.fullName) || 
             (formData?.personalInfo?.forename && formData?.personalInfo?.surname
               ? `${formData.personalInfo.forename} ${formData.personalInfo.surname}`
               : '');
         
         // Pre-fill email
-        const userEmail = userData?.userEmail || userData?.email || 
+        const userEmail = user?.userEmail || user?.email || 
           (formData?.personalInfo?.preferredEmail === 'work'
             ? formData?.personalInfo?.workEmail
             : formData?.personalInfo?.personalEmail) || '';
@@ -133,8 +126,6 @@ const SubscriptionPaymentModal = ({
       try {
         // ✅ Step 1: Category data is already loaded
         const payload = categoryData;
-        console.log('✅ Category data loaded:', payload?.name);
-
         const currentPricing = payload?.currentPricing || {};
         const basePrice = currentPricing?.price; // Stripe expects amount in cents
         const currency = currentPricing?.currency || 'eur';
@@ -152,10 +143,8 @@ const SubscriptionPaymentModal = ({
             : Math.round(basePrice / 4); // Divide by 4 for other payment types
 
         // ✅ Step 2: Get user data
-        const userStr = await AsyncStorage.getItem('user');
-        const userData = userStr ? JSON.parse(userStr) : null;
-        const userId = userData?.id || userData?._id;
-        const tenantId = userData?.tenantId || userData?.userTenantId;
+        const userId = userInfo?.id;
+        const tenantId = userInfo?.tenantId;
 
         // ✅ Step 3: Create Payment Intent
         const paymentData = {
@@ -177,28 +166,26 @@ const SubscriptionPaymentModal = ({
         console.log('🧾 Creating Payment Intent with:', paymentData);
 
         const res = await createPaymentIntentRequest(paymentData);
-        console.log('💳 Payment Intent Full Response:', JSON.stringify(res?.data, null, 2));
-        
-        const secret =
-          res?.data?.data?.clientSecret ||
-          res?.data?.client_secret ||
-          res?.data?.clientSecret;
-
-        if (!secret) {
-          console.error('❌ No client secret in response. Full response:', res);
-          throw new Error('Missing client secret from response');
+        console.log('💳 Payment Intent Response:', res);
+        if(res?.status === 200) {
+          const secret =
+            res?.data?.data?.clientSecret ||
+            res?.data?.client_secret ||
+            res?.data?.clientSecret;
+            setClientSecret(secret);
+          if (!secret) {
+            console.error('❌ No client secret in response. Full response:', res);
+            throw new Error('Missing client secret from response');
+          }
         }
-
-        console.log('✅ Client secret received:', secret?.substring(0, 20) + '...');
-        setClientSecret(secret);
         setError(null); // Clear any previous errors
         console.log('✅ Payment initialized successfully');
       } catch (error) {
-        console.error('❌ Payment initialization error:', error);
-        console.error('❌ Error stack:', error.stack);
+        console.log('❌ Payment initialization error:', error);
+        console.log('❌ Error stack:', error.stack);
         const errorMessage = error.message || 'Payment initialization failed';
         setError(errorMessage);
-        Alert.alert('Error', errorMessage);
+        // Alert.alert('Error', errorMessage);
         onFailure?.(errorMessage);
       } finally {
         setProductLoading(false);
@@ -212,6 +199,8 @@ const SubscriptionPaymentModal = ({
   const getDisplayPrice = () => {
     return isCardPayment ? priceInfo.full : priceInfo.monthly;
   };
+
+  console.log('💳 Client Secret:', clientSecret);
 
   // Payment handler (matching web version)
   const handlePayNow = async () => {
@@ -421,10 +410,13 @@ const SubscriptionPaymentModal = ({
             </View>
           </View>
           <TouchableOpacity onPress={() => {
-            const userName = userDetail?.userFirstName && userDetail?.userLastName
-              ? `${userDetail.userFirstName} ${userDetail.userLastName}`
-              : `${formData?.personalInfo?.forename || ''} ${formData?.personalInfo?.surname || ''}`.trim();
-            const userEmail = userDetail?.userEmail || 
+            const userName = user?.userFirstName || user?.firstName && user?.userLastName || user?.lastName
+              ? `${user?.userFirstName || user?.firstName} ${user?.userLastName || user?.lastName}`
+              : (user?.userName || user?.fullName) || 
+                (formData?.personalInfo?.forename && formData?.personalInfo?.surname
+                  ? `${formData.personalInfo.forename} ${formData.personalInfo.surname}`
+                  : '');
+            const userEmail = user?.userEmail || user?.email || 
               (formData?.personalInfo?.preferredEmail === 'work'
                 ? formData?.personalInfo?.workEmail
                 : formData?.personalInfo?.personalEmail) || '';

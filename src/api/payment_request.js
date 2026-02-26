@@ -8,10 +8,13 @@ const payment_request = axios.create();
 
 payment_request.interceptors.request.use(
   async config => {
-    const { token } = await getHeaders();
-    config.headers['Authorization'] = `Bearer ${token}`;
+    const headers = await getHeaders();
+    const idempotencyKey = await uuidv4(); 
+    if (headers?.token) {
+      config.headers['Authorization'] = `Bearer ${headers?.token}`;
+    }
     config.headers['Content-Type'] = 'application/json';
-    config.headers['x-idempotency-key'] = uuidv4(); 
+    config.headers['x-idempotency-key'] = idempotencyKey; 
     config.baseURL = ACCOUNT_URL;
 
     return config;
@@ -24,7 +27,7 @@ payment_request.interceptors.response.use(
     return res;
   },
   error => {
-    return Promise.reject(error);
+    return error.response;
   },
 );
 

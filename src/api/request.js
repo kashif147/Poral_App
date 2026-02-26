@@ -10,7 +10,7 @@ request.interceptors.request.use(
     const headers = await getHeaders();
    
     if (headers.token) {
-      config.headers['Authorization'] = `Bearer ${headers.token}`;;
+      config.headers['Authorization'] = `Bearer ${headers.token}`;
     }
     config.headers['Content-Type'] = 'application/json';
 

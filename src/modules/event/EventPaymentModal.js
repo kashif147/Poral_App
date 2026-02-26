@@ -196,13 +196,15 @@ const EventPaymentModal = ({
     return (
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        behavior="padding"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
       >
         <ScrollView
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior={Platform.OS === 'ios' ? 'always' : 'automatic'}
         >
           {showErrorBanner && (
             <View style={styles.errorBanner}>
@@ -411,6 +413,9 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
     minHeight: hp(50),
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
