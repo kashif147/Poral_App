@@ -14,12 +14,18 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../../common/screenHeader';
 import DetailModal from '../../common/detailModal';
+import RegistrationPaymentModal from '../payment/RegistrationPaymentModal';
 
 const Courses = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [paymentCourse, setPaymentCourse] = useState(null);
+  const [paymentVisible, setPaymentVisible] = useState(false);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState(
+    [1, 6]
+  );
 
   const filters = [
     { id: 'all', label: 'All Courses' },
@@ -201,6 +207,58 @@ const Courses = () => {
     setRefreshing(false);
   };
 
+  const getEffectiveStatus = (course) => {
+    if (!course) return 'available';
+    if (course.status === 'completed') return 'completed';
+    if (enrolledCourseIds.includes(course.id)) return 'enrolled';
+    return course.status || 'available';
+  };
+
+  const parseCoursePrice = (course) => {
+    if (!course?.price) return 0;
+    if (typeof course.price === 'string' && course.price.toLowerCase() === 'free') {
+      return 0;
+    }
+    const numeric = parseFloat(String(course.price).replace(/[^0-9.]/g, ''));
+    return Number.isNaN(numeric) ? 0 : numeric;
+  };
+
+  const handleCoursePaymentSuccess = () => {
+    if (paymentCourse) {
+      setEnrolledCourseIds((prev) =>
+        prev.includes(paymentCourse.id) ? prev : [...prev, paymentCourse.id],
+      );
+    }
+    setPaymentVisible(false);
+    setPaymentCourse(null);
+  };
+
+  const handleEnrollPress = (course) => {
+    if (!course) {
+      return;
+    }
+
+    const effectiveStatus = getEffectiveStatus(course);
+    if (effectiveStatus === 'enrolled' || effectiveStatus === 'completed') {
+      setSelectedCourse(course);
+      return;
+    }
+
+    const amount = parseCoursePrice(course);
+
+    if (amount <= 0) {
+      setEnrolledCourseIds((prev) =>
+        prev.includes(course.id) ? prev : [...prev, course.id],
+      );
+      setSelectedCourse(course);
+      return;
+    }
+
+    setPaymentCourse(course);
+    setSelectedCourse(null);
+    setPaymentVisible(true);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -267,7 +325,8 @@ const Courses = () => {
       >
         {filteredCourses.length > 0 ? (
           filteredCourses.map((course) => {
-            const statusColors = getStatusColor(course.status);
+            const effectiveStatus = getEffectiveStatus(course);
+            const statusColors = getStatusColor(effectiveStatus);
             const levelColors = getLevelColor(course.level);
             return (
               <TouchableOpacity
@@ -290,7 +349,7 @@ const Courses = () => {
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
                       <Text style={[styles.statusBadgeText, { color: statusColors.text }]}>
-                        {getStatusLabel(course.status)}
+                        {getStatusLabel(effectiveStatus)}
                       </Text>
                     </View>
                   </View>
@@ -323,10 +382,10 @@ const Courses = () => {
                     <Text style={styles.coursePrice}>{course.price}</Text>
                   </View>
 
-                  {course.status === 'available' && (
+                  {effectiveStatus === 'available' && (
                     <TouchableOpacity 
                       style={styles.enrollButton}
-                      onPress={() => setSelectedCourse(course)}
+                      onPress={() => handleEnrollPress(course)}
                     >
                       <Text style={styles.enrollButtonText}>Enroll Now</Text>
                     </TouchableOpacity>
@@ -396,13 +455,39 @@ const Courses = () => {
             </View>
           </View>
 
-           {selectedCourse?.status === 'available' && (
-             <TouchableOpacity style={[styles.enrollButton, { marginTop: 24 }]}>
+          {getEffectiveStatus(selectedCourse) === 'available' && (
+             <TouchableOpacity
+               style={[styles.enrollButton, { marginTop: 24 }]}
+               onPress={() => handleEnrollPress(selectedCourse)}
+             >
                <Text style={styles.enrollButtonText}>Enroll Now</Text>
              </TouchableOpacity>
           )}
         </View>
       </DetailModal>
+
+      <RegistrationPaymentModal
+        visible={paymentVisible}
+        onClose={() => {
+          setPaymentVisible(false);
+          setPaymentCourse(null);
+        }}
+        onSuccess={handleCoursePaymentSuccess}
+        item={paymentCourse}
+        amount={parseCoursePrice(paymentCourse)}
+        summaryLabel="Course Enrollment"
+        context="course"
+        purpose="courseEnrollment"
+        metadata={
+          paymentCourse
+            ? {
+                courseId: paymentCourse.id,
+                courseTitle: paymentCourse.title,
+              }
+            : {}
+        }
+        primaryActionLabel="Enroll & Pay"
+      />
     </View>
   );
 };
