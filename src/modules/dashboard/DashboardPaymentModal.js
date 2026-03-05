@@ -24,7 +24,7 @@ import { useApplication } from '../../contexts/applicationContext';
 import { useLookup } from '../../contexts/lookupContext';
 import { useProfile } from '../../contexts/profileContext';
 
-const DashboardPaymentModal = ({ visible, onClose, onSuccess }) => {
+const DashboardPaymentModal = ({ visible, onClose, onSuccess, netAmountInCents }) => {
   const { confirmPayment } = useStripe();
   const { personalDetail, subscriptionDetail, categoryData, getCategoryData, categoryLoading } = useApplication();
   const { categoryLookups } = useLookup();
@@ -76,13 +76,18 @@ const DashboardPaymentModal = ({ visible, onClose, onSuccess }) => {
     }
   }, [visible, membershipCategory, categoryLookups, getCategoryData]);
 
-  // Set default price from category when categoryData is available (match web)
+  // Set default price: prefer net balance when available, fallback to category price
   useEffect(() => {
-    if (visible && categoryData?.currentPricing?.price != null) {
+    if (!visible) return;
+
+    if (typeof netAmountInCents === 'number') {
+      const netInEuros = (netAmountInCents / 100).toFixed(2);
+      setEditablePrice(netInEuros);
+    } else if (categoryData?.currentPricing?.price != null) {
       const priceInEuros = (categoryData.currentPricing.price / 100).toFixed(2);
       setEditablePrice(priceInEuros);
     }
-  }, [visible, categoryData?.currentPricing?.price]);
+  }, [visible, netAmountInCents, categoryData?.currentPricing?.price]);
 
   // Reset form when modal closes
   useEffect(() => {
@@ -237,10 +242,12 @@ const DashboardPaymentModal = ({ visible, onClose, onSuccess }) => {
                         )}
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
-                        <Label style={styles.smallLabel}>Category Price</Label>
+                        <Label style={styles.smallLabel}>Net Balance</Label>
                         <Text style={styles.priceText}>
                           {formatCurrency(
-                            categoryData?.currentPricing?.price / 100 || 0
+                            typeof netAmountInCents === 'number'
+                              ? netAmountInCents / 100
+                              : (categoryData?.currentPricing?.price || 0) / 100
                           )}
                         </Text>
                         {categoryData?.currentPricing?.frequency && (
@@ -263,14 +270,15 @@ const DashboardPaymentModal = ({ visible, onClose, onSuccess }) => {
                       />
                     </View>
                     <Text style={styles.hintText}>
-                      Default price:{' '}
-                      {categoryData?.currentPricing?.price != null
-                        ? formatCurrency(
-                            categoryData.currentPricing.price / 100
-                          )
-                        : categoryLoading
-                          ? 'Loading...'
-                          : '—'}
+                      {typeof netAmountInCents === 'number'
+                        ? `Net balance: ${formatCurrency(netAmountInCents / 100)}`
+                        : categoryData?.currentPricing?.price != null
+                          ? `Default price: ${formatCurrency(
+                              categoryData.currentPricing.price / 100
+                            )}`
+                          : categoryLoading
+                            ? 'Loading...'
+                            : '—'}
                     </Text>
                   </View>
 

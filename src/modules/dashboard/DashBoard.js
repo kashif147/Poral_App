@@ -159,18 +159,19 @@ const DashBoard = () => {
     loadAccountNetBalance();
   }, [profileDetail?.membershipNumber, isMember]);
 
-  const formatCurrency = value => {
+  const formatCurrency = valueInCents => {
     const currency = (
       categoryData?.currentPricing?.currency || 'EUR'
     ).toUpperCase();
-    try {
-      return new Intl.NumberFormat('en-IE', {
-        style: 'currency',
-        currency,
-      }).format(value || 0);
-    } catch {
-      return `€${(value || 0).toFixed(2)}`;
+
+    if (!valueInCents || valueInCents === 0) {
+      return currency === 'EUR' ? '€0.00' : `${currency}0.00`;
     }
+
+    const amountInEuros = valueInCents / 100;
+    const currencySymbol = currency === 'EUR' ? '€' : currency;
+
+    return `${currencySymbol}${amountInEuros.toFixed(2)}`;
   };
 
   // Get payment amount based on payment type
@@ -252,6 +253,7 @@ const DashBoard = () => {
   }, [applicationStatus, isMember, categoryData?.code, navigation]);
 
   console.log('user==============>',isMember)
+  console.log('applicationStatus==========>',applicationStatus)
 
   return (
     <View style={styles.container}>
@@ -386,6 +388,7 @@ const DashBoard = () => {
       <DashboardPaymentModal
         visible={paymentModalVisible}
         onClose={() => setPaymentModalVisible(false)}
+        netAmountInCents={accountNetBalance?.net ?? 0}
         onSuccess={() => {
           setPaymentModalVisible(false);
           const memberId = profileDetail?.membershipNumber;

@@ -10,7 +10,11 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import DocumentPicker from 'react-native-document-picker';
+import {
+  pick as pickDocument,
+  errorCodes as documentPickerErrorCodes,
+  isErrorWithCode as isDocumentPickerErrorWithCode,
+} from '@react-native-documents/picker';
 import { Colors } from '../../utils/Styles';
 import {
   CASE_CATEGORY_OPTIONS,
@@ -58,7 +62,7 @@ const CreateCase = () => {
 
   const handlePickDocument = async () => {
     try {
-      const results = await DocumentPicker.pick({
+      const results = await pickDocument({
         type: [
           'application/pdf',
           'image/png',
@@ -66,11 +70,15 @@ const CreateCase = () => {
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ],
         allowMultiSelection: true,
-        copyTo: 'cachesDirectory',
       });
       setUploadedFiles(prev => [...prev, ...results]);
     } catch (err) {
-      if (DocumentPicker.isCancel(err)) return;
+      if (
+        isDocumentPickerErrorWithCode(err) &&
+        err.code === documentPickerErrorCodes.OPERATION_CANCELED
+      ) {
+        return;
+      }
       console.warn('Document picker error', err);
     }
   };
