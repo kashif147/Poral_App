@@ -10,6 +10,7 @@ export const DashboardPaymentCard = ({
   membershipNumber,
   formatCurrency,
   onPayNowPress,
+  canPay = true,
 }) => (
   <View style={styles.paymentCard}>
     <View style={styles.paymentCardHeader}>
@@ -45,11 +46,22 @@ export const DashboardPaymentCard = ({
     </View>
 
     <TouchableOpacity
-      style={styles.payNowButton}
-      onPress={onPayNowPress}
-      activeOpacity={0.8}
+      style={[
+        styles.payNowButton,
+        !canPay && { backgroundColor: '#E5E7EB' },
+      ]}
+      onPress={canPay ? onPayNowPress : undefined}
+      activeOpacity={canPay ? 0.8 : 1}
+      disabled={!canPay}
     >
-      <Text style={styles.payNowButtonText}>Pay Now</Text>
+      <Text
+        style={[
+          styles.payNowButtonText,
+          !canPay && { color: Colors.textSecondary },
+        ]}
+      >
+        Pay Now
+      </Text>
     </TouchableOpacity>
   </View>
 );

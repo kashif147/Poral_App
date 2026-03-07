@@ -8,6 +8,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -373,100 +374,129 @@ const Notifications = ({ navigation }) => {
         </ScrollView>
       </View>
 
-      {/* Notifications List */}
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading notifications...</Text>
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {filteredNotifications.length > 0 ? (
-            filteredNotifications.map((notification) => {
-              // Determine icon and color based on notification type or data
-              const iconType = notification.data?.iconType || 'info';
-              const color = notification.data?.color || 'blue';
-              const iconColors = getIconBgColor(color);
-              return (
-                <View
-                  key={notification.messageId}
-                  style={[
-                    styles.notificationCard,
-                    !notification.read && styles.notificationCardUnread
-                  ]}
-                >
-                  <View style={styles.notificationContent}>
-                    <View style={[styles.iconContainer, { backgroundColor: iconColors.bg }]}>
-                      {getIcon(iconType, iconColors.text)}
+      {/* Notifications List with pull-to-refresh */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={fetchNotifications}
+            tintColor={Colors.primary}
+            colors={[Colors.primary]}
+          />
+        }
+      >
+        {loading && notifications.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loadingText}>Loading notifications...</Text>
+          </View>
+        ) : filteredNotifications.length > 0 ? (
+          filteredNotifications.map(notification => {
+            // Determine icon and color based on notification type or data
+            const iconType = notification.data?.iconType || 'info';
+            const color = notification.data?.color || 'blue';
+            const iconColors = getIconBgColor(color);
+            return (
+              <View
+                key={notification.messageId}
+                style={[
+                  styles.notificationCard,
+                  !notification.read && styles.notificationCardUnread,
+                ]}
+              >
+                <View style={styles.notificationContent}>
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: iconColors.bg },
+                    ]}
+                  >
+                    {getIcon(iconType, iconColors.text)}
+                  </View>
+                  <View style={styles.notificationTextContainer}>
+                    <View style={styles.notificationHeader}>
+                      <View style={styles.notificationTitleContainer}>
+                        <Text style={styles.notificationTitle}>
+                          {notification.title}
+                        </Text>
+                        {!notification.read && <View style={styles.unreadDot} />}
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => deleteNotification(notification.messageId)}
+                        style={styles.deleteButton}
+                      >
+                        <Ionicons name="close" size={18} color="#9CA3AF" />
+                      </TouchableOpacity>
                     </View>
-                    <View style={styles.notificationTextContainer}>
-                      <View style={styles.notificationHeader}>
-                        <View style={styles.notificationTitleContainer}>
-                          <Text style={styles.notificationTitle}>
-                            {notification.title}
-                          </Text>
-                          {!notification.read && (
-                            <View style={styles.unreadDot} />
-                          )}
-                        </View>
-                        <TouchableOpacity
-                          onPress={() => deleteNotification(notification.messageId)}
-                          style={styles.deleteButton}
-                        >
-                          <Ionicons name="close" size={18} color="#9CA3AF" />
-                        </TouchableOpacity>
-                      </View>
-                      <Text style={styles.notificationMessage}>
-                        {notification.body}
-                      </Text>
-                      <View style={styles.notificationFooter}>
-                        <View style={styles.footerLeft}>
-                          <Text style={styles.notificationTime}>{notification.time}</Text>
-                          <View style={[
+                    <Text style={styles.notificationMessage}>
+                      {notification.body}
+                    </Text>
+                    <View style={styles.notificationFooter}>
+                      <View style={styles.footerLeft}>
+                        <Text style={styles.notificationTime}>
+                          {notification.time}
+                        </Text>
+                        <View
+                          style={[
                             styles.typeBadge,
-                            notification.type === 'payment' ? styles.typeBadgePayment : styles.typeBadgeSubscription
-                          ]}>
-                            <Text style={[
+                            notification.type === 'payment'
+                              ? styles.typeBadgePayment
+                              : styles.typeBadgeSubscription,
+                          ]}
+                        >
+                          <Text
+                            style={[
                               styles.typeBadgeText,
-                              notification.type === 'payment' ? styles.typeBadgeTextPayment : styles.typeBadgeTextSubscription
-                            ]}>
-                              {notification.type === 'payment' ? '💳 Payment' : '📋 Subscription'}
-                            </Text>
-                          </View>
-                        </View>
-                        {!notification.read && (
-                          <TouchableOpacity
-                            onPress={() => markAsRead(notification.messageId)}
-                            style={styles.markReadButton}
+                              notification.type === 'payment'
+                                ? styles.typeBadgeTextPayment
+                                : styles.typeBadgeTextSubscription,
+                            ]}
                           >
-                            <Text style={styles.markReadButtonText}>Mark as read</Text>
-                          </TouchableOpacity>
-                        )}
+                            {notification.type === 'payment'
+                              ? '💳 Payment'
+                              : '📋 Subscription'}
+                          </Text>
+                        </View>
                       </View>
+                      {!notification.read && (
+                        <TouchableOpacity
+                          onPress={() => markAsRead(notification.messageId)}
+                          style={styles.markReadButton}
+                        >
+                          <Text style={styles.markReadButtonText}>
+                            Mark as read
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   </View>
                 </View>
-              );
-            })
-          ) : (
+              </View>
+            );
+          })
+        ) : (
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
-              <Ionicons name="notifications-outline" size={48} color="#9CA3AF" />
+              <Ionicons
+                name="notifications-outline"
+                size={48}
+                color="#9CA3AF"
+              />
             </View>
             <Text style={styles.emptyTitle}>No notifications</Text>
             <Text style={styles.emptySubtitle}>
               {filter === 'unread'
                 ? "You're all caught up! No unread notifications."
-                : `No ${filter === 'all' ? '' : filter} notifications to display.`}
+                : `No ${
+                    filter === 'all' ? '' : filter
+                  } notifications to display.`}
             </Text>
           </View>
         )}
-        </ScrollView>
-      )}
+      </ScrollView>
     </View>
   );
 };

@@ -131,7 +131,7 @@ const DashBoard = () => {
     try {
       setRefreshing(true);
       await Promise.all([
-        loadLookups(),
+        // loadLookups(),
         loadApplicationStatus(),
         loadAccountNetBalance(),
         loadCategoryData(),
@@ -173,6 +173,15 @@ const DashBoard = () => {
 
     return `${currencySymbol}${amountInEuros.toFixed(2)}`;
   };
+
+  const canPay = useMemo(
+    () =>
+      isMember &&
+      !accountNetBalanceLoading &&
+      typeof accountNetBalance?.net === 'number' &&
+      accountNetBalance.net > 0,
+    [isMember, accountNetBalanceLoading, accountNetBalance?.net],
+  );
 
   // Get payment amount based on payment type
   const getPaymentAmount = () => {
@@ -243,14 +252,18 @@ const DashBoard = () => {
               subtitle: 'Pay Now',
               icon: 'card-outline',
               scheme: 'teal',
-              onPress: () => setPaymentModalVisible(true),
-              disabled: false,
+              onPress: () => {
+                if (canPay) {
+                  setPaymentModalVisible(true);
+                }
+              },
+              disabled: !canPay,
             },
           ]
         : []),
     ];
     return base;
-  }, [applicationStatus, isMember, categoryData?.code, navigation]);
+  }, [applicationStatus, isMember, categoryData?.code, navigation, canPay]);
 
   console.log('user==============>',isMember)
   console.log('applicationStatus==========>',applicationStatus)
@@ -284,7 +297,12 @@ const DashBoard = () => {
             accountNetBalanceLoading={accountNetBalanceLoading}
             membershipNumber={profileDetail?.membershipNumber || 'N/A'}
             formatCurrency={formatCurrency}
-            onPayNowPress={() => setPaymentModalVisible(true)}
+            onPayNowPress={() => {
+              if (canPay) {
+                setPaymentModalVisible(true);
+              }
+            }}
+            canPay={canPay}
           />
         ) : (
           <ApplicationStatusCard

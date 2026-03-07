@@ -21,6 +21,34 @@ const Payment = () => {
 
   const memberId = profileDetail?.membershipNumber;
   const txns = statementData?.txns ?? [];
+  const filteredTxns = txns.filter(
+    txn => String(txn.docType || '').toLowerCase() !== 'invoice',
+  );
+
+  const getTxnAmountInCents = txn => {
+    if (!txn) return 0;
+
+    if (typeof txn.amount === 'number') return Math.abs(txn.amount);
+    if (typeof txn.total === 'number') return Math.abs(txn.total);
+
+    const entries = Array.isArray(txn.entries) ? txn.entries : [];
+    if (!entries.length) return 0;
+
+    const memberIdForEntries = statementData?.memberId || memberId;
+    const relevant = memberIdForEntries
+      ? entries.filter(e => e.memberId === memberIdForEntries)
+      : entries;
+
+    if (!relevant.length) return 0;
+
+    const net = relevant.reduce((sum, e) => {
+      const amount = typeof e.amount === 'number' ? e.amount : 0;
+      if (!amount) return sum;
+      return sum + (e.dc === 'C' ? -amount : amount);
+    }, 0);
+
+    return Math.abs(net);
+  };
 
   const fetchStatement = useCallback(() => {
     if (!memberId) {
@@ -70,21 +98,21 @@ const Payment = () => {
     const dateStr = formatToDDMMYYYY(txn.date || txn.transactionDate) || 'N/A';
     const description =
       txn.description || txn.type || txn.descriptionLabel || 'Transaction';
-    const rawAmount = txn.amount ?? txn.total ?? 0;
-    const amount = typeof rawAmount === 'number' && rawAmount > 100 ? rawAmount / 100 : rawAmount;
-    const status = txn.status || 'Paid';
+    const amountInCents = getTxnAmountInCents(txn);
+    const amountInEuros = amountInCents / 100;
 
     return (
       <View style={styles.statementCard}>
         <View style={styles.statementRow}>
-          <Text style={styles.statementDate}>{dateStr}</Text>
-          <Text style={styles.statementAmount}>{formatCurrency(amount)}</Text>
-        </View>
-        <Text style={styles.statementDescription} numberOfLines={2}>
-          {description}
-        </Text>
-        <View style={styles.statementRow}>
-          <Text style={styles.statementStatus}>{status}</Text>
+          <View style={styles.statementLeft}>
+            <Text style={styles.statementDate}>{dateStr}</Text>
+            <Text style={styles.statementDescription} numberOfLines={2}>
+              {description}
+            </Text>
+          </View>
+          <View style={styles.amountPill}>
+            <Text style={styles.statementAmount}>{formatCurrency(amountInEuros)}</Text>
+          </View>
         </View>
       </View>
     );
@@ -111,17 +139,14 @@ const Payment = () => {
       return renderEmptyState('Member account required to view statements.');
     }
 
-    if (!txns.length) {
-      return renderEmptyState('No transactions found.');
-    }
-
     return (
       <FlatList
-        data={txns}
+        data={filteredTxns}
         keyExtractor={(item, index) => item.id || item.key || `txn-${index}`}
         renderItem={renderStatementItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={renderEmptyState('No transactions found.')}
         refreshing={statementLoading}
         onRefresh={fetchStatement}
       />
@@ -149,16 +174,26 @@ const styles = StyleSheet.create({
   },
   statementCard: {
     backgroundColor: Colors.cardBackground,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.divider,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 6,
+    elevation: 2,
   },
   statementRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  statementLeft: {
+    flex: 1,
+    paddingRight: 12,
   },
   statementDate: {
     fontSize: 12,
@@ -173,8 +208,17 @@ const styles = StyleSheet.create({
   statementDescription: {
     fontSize: 14,
     color: Colors.textPrimary,
-    marginTop: 6,
-    marginBottom: 6,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  amountPill: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: Colors.primary + '11',
+    minWidth: 90,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   statementStatus: {
     fontSize: 12,

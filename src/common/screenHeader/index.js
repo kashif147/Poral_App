@@ -13,9 +13,11 @@ import { IMAGES } from '../../assets/images';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useProfile } from '../../contexts/profileContext';
 import { Label } from '../text/label';
+import { useNotification } from '../../contexts/notificationContext';
 
 const ScreenHeader = ({ title, showBack }) => {
   const { profileDetail } = useProfile();
+  const { unreadCount } = useNotification();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
@@ -62,7 +64,7 @@ const ScreenHeader = ({ title, showBack }) => {
             size={24}
             color={Colors.textPrimary}
           />
-          <View style={styles.notificationBadge} />
+          {unreadCount > 0 && <View style={styles.notificationBadge} />}
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => navigation.navigate('Profile')}
