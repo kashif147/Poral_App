@@ -6,6 +6,7 @@ import {
   FlatList,
   ActivityIndicator,
   StatusBar,
+  TouchableOpacity,
 } from 'react-native';
 import { Colors } from '../../utils/Styles';
 import { useProfile } from '../../contexts/profileContext';
@@ -13,9 +14,11 @@ import { getAccountStatementRequest } from '../../api/account.api';
 import { formatToDDMMYYYY } from '../../helpers/date.helper';
 import ScreenHeader from '../../common/screenHeader';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useNavigation } from '@react-navigation/native';
 
 const Payment = () => {
   const { profileDetail, getProfileDetail } = useProfile();
+  const navigation = useNavigation();
   const [statementData, setStatementData] = useState(null);
   const [statementLoading, setStatementLoading] = useState(false);
 
@@ -101,8 +104,24 @@ const Payment = () => {
     const amountInCents = getTxnAmountInCents(txn);
     const amountInEuros = amountInCents / 100;
 
+    const handlePress = () => {
+      const receiptPayload = {
+        memberName: profileDetail?.fullName || profileDetail?.userFullName,
+        membershipNumber: profileDetail?.membershipNumber,
+        date: dateStr,
+        description,
+        amountInEuros,
+        rawTxn: txn,
+      };
+      navigation.navigate('PaymentReceipt', { receipt: receiptPayload });
+    };
+
     return (
-      <View style={styles.statementCard}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={handlePress}
+        style={styles.statementCard}
+      >
         <View style={styles.statementRow}>
           <View style={styles.statementLeft}>
             <Text style={styles.statementDate}>{dateStr}</Text>
@@ -111,10 +130,20 @@ const Payment = () => {
             </Text>
           </View>
           <View style={styles.amountPill}>
-            <Text style={styles.statementAmount}>{formatCurrency(amountInEuros)}</Text>
+            <Text style={styles.statementAmount}>
+              {formatCurrency(amountInEuros)}
+            </Text>
           </View>
         </View>
-      </View>
+        <View style={styles.statementFooterRow}>
+          <Text style={styles.tapForDetailsText}>Tap to view receipt</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={Colors.textSecondary}
+          />
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -191,6 +220,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  statementFooterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
   statementLeft: {
     flex: 1,
     paddingRight: 12,
@@ -219,6 +254,10 @@ const styles = StyleSheet.create({
     minWidth: 90,
     alignItems: 'flex-end',
     justifyContent: 'center',
+  },
+  tapForDetailsText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
   statementStatus: {
     fontSize: 12,

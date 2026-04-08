@@ -16,6 +16,31 @@ export const ApplicationStatusCard = ({
   applicationStatus,
   onStartApplication,
 }) => {
+  if (applicationStatus === 'rejected') {
+    return (
+      <View style={styles.statusCard}>
+        <View style={styles.noApplicationContent}>
+          <Label style={styles.noApplicationMessage}>
+            Your application was rejected.
+          </Label>
+          <Label style={styles.noApplicationSubtext}>
+            Please update your details and re-apply.
+          </Label>
+          {onStartApplication && (
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={onStartApplication}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="refresh-outline" size={20} color="#fff" />
+              <Text style={styles.startButtonText}>Re-apply</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
   if (hasNoApplication(applicationStatus)) {
     return (
       <View style={styles.statusCard}> 

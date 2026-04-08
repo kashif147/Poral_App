@@ -10,6 +10,7 @@ import Courses from '../modules/courses/Courses';
 import Membership from '../modules/membership/Membership';
 import Payment from '../modules/payment/Payment';
 import PaymentMethod from '../modules/payment/PaymentMethod';
+import PaymentReceipt from '../modules/payment/PaymentReceipt';
 import Profile from '../modules/profile/Profile';
 import Resources from '../modules/resources/Resources';
 import Notifications from '../modules/notifications/Notifications';
@@ -234,6 +235,7 @@ const TabNavigator = () => {
         <Tab.Screen name={STACKS.CATEGORIES_STACK} component={Categories} />
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
         <Tab.Screen name={STACKS.PAYMENT_METHOD_STACK} component={PaymentMethod} />
+        <Tab.Screen name="PaymentReceipt" component={PaymentReceipt} />
         <Tab.Screen name="Profile" component={Profile} />
         <Tab.Screen name="Resources" component={Resources} />
         <Tab.Screen name="Directory" component={Profile} />

@@ -3,6 +3,7 @@ import { decryptToken } from './crypt.helper';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
+const REFRESH_TOKEN_KEY = 'refreshToken';
 
 export const setHeaders = async headers => {
   try {
@@ -41,6 +42,28 @@ export const setBearerToken = async bearerToken => {
   try {
     if (typeof bearerToken !== 'string') return;
     await AsyncStorage.setItem(TOKEN_KEY, bearerToken);
+  } catch {}
+};
+
+export const setRefreshToken = async refreshToken => {
+  try {
+    if (typeof refreshToken !== 'string') return;
+    await AsyncStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  } catch {}
+};
+
+export const getRefreshToken = async () => {
+  try {
+    const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+    return refreshToken || null;
+  } catch {
+    return null;
+  }
+};
+
+export const deleteRefreshToken = async () => {
+  try {
+    await AsyncStorage.removeItem(REFRESH_TOKEN_KEY);
   } catch {}
 };
 

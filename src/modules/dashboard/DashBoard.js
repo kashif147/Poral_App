@@ -374,7 +374,7 @@ const DashBoard = () => {
       </ScrollView>
 
       {/* Floating Action Button - hide when application is approved */}
-      {applicationStatus !== 'approved' && (
+      {applicationStatus !== 'approved' && applicationStatus !== 'submitted' &&  (
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom }]}
           onPress={() => navigation.navigate(STACKS.APPLICATION_STACK)}
