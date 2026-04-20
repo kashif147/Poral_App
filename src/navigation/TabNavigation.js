@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Image, NativeModules, Platform, StyleSheet, Text, View, Dimensions, TouchableOpacity, Keyboard } from 'react-native';
 import { Colors, wp, hp } from '../utils/Styles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Application from '../modules/application/Application';
+import ApplicationStack from './ApplicationStack';
 import EventStack from './EventStack';
 import Categories from '../modules/categories/Categories';
 import Courses from '../modules/courses/Courses';
@@ -231,7 +231,7 @@ const TabNavigator = () => {
         <Tab.Screen name={STACKS.PAYMENT_STACK} component={Payment} />
         <Tab.Screen name="Menu" component={DashBoard} />
         {/* Hidden screens for popup navigation */}
-        <Tab.Screen name={STACKS.APPLICATION_STACK} component={Application} />
+        <Tab.Screen name={STACKS.APPLICATION_STACK} component={ApplicationStack} />
         <Tab.Screen name={STACKS.CATEGORIES_STACK} component={Categories} />
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />
         <Tab.Screen name={STACKS.PAYMENT_METHOD_STACK} component={PaymentMethod} />

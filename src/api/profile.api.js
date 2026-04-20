@@ -24,3 +24,11 @@ export const updateProfileRequest = data => {
 export const getAggregatedUserDetailsFromCrmCreateRequest = () => {
   return profile_request.get('/api/profile/aggregated-user-details');
 };
+
+export const fetchAllApplications = () => {
+  return profile_request.get('/api/applications/me');
+};
+
+export const getApplicationById = id => {
+  return profile_request.get(`/api/applications/${id}`);
+};

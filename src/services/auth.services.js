@@ -19,6 +19,19 @@ import { getMemberDetail } from '../helpers/decode.helper';
 import { toast } from '../utils/toast.utils';
 import { decryptToken } from '../helpers/crypt.helper';
 
+const normalizeRefreshToken = async token => {
+  if (!token || typeof token !== 'string') return null;
+
+  const looksEncrypted = token.includes(':') && token.split(':').length === 3;
+  if (!looksEncrypted) return token;
+
+  try {
+    return await decryptToken(token);
+  } catch {
+    return token;
+  }
+};
+
 const performLogoutCleanup = async dispatch => {
   await deleteHeaders();
   await deleteRefreshToken();
@@ -33,16 +46,22 @@ export const validation = () => {
   return async dispatch => {
     try {
       const res = await getHeaders();
-      const refreshToken = await getRefreshToken();
+      const storedRefreshToken = await getRefreshToken();
       const hasToken =
         res?.token &&
         typeof res.token === 'string' &&
         res.token.trim().length > 0;
 
-      if (!hasToken || !refreshToken) {
+      if (!hasToken || !storedRefreshToken) {
         dispatch(setSignedIn(false));
         dispatch(setUser({}));
         dispatch(setDetail(null));
+        return;
+      }
+
+      const refreshToken = await normalizeRefreshToken(storedRefreshToken);
+      if (!refreshToken) {
+        await performLogoutCleanup(dispatch);
         return;
       }
 
@@ -51,8 +70,12 @@ export const validation = () => {
         const tokenPayload = refreshUser?.data?.data ?? refreshUser?.data;
         await setHeaders(tokenPayload);
         if (tokenPayload?.refreshToken) {
-          const refreshDectoken = await decryptToken(tokenPayload.refreshToken);
-          await setRefreshToken(refreshDectoken);
+          const nextRefreshToken = await normalizeRefreshToken(
+            tokenPayload.refreshToken,
+          );
+          if (nextRefreshToken) {
+            await setRefreshToken(nextRefreshToken);
+          }
         }
       } else {
         await performLogoutCleanup(dispatch);
@@ -90,7 +113,12 @@ export const signInMicrosoft = data => {
         if (res.status === 200) {
           await setHeaders(res.data);
           if (res?.data?.refreshToken) {
-            await setRefreshToken(res.data.refreshToken);
+            const normalizedRefreshToken = await normalizeRefreshToken(
+              res.data.refreshToken,
+            );
+            if (normalizedRefreshToken) {
+              await setRefreshToken(normalizedRefreshToken);
+            }
           }
           await saveUser(res.data.user);
           deleteVerifier();

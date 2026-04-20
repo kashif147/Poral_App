@@ -308,7 +308,9 @@ const DashBoard = () => {
           <ApplicationStatusCard
             applicationStatus={applicationStatus}
             onStartApplication={() =>
-              navigation.navigate(STACKS.APPLICATION_STACK)
+              navigation.navigate(STACKS.APPLICATION_STACK, {
+                screen: STACKS.APPLICATION_FORM,
+              })
             }
           />
         )}
@@ -377,7 +379,11 @@ const DashBoard = () => {
       {applicationStatus !== 'approved' && applicationStatus !== 'submitted' &&  (
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom }]}
-          onPress={() => navigation.navigate(STACKS.APPLICATION_STACK)}
+          onPress={() =>
+            navigation.navigate(STACKS.APPLICATION_STACK, {
+              screen: STACKS.APPLICATION_FORM,
+            })
+          }
           activeOpacity={0.8}
         >
           <Ionicons name="add" size={28} color={Colors.white} />

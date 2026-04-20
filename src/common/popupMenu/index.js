@@ -58,6 +58,15 @@ const PopupMenu = ({ visible, onClose, onNavigate, isMember = true }) => {
       route: 'Profile',
     },
     {
+      id: 'application',
+      label: 'Application',
+      icon: 'document-text-outline',
+      iconType: 'Ionicons',
+      color: '#3B82F6',
+      bgColor: '#DBEAFE',
+      route: 'Application',
+    },
+    {
       id: 'paymentMethod',
       label: 'Payment Method',
       icon: 'card-outline',

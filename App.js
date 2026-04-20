@@ -2,7 +2,7 @@ import 'react-native-get-random-values';
 import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import TabNavigator from './src/navigation/TabNavigation';
-import { StatusBar, View, Platform, Alert, Linking } from 'react-native';
+import { StatusBar, View, Platform, Alert, Linking, LogBox } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { Provider, useSelector, useDispatch } from 'react-redux';
@@ -20,6 +20,7 @@ import {
   setBearerToken,
   saveUser,
   setHeaders,
+  setRefreshToken,
 } from './src/helpers/auth.helper';
 import { deleteVerifier } from './src/helpers/verifier.helper';
 import { signInMicrosoftRequest } from './src/api/auth.api';
@@ -39,6 +40,8 @@ import {
 } from './src/store/slice/auth.slice';
 import FlashMessage from 'react-native-flash-message';
 import { getMemberDetail } from './src/helpers/decode.helper';
+
+LogBox.ignoreAllLogs(true);
 
 function App() {
   const dispatch = useDispatch();
@@ -135,6 +138,12 @@ function App() {
 
                 if (response.data.user) {
                   await saveUser(response.data.user);
+                }
+
+                const refreshToken =
+                  response.data.refreshToken || response.data.refresh_token;
+                if (refreshToken) {
+                  await setRefreshToken(refreshToken);
                 }
               } else {
                 dispatch(setLoading(false));
@@ -236,6 +245,12 @@ function App() {
 
             if (response.data.user) {
               await saveUser(response.data.user);
+            }
+
+            const refreshToken =
+              response.data.refreshToken || response.data.refresh_token;
+            if (refreshToken) {
+              await setRefreshToken(refreshToken);
             }
           } else {
             dispatch(setLoading(false));
