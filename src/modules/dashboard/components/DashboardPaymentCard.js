@@ -11,60 +11,70 @@ export const DashboardPaymentCard = ({
   formatCurrency,
   onPayNowPress,
   canPay = true,
-}) => (
-  <View style={styles.paymentCard}>
-    <View style={styles.paymentCardHeader}>
-      <Label style={styles.paymentCardTitle}>Payments & Billing</Label>
-      <TouchableOpacity>
-        <Ionicons
-          name="ellipsis-vertical"
-          size={24}
-          color={Colors.textSecondary}
-        />
+}) => {
+  const netAmount = accountNetBalance?.net ?? 0;
+  const isNegativeBalance = typeof netAmount === 'number' && netAmount < 0;
+
+  return (
+    <View style={styles.paymentCard}>
+      <View style={styles.paymentCardHeader}>
+        <Label style={styles.paymentCardTitle}>Payments & Billing</Label>
+        <TouchableOpacity>
+          <Ionicons
+            name="ellipsis-vertical"
+            size={24}
+            color={Colors.textSecondary}
+          />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.paymentCardContent}>
+        <Label style={styles.paymentLabel}>
+          Net Balance
+          {accountNetBalance?.year ? ` (${accountNetBalance.year})` : ''}
+        </Label>
+        {accountNetBalanceLoading ? (
+          <Text style={styles.paymentAmount}>Loading...</Text>
+        ) : (
+          <Text
+            style={[
+              styles.paymentAmount,
+              isNegativeBalance && styles.paymentAmountNegative,
+            ]}
+          >
+            {formatCurrency(isNegativeBalance ? Math.abs(netAmount) : netAmount)}
+          </Text>
+        )}
+      </View>
+
+      <View style={styles.membershipContainer}>
+        <Label style={styles.membershipLabel}>MEMBERSHIP NO</Label>
+        <Text style={styles.membershipValue}>
+          {membershipNumber || 'N/A'}
+        </Text>
+      </View>
+
+      <TouchableOpacity
+        style={[
+          styles.payNowButton,
+          !canPay && { backgroundColor: '#E5E7EB' },
+        ]}
+        onPress={canPay ? onPayNowPress : undefined}
+        activeOpacity={canPay ? 0.8 : 1}
+        disabled={!canPay}
+      >
+        <Text
+          style={[
+            styles.payNowButtonText,
+            !canPay && { color: Colors.textSecondary },
+          ]}
+        >
+          Pay Now
+        </Text>
       </TouchableOpacity>
     </View>
-
-    <View style={styles.paymentCardContent}>
-      <Label style={styles.paymentLabel}>
-        Net Balance
-        {accountNetBalance?.year ? ` (${accountNetBalance.year})` : ''}
-      </Label>
-      {accountNetBalanceLoading ? (
-        <Text style={styles.paymentAmount}>Loading...</Text>
-      ) : (
-        <Text style={styles.paymentAmount}>
-          {formatCurrency(accountNetBalance?.net ?? 0)}
-        </Text>
-      )}
-    </View>
-
-    <View style={styles.membershipContainer}>
-      <Label style={styles.membershipLabel}>MEMBERSHIP NO</Label>
-      <Text style={styles.membershipValue}>
-        {membershipNumber || 'N/A'}
-      </Text>
-    </View>
-
-    <TouchableOpacity
-      style={[
-        styles.payNowButton,
-        !canPay && { backgroundColor: '#E5E7EB' },
-      ]}
-      onPress={canPay ? onPayNowPress : undefined}
-      activeOpacity={canPay ? 0.8 : 1}
-      disabled={!canPay}
-    >
-      <Text
-        style={[
-          styles.payNowButtonText,
-          !canPay && { color: Colors.textSecondary },
-        ]}
-      >
-        Pay Now
-      </Text>
-    </TouchableOpacity>
-  </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   paymentCard: {
@@ -102,6 +112,9 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontSize: 32,
     fontWeight: 'bold',
+  },
+  paymentAmountNegative: {
+    color: '#DC2626',
   },
   membershipContainer: {
     flexDirection: 'row',

@@ -48,6 +48,8 @@ const DashBoard = () => {
     useApplication();
   const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
+  const [isApplicationActive, setIsApplicationActive] = useState(true);
+  const [isResignedMember, setIsResignedMember] = useState(false);
   const [applicationStatusLoading, setApplicationStatusLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [accountNetBalance, setAccountNetBalance] = useState(null);
@@ -57,6 +59,12 @@ const DashBoard = () => {
   const [refreshing, setRefreshing] = useState(false);
   const { getProfileDetail, profileDetail } = useProfile();
   const { getCategoryData, categoryData } = useApplication();
+  const resolvedMembershipNumber =
+    profileDetail?.membershipNumber ||
+    profileDetail?.membershipId ||
+    user?.membershipNumber ||
+    user?.membershipId ||
+    null;
 
   // Match web: use subscriptionDetails.membershipCategory when available, then profile
   const membershipCategory =
@@ -83,6 +91,14 @@ const DashBoard = () => {
     }
   };
 
+  const loadProfile = async () => {
+    try {
+      await getProfileDetail?.();
+    } catch (error) {
+      // Silently handle errors
+    }
+  };
+
   const loadApplicationStatus = async () => {
     try {
       setApplicationStatusLoading(true);
@@ -97,24 +113,33 @@ const DashBoard = () => {
           const status =
             response?.data?.data?.applicationStatus ||
             response?.data?.applicationStatus;
+          const isActive =
+            response?.data?.data?.meta?.isActive ??
+            response?.data?.meta?.isActive ??
+            true;
           setApplicationStatus(status || null);
+          setIsApplicationActive(Boolean(isActive));
         }
+      } else {
+        setApplicationStatus('none');
+        setIsApplicationActive(true);
       }
     } catch (error) {
       // Error handled silently
+      setApplicationStatus(null);
+      setIsApplicationActive(true);
     } finally {
       setApplicationStatusLoading(false);
     }
   };
 
   const loadAccountNetBalance = async () => {
-    const memberId = profileDetail?.membershipNumber;
-    if (!memberId || !isMember) {
+    if (!resolvedMembershipNumber) {
       return;
     }
     try {
       setAccountNetBalanceLoading(true);
-      const res = await getAccountNetBalanceRequest(memberId);
+      const res = await getAccountNetBalanceRequest(resolvedMembershipNumber);
       if (res?.status === 200 && res?.data?.data) {
         setAccountNetBalance(res.data.data);
       } else {
@@ -131,6 +156,7 @@ const DashBoard = () => {
     try {
       setRefreshing(true);
       await Promise.all([
+        loadProfile(),
         // loadLookups(),
         loadApplicationStatus(),
         loadAccountNetBalance(),
@@ -147,6 +173,7 @@ const DashBoard = () => {
 
   // Fetch all lookups when Dashboard loads
   useEffect(() => {
+    loadProfile();
     loadLookups();
   }, []);
 
@@ -157,7 +184,20 @@ const DashBoard = () => {
 
   useEffect(() => {
     loadAccountNetBalance();
-  }, [profileDetail?.membershipNumber, isMember]);
+  }, [resolvedMembershipNumber, isMember]);
+
+  useEffect(() => {
+    const subscriptionStateCandidates = [
+      subscriptionDetail?.subscriptionStatus,
+      subscriptionDetail?.subscriptionDetails?.subscriptionStatus,
+      subscriptionDetail?.subscriptionDetails?.membershipStatus,
+      profileDetail?.membershipStatus,
+    ];
+    const normalizedStatuses = subscriptionStateCandidates
+      .map(status => String(status || '').toLowerCase())
+      .filter(Boolean);
+    setIsResignedMember(normalizedStatuses.includes('resigned'));
+  }, [subscriptionDetail, profileDetail?.membershipStatus]);
 
   const formatCurrency = valueInCents => {
     const currency = (
@@ -178,9 +218,15 @@ const DashBoard = () => {
     () =>
       isMember &&
       !accountNetBalanceLoading &&
+      categoryData?.code !== 'undergraduate_student' &&
       typeof accountNetBalance?.net === 'number' &&
       accountNetBalance.net > 0,
-    [isMember, accountNetBalanceLoading, accountNetBalance?.net],
+    [
+      isMember,
+      accountNetBalanceLoading,
+      accountNetBalance?.net,
+      categoryData?.code,
+    ],
   );
 
   // Get payment amount based on payment type
@@ -199,28 +245,51 @@ const DashBoard = () => {
     return priceInEuros;
   };
 
-  const applicationSubtitle =
-    applicationStatus === 'approved'
+  const normalizedApplicationStatus = String(applicationStatus || '').toLowerCase();
+  const isUndergraduateStudent = categoryData?.code === 'undergraduate_student';
+  const isInactiveLikeStatus =
+    !isApplicationActive ||
+    isResignedMember ||
+    normalizedApplicationStatus === 'cancelled' ||
+    normalizedApplicationStatus === 'canceled' ||
+    normalizedApplicationStatus === 'inactive';
+  const isSubmittedOrApproved =
+    isApplicationActive &&
+    (normalizedApplicationStatus === 'submitted' ||
+      normalizedApplicationStatus === 'approved');
+  const shouldStartFresh = isInactiveLikeStatus || normalizedApplicationStatus === 'rejected';
+
+  const applicationSubtitle = isInactiveLikeStatus
+    ? 'Start Application'
+    : applicationStatus === 'approved'
       ? 'Approved'
       : applicationStatus === 'in_review'
       ? 'In Review'
       : applicationStatus === 'submitted'
-      ? 'Submitted'
+      ? 'In Review'
+      : applicationStatus === 'rejected'
+      ? 'Start Application'
       : 'Start Application';
 
   const quickActions = useMemo(() => {
-    const isUndergraduateStudent =
-      categoryData?.code === 'undergraduate_student';
     const base = [
       {
         key: 'application',
         title: 'Application',
         subtitle: applicationSubtitle,
         icon: 'document-text',
-        scheme: applicationStatus === 'approved' ? 'green' : 'blue',
-        onPress: () => navigation.navigate(STACKS.APPLICATION_STACK),
-        disabled:
-          applicationStatus === 'approved' || applicationStatus === 'submitted',
+        scheme:
+          normalizedApplicationStatus === 'approved' && isApplicationActive
+            ? 'green'
+            : normalizedApplicationStatus === 'rejected'
+            ? 'red'
+            : 'blue',
+        onPress: () =>
+          navigation.navigate(STACKS.APPLICATION_STACK, {
+            screen: STACKS.APPLICATION_FORM,
+            params: shouldStartFresh ? { startFresh: true } : undefined,
+          }),
+        disabled: isSubmittedOrApproved,
       },
       ...(isMember
         ? [
@@ -263,10 +332,17 @@ const DashBoard = () => {
         : []),
     ];
     return base;
-  }, [applicationStatus, isMember, categoryData?.code, navigation, canPay]);
-
-  console.log('user==============>',isMember)
-  console.log('applicationStatus==========>',applicationStatus)
+  }, [
+    normalizedApplicationStatus,
+    applicationSubtitle,
+    isApplicationActive,
+    shouldStartFresh,
+    isSubmittedOrApproved,
+    isMember,
+    isUndergraduateStudent,
+    navigation,
+    canPay,
+  ]);
 
   return (
     <View style={styles.container}>
@@ -291,11 +367,11 @@ const DashBoard = () => {
         {/* Application Status or Payment Card - show skeleton when loading */}
         {applicationStatusLoading ? (
           <StatusCardSkeleton />
-        ) : applicationStatus === 'approved' && isMember ? (
+        ) : !!resolvedMembershipNumber && !isUndergraduateStudent ? (
           <DashboardPaymentCard
             accountNetBalance={accountNetBalance}
             accountNetBalanceLoading={accountNetBalanceLoading}
-            membershipNumber={profileDetail?.membershipNumber || 'N/A'}
+            membershipNumber={resolvedMembershipNumber || 'N/A'}
             formatCurrency={formatCurrency}
             onPayNowPress={() => {
               if (canPay) {
@@ -306,10 +382,11 @@ const DashBoard = () => {
           />
         ) : (
           <ApplicationStatusCard
-            applicationStatus={applicationStatus}
+            applicationStatus={isInactiveLikeStatus ? 'none' : applicationStatus}
             onStartApplication={() =>
               navigation.navigate(STACKS.APPLICATION_STACK, {
                 screen: STACKS.APPLICATION_FORM,
+                params: shouldStartFresh ? { startFresh: true } : undefined,
               })
             }
           />
@@ -375,13 +452,14 @@ const DashBoard = () => {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button - hide when application is approved */}
-      {applicationStatus !== 'approved' && applicationStatus !== 'submitted' &&  (
+      {/* Floating Action Button - hide once active application is submitted/approved */}
+      {!isSubmittedOrApproved && (
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom }]}
           onPress={() =>
             navigation.navigate(STACKS.APPLICATION_STACK, {
               screen: STACKS.APPLICATION_FORM,
+              params: shouldStartFresh ? { startFresh: true } : undefined,
             })
           }
           activeOpacity={0.8}
@@ -415,7 +493,7 @@ const DashBoard = () => {
         netAmountInCents={accountNetBalance?.net ?? 0}
         onSuccess={() => {
           setPaymentModalVisible(false);
-          const memberId = profileDetail?.membershipNumber;
+          const memberId = resolvedMembershipNumber;
           if (memberId) {
             getAccountNetBalanceRequest(memberId)
               .then(res => {
