@@ -49,6 +49,8 @@ function App() {
   const isLoading = useSelector(state => state.auth.isLoading);
   const user = useSelector(state => state.auth.user);
   const [showWebView, setShowWebView] = useState(false);
+  const [showUnauthSplash, setShowUnauthSplash] = useState(true);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
   const navigationRef = useRef(null);
   const notificationUnsubscribeRef = useRef(null);
 
@@ -59,14 +61,33 @@ function App() {
       } catch (error) {
         // Error handled silently
       } finally {
-        // Ensure splash screen shows for minimum 2.5 seconds
+        // Keep global loading at least 2.5s on initial auth bootstrap
         setTimeout(() => {
           dispatch(setLoading(false));
         }, 2500);
+        setIsAuthChecked(true);
       }
     };
     checkAuth();
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!isAuthChecked) {
+      return;
+    }
+
+    if (!isSignedIn) {
+      // Show splash for unauthenticated path before landing page
+      setShowUnauthSplash(true);
+      const timer = setTimeout(() => {
+        setShowUnauthSplash(false);
+      }, 2500);
+
+      return () => clearTimeout(timer);
+    }
+
+    setShowUnauthSplash(false);
+  }, [isAuthChecked, isSignedIn]);
 
   // Enhanced deep link handling for authentication callback
   useEffect(() => {
@@ -431,7 +452,7 @@ function App() {
     };
   }, [isSignedIn, user]);
 
-  if (isLoading) {
+  if (isLoading || (!isSignedIn && showUnauthSplash)) {
     return <SplashScreen />;
   }
 

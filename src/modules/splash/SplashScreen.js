@@ -1,93 +1,130 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Image, StyleSheet, Animated, StatusBar, Platform, ImageBackground } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
-import { Colors, wp, hp } from '../../utils/Styles';
+import FontIcons from '../../utils/FontIcons';
+import { wp, hp } from '../../utils/Styles';
 import { IMAGES } from '../../assets/images';
 
 const SplashScreen = () => {
+  const MCI = FontIcons.MATERIAL_COMMUNITY_ICONS;
+  const isIOS = Platform.OS === 'ios';
+  const [bgReady, setBgReady] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.8)).current;
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const translateAnim = useRef(new Animated.Value(20)).current;
+  const bgContentOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Fade in and scale animation
-    Animated.parallel([
+    Animated.parallel(
+      [
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 800,
+          duration: 700,
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 4,
-        tension: 40,
+        Animated.timing(translateAnim, {
+          toValue: 0,
+          duration: 700,
         useNativeDriver: true,
       }),
-    ]).start();
-
-    // Progress bar animation
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: 2000,
-      useNativeDriver: false,
-    }).start();
+      ],
+      { stopTogether: false },
+    ).start();
   }, []);
 
-  const progressWidth = progressAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0%', '100%'],
-  });
+  useEffect(() => {
+    if (!bgReady) {
+      return;
+    }
+
+    Animated.timing(bgContentOpacity, {
+      toValue: 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [bgReady, bgContentOpacity]);
+
+  const featureRows = [
+    { icon: 'view-dashboard-outline', label: 'Personal Dashboard' },
+    { icon: 'help-circle-outline', label: 'Issue Management' },
+    { icon: 'account-plus-outline', label: 'Apply for Membership' },
+    { icon: 'calendar-month-outline', label: 'Events & Workshops' },
+    { icon: 'book-open-page-variant-outline', label: 'Member Resources' },
+    { icon: 'school-outline', label: 'Learning Courses' },
+    { icon: 'message-text-outline', label: 'Messages & Notifications' },
+    { icon: 'credit-card-outline', label: 'Secure Payments' },
+  ];
 
   return (
     <View style={styles.container}>
-      {/* Gradient Background */}
-      <LinearGradient
-        colors={['#F8FAFC', '#E0E7FF', '#F1F5F9']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFillObject, { zIndex: 0 }]}
+      <StatusBar
+        translucent={Platform.OS === 'android'}
+        backgroundColor={Platform.OS === 'android' ? 'rgba(30, 39, 130, 0.40)' : 'transparent'}
+        barStyle="light-content"
       />
-
-      {/* Decorative circles */}
-      <View style={styles.circle1} />
-      <View style={styles.circle2} />
-      <View style={styles.circle3} />
-
-      {/* Content */}
+      <View style={styles.backgroundLayer}>
+        <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: bgContentOpacity }]}>
+          <ImageBackground
+            source={IMAGES.SPLASH}
+            style={styles.backgroundImage}
+            resizeMode="cover"
+            onLoadEnd={() => setBgReady(true)}
+          />
+          <LinearGradient
+            colors={[
+              'rgba(73, 84, 190, 0.28)',
+              'rgba(47, 57, 168, 0.44)',
+              'rgba(21, 28, 105, 0.60)',
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+        </Animated.View>
+      </View>
       <Animated.View
         style={[
           styles.content,
+          isIOS ? styles.contentIOS : styles.contentAndroid,
           {
             opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
+            transform: [{ translateY: translateAnim }],
           },
         ]}
       >
-        {/* Logo Container */}
-        <View style={styles.logoContainer}>
-          <View style={styles.logoCircle}>
-            <Image 
-              source={IMAGES.LOGO} 
-              style={styles.logo} 
-              resizeMode="contain" 
-            />
+        <View style={styles.brandPill}>
+          <View style={styles.logoWrap}>
+            <Image source={IMAGES.LOGO} style={styles.logo} resizeMode="contain" />
           </View>
+          <Text style={styles.brandText}>MemberHub</Text>
         </View>
 
-        {/* App Name */}
-        <Text style={styles.appName}>Portal</Text>
-        <Text style={styles.tagline}>Your Community Awaits</Text>
+        <Text style={styles.title}>
+          Your Gateway to{'\n'}
+          <Text style={styles.titleAccent}>Excellence.</Text>
+        </Text>
+        <Text style={styles.subtitle}>
+          Manage your profile, track subscriptions, and handle payments in one secure, unified platform designed for our members.
+        </Text>
 
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <Animated.View
-            style={[
-              styles.progressBar,
-              {
-                width: progressWidth,
-              },
-            ]}
-          />
+        <View style={styles.featureList}>
+          {featureRows.map(item => (
+            <View style={styles.featureRow} key={item.label}>
+              <MCI name={item.icon} size={20} color="#E7EBFF" />
+              <Text style={styles.featureText}>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.bottomLine} />
+        <View style={styles.footer}>
+          <View style={styles.footerItem}>
+            <MCI name="lock-outline" size={18} color="#DDE4FF" />
+            <Text style={styles.footerText}>Bank-grade encryption</Text>
+          </View>
+          <View style={styles.footerItem}>
+            <MCI name="web" size={18} color="#DDE4FF" />
+            <Text style={styles.footerText}>Global accessibility</Text>
+          </View>
         </View>
       </Animated.View>
     </View>
@@ -97,90 +134,115 @@ const SplashScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#101A62',
+    paddingHorizontal: wp(3.2),
+    paddingTop: 0,
+    paddingBottom: hp(1.6),
   },
-  // Decorative circles
-  circle1: {
-    position: 'absolute',
-    top: -100,
-    right: -100,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 1,
   },
-  circle2: {
-    position: 'absolute',
-    bottom: -150,
-    left: -150,
-    width: 400,
-    height: 400,
-    borderRadius: 200,
-    backgroundColor: 'rgba(139, 92, 246, 0.08)',
-  },
-  circle3: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    marginTop: -200,
-    marginLeft: -200,
-    width: 400,
-    height: 400,
-    borderRadius: 200,
-    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+  backgroundLayer: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#101A62',
   },
   content: {
-    alignItems: 'center',
-    zIndex: 1,
+    flex: 1,
+    paddingHorizontal: wp(5),
+    paddingBottom: hp(2.2),
   },
-  logoContainer: {
+  contentIOS: {
+    paddingTop: hp(5.4),
+  },
+  contentAndroid: {
+    paddingTop: hp(3.2),
+  },
+  brandPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.26)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 14,
+    paddingVertical: hp(0.75),
+    paddingHorizontal: wp(2.8),
+    marginTop: hp(2.8),
     marginBottom: hp(4),
   },
-  logoCircle: {
-    width: wp(28),
-    height: wp(28),
-    borderRadius: wp(14),
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  logoWrap: {
+    width: wp(8.2),
+    height: wp(8.2),
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(99, 102, 241, 0.1)',
+    marginRight: wp(2.5),
   },
   logo: {
-    width: wp(18),
-    height: wp(18),
+    width: wp(5.6),
+    height: wp(5.6),
   },
-  appName: {
-    fontSize: 32,
+  brandText: {
+    color: '#F7F8FF',
+    fontSize: 21,
     fontWeight: '700',
-    color: '#1E293B',
-    marginBottom: hp(1),
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
-  tagline: {
+  title: {
+    color: '#F9FBFF',
+    fontSize: 40,
+    fontWeight: '700',
+    lineHeight: 48,
+    letterSpacing: 0.2,
+    marginBottom: hp(2),
+    maxWidth: '92%',
+  },
+  titleAccent: {
+    color: '#CFE0FF',
+  },
+  subtitle: {
+    color: '#E2E7FF',
     fontSize: 14,
-    color: '#64748B',
-    marginBottom: hp(6),
+    lineHeight: 24,
+    marginBottom: hp(4),
+    maxWidth: '90%',
+  },
+  featureList: {
+    marginBottom: hp(2.5),
+  },
+  featureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hp(2),
+  },
+  featureText: {
+    color: '#F2F5FF',
+    fontSize: 14,
+    marginLeft: wp(2.2),
     fontWeight: '500',
   },
-  progressContainer: {
-    width: wp(60),
-    height: 4,
-    backgroundColor: 'rgba(203, 213, 225, 0.5)',
-    borderRadius: 2,
-    overflow: 'hidden',
+  bottomLine: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    marginTop: 'auto',
+    marginBottom: hp(1.8),
   },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#6366F1',
-    borderRadius: 2,
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  footerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerText: {
+    color: '#D8E0FF',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: wp(1.2),
   },
 });
 

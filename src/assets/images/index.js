@@ -13,4 +13,5 @@ export const IMAGES = {
     GALLERY: require('./gallery.png'),
     LOGO: require('./logo.png'),
     PAYMENT: require('./setting.png'), // Using setting icon as payment icon for now
+    SPLASH: require('./splash.jpg'),
 }
