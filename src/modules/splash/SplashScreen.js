@@ -70,11 +70,7 @@ const SplashScreen = () => {
             onLoadEnd={() => setBgReady(true)}
           />
           <LinearGradient
-            colors={[
-              'rgba(73, 84, 190, 0.28)',
-              'rgba(47, 57, 168, 0.44)',
-              'rgba(21, 28, 105, 0.60)',
-            ]}
+            colors={['rgba(92, 108, 220, 0.42)', 'rgba(56, 69, 182, 0.58)', 'rgba(18, 24, 98, 0.78)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
             style={StyleSheet.absoluteFillObject}
@@ -205,6 +201,7 @@ const styles = StyleSheet.create({
   subtitle: {
     color: '#E2E7FF',
     fontSize: 14,
+    fontWeight: '600',
     lineHeight: 24,
     marginBottom: hp(4),
     maxWidth: '90%',
@@ -215,11 +212,12 @@ const styles = StyleSheet.create({
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: hp(2),
+    marginBottom: hp(1.5),
   },
   featureText: {
     color: '#F2F5FF',
     fontSize: 14,
+    fontWeight: '600',
     marginLeft: wp(2.2),
     fontWeight: '500',
   },

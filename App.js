@@ -15,6 +15,7 @@ import { NotificationProvider } from './src/contexts/notificationContext';
 import NotificationSetup from './src/components/NotificationSetup';
 import LandingPage from './src/modules/landing/LandingPage';
 import SplashScreen from './src/modules/splash/SplashScreen';
+import OnboardingScreen from './src/modules/onboarding/OnboardingScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   setBearerToken,
@@ -51,6 +52,7 @@ function App() {
   const [showWebView, setShowWebView] = useState(false);
   const [showUnauthSplash, setShowUnauthSplash] = useState(true);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const navigationRef = useRef(null);
   const notificationUnsubscribeRef = useRef(null);
 
@@ -382,6 +384,10 @@ function App() {
     setShowWebView(false);
   };
 
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
   // Initialize FCM when user is signed in
   useEffect(() => {
     if (isSignedIn) {
@@ -489,6 +495,8 @@ function App() {
                 </ApplicationProvider>
               </LookupProvider>
             </NotificationProvider>
+          ) : showOnboarding ? (
+            <OnboardingScreen onComplete={handleOnboardingComplete} />
           ) : (
             <LandingPage onLoginPress={handleLogin} />
           )}
