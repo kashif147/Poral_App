@@ -11,7 +11,14 @@ import { WebView } from 'react-native-webview';
 import { generatePKCE } from '../../helpers/crypt.helper';
 import { setVerifier, getVerifier } from '../../helpers/verifier.helper';
 
-const WebViewLogin = ({ visible, onClose, onSuccess, onError }) => {
+const POLICY_BY_MODE = {
+  signin: 'B2C_1_projectshell_signin',
+  signup: 'B2C_1_projectshell_signup',
+  gmail: 'B2C_1_projectshell_signup_signin_gmail',
+  default: 'B2C_1_projectshell',
+};
+
+const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onError }) => {
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [authUrl, setAuthUrl] = useState(null);
@@ -39,7 +46,7 @@ const WebViewLogin = ({ visible, onClose, onSuccess, onError }) => {
           // Build auth URL with PKCE
           const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309';
           const tenant = 'projectshellAB2C.onmicrosoft.com';
-          const policy = 'B2C_1_projectshell';
+          const policy = POLICY_BY_MODE[authMode] || POLICY_BY_MODE.default;
           const b2cDomain = 'projectshellAB2C.b2clogin.com';
           const redirectUri = getRedirectUri();
 
@@ -55,15 +62,16 @@ const WebViewLogin = ({ visible, onClose, onSuccess, onError }) => {
             response_mode: 'query',
             code_challenge: code_challenge,
             code_challenge_method: 'S256',
-            prompt: 'login', // Force login screen even if session exists
+            prompt: 'login',
           };
 
           Object.keys(params).forEach(key =>
             url.searchParams.append(key, params[key]),
           );
 
-          console.log('Auth URL with PKCE:', url.toString());
+          console.log('Auth URL with PKCE:', url.toString(), 'mode:', authMode);
           setAuthUrl(url.toString());
+          setLoading(true);
         } catch (error) {
           console.error('Error initializing auth:', error);
           onError('Failed to initialize authentication');
@@ -76,7 +84,7 @@ const WebViewLogin = ({ visible, onClose, onSuccess, onError }) => {
       setAuthUrl(null);
       setCodeVerifier(null);
     }
-  }, [visible]);
+  }, [visible, authMode, onError]);
 
   // Parse custom URL scheme manually since new URL() might not work with custom schemes
   const parseUrl = urlString => {

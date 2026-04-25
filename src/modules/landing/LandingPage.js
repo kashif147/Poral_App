@@ -1,85 +1,78 @@
 import React from 'react';
-import { SafeAreaView, View, Text, Image, Alert, TouchableOpacity, StyleSheet } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
-import { Button } from '../../common/button';
+import { SafeAreaView, View, Text, Image, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { Colors, wp, hp } from '../../utils/Styles';
-import { IMAGES } from '../../assets/images';
 import FontIcons from '../../utils/FontIcons';
 
-const LandingPage = ({ onLoginPress, onFaceRecognitionPress }) => {
+const LandingPage = ({ onLoginPress, onGoogleLoginPress, onSignUpPress }) => {
   const MCI = FontIcons.MATERIAL_COMMUNITY_ICONS;
 
   return (
-    <View style={{ flex: 1 }}>
-      {/* Blue Radial Gradient Background */}
-      <LinearGradient
-        colors={['#1E3A8A', '#3B82F6', '#1E293B']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-      />
-      
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={{ flex: 1, padding: wp(6), alignItems: 'center', justifyContent: 'space-between' }}>
-          
-          {/* Top Section - Logo and Welcome */}
-          <View style={{ width: '100%', alignItems: 'center', marginTop: hp(8) }}>
-            <View style={styles.logoContainer}>
-              <Image source={IMAGES.LOGO} style={{ width: wp(18), height: wp(18) }} resizeMode="contain" />
-            </View>
-            
-            <Text style={styles.welcomeTitle}>
-              Welcome to Members Portal
-            </Text>
-            <Text style={styles.welcomeSubtitle}>
-              Sign in to access your membership services and continue your application
-            </Text>
-          </View>
-
-          {/* Bottom Section - Authentication Options */}
-          <View style={{ alignItems: 'center', width: '100%', maxWidth: 600, marginBottom: hp(4) }}>
-            
-            {/* Microsoft Logo */}
-            <View style={styles.microsoftLogoContainer}>
-              <View style={{ flexDirection: 'row', marginBottom: 4 }}>
-                <View style={[styles.microsoftSquare, { backgroundColor: '#F25022', marginRight: 4 }]} />
-                <View style={[styles.microsoftSquare, { backgroundColor: '#7FBA00' }]} />
+    <View style={styles.container}>
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.layout}>
+          <View style={styles.authCard}>
+            <View style={styles.topSection}>
+              <View style={styles.authHeader}>
+                <View>
+                  <Text style={styles.authTitle}>Already signed up?</Text>
+                  <Text style={styles.authSubtitle}>Sign in to access your portal.</Text>
+                </View>
+                <View style={styles.ssoBadge}>
+                  <Text style={styles.ssoBadgeText}>SECURE SSO</Text>
+                </View>
               </View>
-              <View style={{ flexDirection: 'row' }}>
-                <View style={[styles.microsoftSquare, { backgroundColor: '#00A4EF', marginRight: 4 }]} />
-                <View style={[styles.microsoftSquare, { backgroundColor: '#FFB900' }]} />
-              </View>
-            </View>
 
-            {/* Face Recognition Option */}
-            <View style={{ alignItems: 'center', marginBottom: wp(6) }}>
-              <TouchableOpacity
-                onPress={() => {
-                  if (onFaceRecognitionPress) {
-                    onFaceRecognitionPress();
-                  } else {
-                    Alert.alert('Face Recognition', 'This feature will be enabled soon.');
-                  }
-                }}
-                activeOpacity={0.85}
-                style={styles.faceRecognitionButton}
-              >
-                <MCI name="face-recognition" size={wp(8)} color={Colors.primary} />
+              <TouchableOpacity activeOpacity={0.9} onPress={onLoginPress} style={styles.primaryButton}>
+                <MCI name="shield-account-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.primaryButtonText}>Sign in with your email</Text>
+                <MCI name="arrow-right" size={18} color="#FFFFFF" />
               </TouchableOpacity>
-              <Text style={styles.faceRecognitionText}>Face Recognition</Text>
+
+              <View style={styles.orDividerWrap}>
+                <View style={styles.orDividerLine} />
+                <Text style={styles.orDividerText}>OR</Text>
+                <View style={styles.orDividerLine} />
+              </View>
+
+              <TouchableOpacity activeOpacity={0.9} onPress={onGoogleLoginPress} style={styles.googleButton}>
+                <Image
+                  source={{ uri: 'https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png' }}
+                  style={styles.googleIcon}
+                  resizeMode="contain"
+                />
+                <Text style={styles.googleButtonText}>Continue with Google</Text>
+              </TouchableOpacity>
+
+              <View style={styles.middleSpacer} />
             </View>
 
-            {/* Login Button */}
-            <Button
-              title={'Continue with Microsoft'}
-              primary
-              onPress={onLoginPress}
-              style={{ width: '100%', marginBottom: wp(3) }}
-            />
-            
-            <Text style={styles.footerText}>
-              Secure authentication powered by Microsoft
-            </Text>
+            <View style={styles.bottomSection}>
+              <View style={styles.firstTimeDividerWrap}>
+                <View style={styles.orDividerLine} />
+                <Text style={styles.firstTimeDividerText}>FIRST TIME HERE?</Text>
+                <View style={styles.orDividerLine} />
+              </View>
+
+              <Text style={styles.newPortalTitle}>New to the portal?</Text>
+              <Text style={styles.newPortalSubtitle}>
+                Apply for membership and create your account to access exclusive services.
+              </Text>
+
+              <TouchableOpacity activeOpacity={0.9} onPress={onSignUpPress} style={styles.secondaryButton}>
+                <MCI name="plus" size={18} color={Colors.primary} />
+                <Text style={styles.secondaryButtonText}>Create an Account</Text>
+                <MCI name="chevron-right" size={18} color={Colors.primary} />
+              </TouchableOpacity>
+
+              <View style={styles.privacyRow}>
+                <Text style={styles.privacyText}>PRIVACY</Text>
+                <Text style={styles.privacyText}>•</Text>
+                <Text style={styles.privacyText}>TERMS</Text>
+                <Text style={styles.privacyText}>•</Text>
+                <Text style={styles.privacyText}>SUPPORT</Text>
+              </View>
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -88,73 +81,84 @@ const LandingPage = ({ onLoginPress, onFaceRecognitionPress }) => {
 };
 
 const styles = StyleSheet.create({
-  logoContainer: {
-    width: wp(22),
-    height: wp(22),
-    borderRadius: wp(11),
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: wp(6),
-    shadowColor: '#000',
+  container: { flex: 1, backgroundColor: '#F1F5F9' },
+  heroBackgroundImage: { ...StyleSheet.absoluteFillObject },
+  heroBackgroundOverlay: { ...StyleSheet.absoluteFillObject },
+  heroTopOverlay: { ...StyleSheet.absoluteFillObject },
+  safeArea: { flex: 1 },
+  layout: { flex: 1, paddingHorizontal: wp(4), paddingVertical: hp(1.2), justifyContent: 'center' },
+  authCard: {
+    flex: 1,
+    marginVertical: hp(0.6),
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    paddingHorizontal: wp(5),
+    paddingVertical: hp(2.6),
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowOpacity: 0.14,
+    shadowRadius: 20,
     elevation: 8,
+    justifyContent: 'space-between',
   },
-  welcomeTitle: {
-    fontWeight: '700',
-    fontSize: 28,
-    marginBottom: wp(3),
-    color: Colors.white,
-    textAlign: 'center',
-    letterSpacing: 0.5,
+  topSection: {
+    flexGrow: 1,
+    justifyContent: 'space-evenly',
   },
-  welcomeSubtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    marginBottom: wp(6),
-    fontSize: 14,
-    textAlign: 'center',
-    paddingHorizontal: wp(8),
-    lineHeight: 20,
+  bottomSection: {
+    flexGrow: 1,
+    justifyContent: 'space-evenly',
   },
-  microsoftLogoContainer: {
-    marginBottom: wp(6),
+  authHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: hp(2) },
+  authTitle: { color: '#0F172A', fontWeight: '700', fontSize: 24 },
+  authSubtitle: { color: '#64748B', fontSize: 13, marginTop: hp(1.4) },
+  ssoBadge: { backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#D1FAE5', borderRadius: 999, paddingHorizontal: wp(2.5), paddingVertical: hp(0.45), alignSelf: 'flex-start' },
+  ssoBadgeText: { fontSize: 9, color: '#047857', fontWeight: '700', letterSpacing: 0.6 },
+  primaryButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1E3A8A',
+    borderRadius: 12,
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(2),
   },
-  microsoftSquare: {
-    width: 24,
-    height: 24,
-    borderRadius: 2,
-  },
-  faceRecognitionButton: {
-    width: wp(18),
-    height: wp(18),
-    borderRadius: wp(9),
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  orDividerWrap: { flexDirection: 'row', alignItems: 'center', marginVertical: hp(2.4) },
+  orDividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
+  orDividerText: { marginHorizontal: wp(2.3), fontSize: 10, color: '#94A3B8', fontWeight: '700', letterSpacing: 1.2 },
+  googleButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: hp(2),
   },
-  faceRecognitionText: {
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginTop: wp(2),
-    fontSize: 13,
-    fontWeight: '500',
+  googleIcon: { width: 20, height: 20, marginRight: wp(2) },
+  googleButtonText: { color: '#334155', fontWeight: '600', fontSize: 15 },
+  middleSpacer: { height: hp(3.2) },
+  firstTimeDividerWrap: { flexDirection: 'row', alignItems: 'center', marginBottom: hp(2.2) },
+  firstTimeDividerText: { marginHorizontal: wp(2.3), fontSize: 10, color: '#94A3B8', fontWeight: '700', letterSpacing: 1 },
+  newPortalTitle: { color: '#0F172A', fontWeight: '700', textAlign: 'center', fontSize: 19 },
+  newPortalSubtitle: { color: '#64748B', textAlign: 'center', marginTop: hp(0.7), marginBottom: hp(1.7), fontSize: 13, lineHeight: 19 },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 12,
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(2),
   },
-  footerText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: wp(2),
-  },
+  secondaryButtonText: { color: '#1E3A8A', fontWeight: '700', fontSize: 15 },
+  privacyRow: { marginTop: hp(2.4), borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: hp(2), flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  privacyText: { color: '#94A3B8', fontWeight: '600', fontSize: 10, letterSpacing: 1, marginHorizontal: wp(1) },
 });
 
 export default LandingPage;

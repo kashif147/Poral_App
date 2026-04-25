@@ -44,17 +44,47 @@ import { getMemberDetail } from './src/helpers/decode.helper';
 
 LogBox.ignoreAllLogs(true);
 
+const B2C_FLOW_STORAGE_KEY = 'azure_b2c_flow';
+const LOGIN_STATUS_STORAGE_KEY = 'login';
+
 function App() {
   const dispatch = useDispatch();
   const isSignedIn = useSelector(state => state.auth.isSignedIn);
   const isLoading = useSelector(state => state.auth.isLoading);
   const user = useSelector(state => state.auth.user);
   const [showWebView, setShowWebView] = useState(false);
+  const [authMode, setAuthMode] = useState('signin');
   const [showUnauthSplash, setShowUnauthSplash] = useState(true);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const navigationRef = useRef(null);
   const notificationUnsubscribeRef = useRef(null);
+
+  const saveFlowToStorage = flow => {
+    AsyncStorage.setItem(B2C_FLOW_STORAGE_KEY, flow).catch(() => {});
+  };
+
+  const buildAuthPayload = async (code, codeVerifier) => {
+    const data = {
+      code,
+      codeVerifier,
+    };
+
+    const storedFlow = await AsyncStorage.getItem(B2C_FLOW_STORAGE_KEY);
+    if (storedFlow) {
+      data.flow = storedFlow;
+    }
+
+    return data;
+  };
+
+  const finalizeSuccessfulAuth = async () => {
+    const storedFlow = await AsyncStorage.getItem(B2C_FLOW_STORAGE_KEY);
+    if (storedFlow) {
+      await AsyncStorage.removeItem(B2C_FLOW_STORAGE_KEY);
+    }
+    await AsyncStorage.setItem(LOGIN_STATUS_STORAGE_KEY, 'true');
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -135,10 +165,7 @@ function App() {
               return;
             }
 
-            const data = {
-              code: code,
-              codeVerifier: codeVerifier,
-            };
+            const data = await buildAuthPayload(code, codeVerifier);
 
             const response = await signInMicrosoftRequest(data);
 
@@ -180,6 +207,7 @@ function App() {
               if (response.data.user) {
                 dispatch(setUser(response.data.user));
               }
+              await finalizeSuccessfulAuth();
             } else {
               dispatch(setLoading(false));
               const errorMsg =
@@ -216,6 +244,20 @@ function App() {
   }, []);
 
   const handleLogin = () => {
+    setAuthMode('signin');
+    saveFlowToStorage('signin');
+    setShowWebView(true);
+  };
+
+  const handleGoogleLogin = () => {
+    setAuthMode('gmail');
+    saveFlowToStorage('gmail');
+    setShowWebView(true);
+  };
+
+  const handleSignUp = () => {
+    setAuthMode('signup');
+    saveFlowToStorage('signup');
     setShowWebView(true);
   };
 
@@ -242,10 +284,7 @@ function App() {
     if (result.code && result.codeVerifier) {
       dispatch(setLoading(true));
       try {
-        const data = {
-          code: result.code,
-          codeVerifier: result.codeVerifier,
-        };
+        const data = await buildAuthPayload(result.code, result.codeVerifier);
 
         const response = await signInMicrosoftRequest(data);
 
@@ -287,6 +326,7 @@ function App() {
           if (response.data.user) {
             dispatch(setUser(response.data.user));
           }
+          await finalizeSuccessfulAuth();
           try {
             const memberDetail = await getMemberDetail();
             dispatch(setDetail(memberDetail));
@@ -347,6 +387,7 @@ function App() {
         }
 
         dispatch(setSignedIn(true));
+        await finalizeSuccessfulAuth();
       } catch (error) {
         dispatch(setLoading(false));
         Alert.alert('Error', 'Failed to save authentication data');
@@ -498,10 +539,15 @@ function App() {
           ) : showOnboarding ? (
             <OnboardingScreen onComplete={handleOnboardingComplete} />
           ) : (
-            <LandingPage onLoginPress={handleLogin} />
+            <LandingPage
+              onLoginPress={handleLogin}
+              onGoogleLoginPress={handleGoogleLogin}
+              onSignUpPress={handleSignUp}
+            />
           )}
           <WebViewLogin
             visible={showWebView}
+            authMode={authMode}
             onClose={handleWebViewClose}
             onSuccess={handleLoginSuccess}
             onError={handleLoginError}
