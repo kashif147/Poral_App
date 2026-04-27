@@ -10,6 +10,13 @@ const SplashScreen = () => {
   const isIOS = Platform.OS === 'ios';
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(20)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const logoScale = useRef(new Animated.Value(0.95)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
+  const taglineTranslate = useRef(new Animated.Value(8)).current;
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const detailsOpacity = useRef(new Animated.Value(0)).current;
+  const detailsTranslate = useRef(new Animated.Value(14)).current;
 
   useEffect(() => {
     Animated.parallel(
@@ -27,6 +34,57 @@ const SplashScreen = () => {
       ],
       { stopTogether: false },
     ).start();
+
+    // 1.0s-1.5s: reveal logo + tagline as if wave is passing.
+    Animated.sequence([
+      Animated.delay(1000),
+      Animated.parallel([
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 420,
+          useNativeDriver: true,
+        }),
+        Animated.timing(logoScale, {
+          toValue: 1,
+          duration: 420,
+          useNativeDriver: true,
+        }),
+        Animated.timing(taglineOpacity, {
+          toValue: 1,
+          duration: 380,
+          useNativeDriver: true,
+        }),
+        Animated.timing(taglineTranslate, {
+          toValue: 0,
+          duration: 380,
+          useNativeDriver: true,
+        }),
+        Animated.timing(detailsOpacity, {
+          toValue: 1,
+          duration: 420,
+          useNativeDriver: true,
+        }),
+        Animated.timing(detailsTranslate, {
+          toValue: 0,
+          duration: 420,
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.timing(glowOpacity, {
+            toValue: 0.55,
+            duration: 260,
+            useNativeDriver: true,
+          }),
+          Animated.timing(glowOpacity, {
+            toValue: 0.28,
+            duration: 260,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+      // 1.5s-2.0s: hold final state briefly before parent flow navigates.
+      Animated.delay(500),
+    ]).start();
   }, []);
 
   const featureRows = [
@@ -56,7 +114,7 @@ const SplashScreen = () => {
           fadeDuration={0}
         />
         <LinearGradient
-          colors={['rgba(92, 108, 220, 0.42)', 'rgba(56, 69, 182, 0.58)', 'rgba(18, 24, 98, 0.78)']}
+          colors={['rgba(96, 121, 255, 0.62)', 'rgba(52, 72, 198, 0.76)', 'rgba(10, 18, 88, 0.90)']}
           start={{ x: 0, y: 0 }}
           end={{ x: 0, y: 1 }}
           style={StyleSheet.absoluteFillObject}
@@ -72,41 +130,68 @@ const SplashScreen = () => {
           },
         ]}
       >
-        <View style={styles.brandPill}>
+        <Animated.View style={[styles.logoGlow, { opacity: glowOpacity }]} />
+        <Animated.View
+          style={[
+            styles.brandPill,
+            {
+              opacity: logoOpacity,
+              transform: [{ scale: logoScale }],
+            },
+          ]}
+        >
           <View style={styles.logoWrap}>
             <Image source={IMAGES.LOGO} style={styles.logo} resizeMode="contain" />
           </View>
           <Text style={styles.brandText}>MemberHub</Text>
-        </View>
+        </Animated.View>
 
-        <Text style={styles.title}>
+        <Animated.Text
+          style={[
+            styles.title,
+            {
+              opacity: taglineOpacity,
+              transform: [{ translateY: taglineTranslate }],
+            },
+          ]}
+        >
           Your Gateway to{'\n'}
           <Text style={styles.titleAccent}>Excellence.</Text>
-        </Text>
-        <Text style={styles.subtitle}>
-          Manage your profile, track subscriptions, and handle payments in one secure, unified platform designed for our members.
-        </Text>
+        </Animated.Text>
+        <Animated.View
+          style={[
+            styles.detailsSection,
+            {
+              opacity: detailsOpacity,
+              transform: [{ translateY: detailsTranslate }],
+            },
+          ]}
+        >
+          <Text style={styles.subtitle}>
+            Manage your profile, track subscriptions, and handle payments in one secure, unified platform designed for our members.
+          </Text>
 
-        <View style={styles.featureList}>
-          {featureRows.map(item => (
-            <View style={styles.featureRow} key={item.label}>
-              <MCI name={item.icon} size={20} color="#E7EBFF" />
-              <Text style={styles.featureText}>{item.label}</Text>
+          <View style={styles.featureList}>
+            {featureRows.map(item => (
+              <View style={styles.featureRow} key={item.label}>
+                <MCI name={item.icon} size={20} color="#E7EBFF" />
+                <Text style={styles.featureText}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.bottomLine} />
+          <View style={styles.footer}>
+            <View style={styles.footerItem}>
+              <MCI name="lock-outline" size={18} color="#DDE4FF" />
+              <Text style={styles.footerText}>Bank-grade encryption</Text>
             </View>
-          ))}
-        </View>
-
-        <View style={styles.bottomLine} />
-        <View style={styles.footer}>
-          <View style={styles.footerItem}>
-            <MCI name="lock-outline" size={18} color="#DDE4FF" />
-            <Text style={styles.footerText}>Bank-grade encryption</Text>
+            <View style={styles.footerItem}>
+              <MCI name="web" size={18} color="#DDE4FF" />
+              <Text style={styles.footerText}>Global accessibility</Text>
+            </View>
           </View>
-          <View style={styles.footerItem}>
-            <MCI name="web" size={18} color="#DDE4FF" />
-            <Text style={styles.footerText}>Global accessibility</Text>
-          </View>
-        </View>
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -152,6 +237,15 @@ const styles = StyleSheet.create({
     marginTop: hp(2.8),
     marginBottom: hp(4),
   },
+  logoGlow: {
+    position: 'absolute',
+    top: hp(9.2),
+    left: wp(9.5),
+    width: wp(54),
+    height: hp(8.4),
+    borderRadius: 18,
+    backgroundColor: 'rgba(123, 181, 255, 0.32)',
+  },
   logoWrap: {
     width: wp(8.2),
     height: wp(8.2),
@@ -190,6 +284,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: hp(4),
     maxWidth: '90%',
+  },
+  detailsSection: {
+    flex: 1,
   },
   featureList: {
     marginBottom: hp(2.5),

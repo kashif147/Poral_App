@@ -47,31 +47,33 @@ export const DashboardPaymentCard = ({
         )}
       </View>
 
-      <View style={styles.membershipContainer}>
-        <Label style={styles.membershipLabel}>MEMBERSHIP NO</Label>
-        <Text style={styles.membershipValue}>
-          {membershipNumber || 'N/A'}
-        </Text>
-      </View>
+      <View style={styles.bottomRow}>
+        <View style={styles.membershipContainer}>
+          <Label style={styles.membershipLabel}>MEMBERSHIP NO</Label>
+          <Text style={styles.membershipValue}>
+            {membershipNumber || 'N/A'}
+          </Text>
+        </View>
 
-      <TouchableOpacity
-        style={[
-          styles.payNowButton,
-          !canPay && { backgroundColor: '#E5E7EB' },
-        ]}
-        onPress={canPay ? onPayNowPress : undefined}
-        activeOpacity={canPay ? 0.8 : 1}
-        disabled={!canPay}
-      >
-        <Text
+        <TouchableOpacity
           style={[
-            styles.payNowButtonText,
-            !canPay && { color: Colors.textSecondary },
+            styles.payNowButton,
+            !canPay && { backgroundColor: '#E5E7EB' },
           ]}
+          onPress={canPay ? onPayNowPress : undefined}
+          activeOpacity={canPay ? 0.8 : 1}
+          disabled={!canPay}
         >
-          Pay Now
-        </Text>
-      </TouchableOpacity>
+          <Text
+            style={[
+              styles.payNowButtonText,
+              !canPay && { color: Colors.textSecondary },
+            ]}
+          >
+            Pay Now
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -79,17 +81,16 @@ export const DashboardPaymentCard = ({
 const styles = StyleSheet.create({
   paymentCard: {
     marginHorizontal: 20,
-    marginVertical: 10,
+    marginVertical: 8,
     backgroundColor: Colors.cardBackground,
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 14,
+    padding: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
-    minHeight: 150,
-    justifyContent: 'space-between',
+    minHeight: 128,
   },
   paymentCardHeader: {
     flexDirection: 'row',
@@ -98,56 +99,64 @@ const styles = StyleSheet.create({
   },
   paymentCardTitle: {
     color: Colors.textPrimary,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
-  paymentCardContent: {},
+  paymentCardContent: {
+    marginTop: 4,
+    marginBottom: 10,
+  },
   paymentLabel: {
     color: '#616161',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   paymentAmount: {
     color: Colors.primary,
-    fontSize: 32,
+    fontSize: 22,
     fontWeight: 'bold',
   },
   paymentAmountNegative: {
     color: '#DC2626',
   },
+  bottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
   membershipContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    alignSelf: 'flex-start',
+    flexShrink: 1,
+    marginRight: 10,
   },
   membershipLabel: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
-    marginRight: 8,
+    marginRight: 6,
     textTransform: 'uppercase',
   },
   membershipValue: {
     color: Colors.textPrimary,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
   },
   payNowButton: {
-    marginTop: 16,
     backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: 10,
   },
   payNowButtonText: {
     color: Colors.white,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
 });

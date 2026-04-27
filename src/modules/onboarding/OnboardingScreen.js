@@ -87,7 +87,7 @@ const OnboardingScreen = ({ onComplete }) => {
         resizeMode="cover"
       />
       <LinearGradient
-        colors={['rgba(92, 108, 220, 0.42)', 'rgba(56, 69, 182, 0.58)', 'rgba(18, 24, 98, 0.78)']}
+        colors={['rgba(96, 121, 255, 0.62)', 'rgba(52, 72, 198, 0.76)', 'rgba(10, 18, 88, 0.90)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFillObject}
