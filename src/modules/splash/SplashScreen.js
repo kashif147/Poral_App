@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, Image, StyleSheet, Animated, StatusBar, Platform, ImageBackground } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import FontIcons from '../../utils/FontIcons';
@@ -8,10 +8,8 @@ import { IMAGES } from '../../assets/images';
 const SplashScreen = () => {
   const MCI = FontIcons.MATERIAL_COMMUNITY_ICONS;
   const isIOS = Platform.OS === 'ios';
-  const [bgReady, setBgReady] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateAnim = useRef(new Animated.Value(20)).current;
-  const bgContentOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel(
@@ -30,18 +28,6 @@ const SplashScreen = () => {
       { stopTogether: false },
     ).start();
   }, []);
-
-  useEffect(() => {
-    if (!bgReady) {
-      return;
-    }
-
-    Animated.timing(bgContentOpacity, {
-      toValue: 1,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [bgReady, bgContentOpacity]);
 
   const featureRows = [
     { icon: 'view-dashboard-outline', label: 'Personal Dashboard' },
@@ -62,20 +48,19 @@ const SplashScreen = () => {
         barStyle="light-content"
       />
       <View style={styles.backgroundLayer}>
-        <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: bgContentOpacity }]}>
-          <ImageBackground
-            source={IMAGES.SPLASH}
-            style={styles.backgroundImage}
-            resizeMode="cover"
-            onLoadEnd={() => setBgReady(true)}
-          />
-          <LinearGradient
-            colors={['rgba(92, 108, 220, 0.42)', 'rgba(56, 69, 182, 0.58)', 'rgba(18, 24, 98, 0.78)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
-          />
-        </Animated.View>
+        <ImageBackground
+          source={IMAGES.SPLASH}
+          defaultSource={IMAGES.SPLASH}
+          style={styles.backgroundImage}
+          resizeMode="cover"
+          fadeDuration={0}
+        />
+        <LinearGradient
+          colors={['rgba(92, 108, 220, 0.42)', 'rgba(56, 69, 182, 0.58)', 'rgba(18, 24, 98, 0.78)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
       </View>
       <Animated.View
         style={[
