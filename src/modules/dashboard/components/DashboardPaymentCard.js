@@ -7,13 +7,11 @@ import { Colors } from '../../../utils/Styles';
 export const DashboardPaymentCard = ({
   accountNetBalance,
   accountNetBalanceLoading,
-  membershipNumber,
   formatCurrency,
-  onPayNowPress,
-  canPay = true,
 }) => {
   const netAmount = accountNetBalance?.net ?? 0;
   const isNegativeBalance = typeof netAmount === 'number' && netAmount < 0;
+  const isPositiveBalance = typeof netAmount === 'number' && netAmount > 0;
 
   return (
     <View style={styles.paymentCard}>
@@ -39,40 +37,13 @@ export const DashboardPaymentCard = ({
           <Text
             style={[
               styles.paymentAmount,
-              isNegativeBalance && styles.paymentAmountNegative,
+              isNegativeBalance && styles.paymentAmountNegativeGreen,
+              isPositiveBalance && styles.paymentAmountPositiveRed,
             ]}
           >
-            {formatCurrency(isNegativeBalance ? Math.abs(netAmount) : netAmount)}
+            {formatCurrency(Math.abs(netAmount))}
           </Text>
         )}
-      </View>
-
-      <View style={styles.bottomRow}>
-        <View style={styles.membershipContainer}>
-          <Label style={styles.membershipLabel}>MEMBERSHIP NO</Label>
-          <Text style={styles.membershipValue}>
-            {membershipNumber || 'N/A'}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={[
-            styles.payNowButton,
-            !canPay && { backgroundColor: '#E5E7EB' },
-          ]}
-          onPress={canPay ? onPayNowPress : undefined}
-          activeOpacity={canPay ? 0.8 : 1}
-          disabled={!canPay}
-        >
-          <Text
-            style={[
-              styles.payNowButtonText,
-              !canPay && { color: Colors.textSecondary },
-            ]}
-          >
-            Pay Now
-          </Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -117,46 +88,10 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
   },
-  paymentAmountNegative: {
+  paymentAmountNegativeGreen: {
+    color: '#16A34A',
+  },
+  paymentAmountPositiveRed: {
     color: '#DC2626',
-  },
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  membershipContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    flexShrink: 1,
-    marginRight: 10,
-  },
-  membershipLabel: {
-    color: Colors.textSecondary,
-    fontSize: 9,
-    fontWeight: '600',
-    marginRight: 6,
-    textTransform: 'uppercase',
-  },
-  membershipValue: {
-    color: Colors.textPrimary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  payNowButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 9,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-  },
-  payNowButtonText: {
-    color: Colors.white,
-    fontSize: 14,
-    fontWeight: '700',
   },
 });

@@ -40,7 +40,7 @@ const Event = () => {
     {
       id: 1,
       title: 'Annual General Meeting 2024',
-      date: '22th February, 2026',
+      date: '22th May, 2026',
       time: '10:00 AM - 2:00 PM',
       location: 'Convention Center, Downtown',
       category: 'Meeting',
@@ -53,7 +53,7 @@ const Event = () => {
     {
       id: 2,
       title: 'Networking Mixer',
-      date: '23th February, 2026',
+      date: '23th May, 2026',
       time: '7:00 PM - 10:00 PM',
       location: 'Grand Hotel Ballroom',
       category: 'Networking',
@@ -66,7 +66,7 @@ const Event = () => {
     {
       id: 3,
       title: 'Leadership Webinar Series',
-      date: '27th February, 2026',
+      date: '27th May, 2026',
       time: '10:00 AM - 12:00 PM',
       location: 'Online',
       category: 'Webinar',
@@ -79,7 +79,7 @@ const Event = () => {
     {
       id: 4,
       title: 'Tech Skills Workshop',
-      date: '27th February, 2026',
+      date: '27th May, 2026',
       time: '2:00 PM - 5:00 PM',
       location: 'Tech Hub, Innovation Center',
       category: 'Workshop',
@@ -92,7 +92,7 @@ const Event = () => {
     {
       id: 5,
       title: 'Industry Conference 2024',
-      date: '28th February, 2026',
+      date: '28th May, 2026',
       time: '9:00 AM - 6:00 PM',
       location: 'International Convention Center',
       category: 'Conference',
@@ -105,7 +105,7 @@ const Event = () => {
     {
       id: 6,
       title: 'Digital Marketing',
-      date: '29th February, 2026',
+      date: '29th May, 2026',
       time: '1:00 PM - 4:00 PM',
       location: 'Online',
       category: 'Webinar',
@@ -118,7 +118,7 @@ const Event = () => {
     {
       id: 7,
       title: 'Member Appreciation Gala',
-      date: '1st March, 2026',
+      date: '1st May, 2026',
       time: '6:00 PM - 11:00 PM',
       location: 'Grand Ballroom, Luxury Hotel',
       category: 'Social',
@@ -131,7 +131,7 @@ const Event = () => {
     {
       id: 8,
       title: 'Professional Development Summit',
-      date: 'Aug 15, 2024',
+      date: 'Aug 15, 2026',
       time: '8:00 AM - 5:00 PM',
       location: 'Business Center',
       category: 'Conference',

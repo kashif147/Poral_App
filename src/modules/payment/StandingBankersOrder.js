@@ -20,16 +20,24 @@ import SignaturePad from '../../common/signaturePad';
 import { Button } from '../../common/button';
 import { Colors, hp, wp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { useProfile } from '../../contexts/profileContext';
 
 const StandingBankersOrder = () => {
   const { subscriptionDetail, categoryData, getCategoryData } = useApplication();
   const { categoryLookups } = useLookup();
+  const { profileDetail } = useProfile();
   const ibanInputRef = useRef(null);
   const [user, setUser] = useState(null);
 
   // Get category data
   const membershipCategory =
     subscriptionDetail?.subscriptionDetails?.membershipCategory;
+    const resolvedMembershipNumber =
+    profileDetail?.membershipNumber ||
+    profileDetail?.membershipId ||
+    user?.membershipNumber ||
+    user?.membershipId ||
+    null;
 
   // Form state
   const [formState, setFormState] = useState({
@@ -40,7 +48,7 @@ const StandingBankersOrder = () => {
     accountNumber: '',
     bic: '',
     iban: '',
-    message: '',
+    message: resolvedMembershipNumber || '',
     frequency: 'Monthly',
     amount: '',
     startDate: '',
@@ -113,7 +121,7 @@ const StandingBankersOrder = () => {
   const beneficiaryDetails = {
     accountName: 'Irish Nurses and Midwives Organization (INMO)',
     iban: 'IE99 BOFI 9000 1234 5678 99',
-    reference: `MEMB-2023-${user?.id || '0000'}`,
+    reference: `{resolvedMembershipNumber || '0000'}`,
   };
 
   // Auto-populate branch address based on bank selection

@@ -13,8 +13,8 @@ export const QUICK_ACTION_COLORS = {
 export const FEATURED_EVENT = {
   id: 1,
   title: 'Annual General Meeting Reminder',
-  date: 'March 15, 2026',
-  time: '10:00 AM - 2:00 PM',
+  date: 'April 29, 2026',
+  time: '4:00 PM - 6:00 PM',
   location: 'Convention Center, Downtown',
   category: 'Meeting',
   description: "Don't miss our most important meeting of the year. Register now to secure your spot.",
@@ -27,7 +27,7 @@ export const UPCOMING_EVENTS = [
   {
     id: 2,
     title: 'Networking Mixer',
-    date: 'March 25, 2026',
+    date: 'May 25, 2026',
     time: '7:00 PM - 10:00 PM',
     location: 'Grand Hotel Ballroom',
     category: 'Networking',
@@ -39,7 +39,7 @@ export const UPCOMING_EVENTS = [
   {
     id: 3,
     title: 'Leadership Webinar',
-    date: 'March 2, 2026',
+    date: 'May 2, 2026',
     time: '10:00 AM - 12:00 PM',
     location: 'Online',
     category: 'Webinar',
@@ -51,7 +51,7 @@ export const UPCOMING_EVENTS = [
   {
     id: 4,
     title: 'Tech Skills Workshop',
-    date: 'March 15, 2026',
+    date: 'May 15, 2026',
     time: '2:00 PM - 5:00 PM',
     location: 'Tech Hub, Innovation Center',
     category: 'Workshop',

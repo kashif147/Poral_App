@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Text,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
 import { Label } from '../../common/text/label';
 import { useNavigation } from '@react-navigation/native';
@@ -346,6 +347,11 @@ const DashBoard = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar
+        backgroundColor="#F8F5ED"
+        barStyle="dark-content"
+        translucent={false}
+      />
       <ScreenHeader showBack={false} title={`Dashboard`} />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -371,14 +377,7 @@ const DashBoard = () => {
           <DashboardPaymentCard
             accountNetBalance={accountNetBalance}
             accountNetBalanceLoading={accountNetBalanceLoading}
-            membershipNumber={resolvedMembershipNumber || 'N/A'}
             formatCurrency={formatCurrency}
-            onPayNowPress={() => {
-              if (canPay) {
-                setPaymentModalVisible(true);
-              }
-            }}
-            canPay={canPay}
           />
         ) : (
           <ApplicationStatusCard
@@ -396,14 +395,6 @@ const DashBoard = () => {
         <FeaturedEventCard
           event={FEATURED_EVENT}
           onPress={() => setSelectedEvent(FEATURED_EVENT)}
-          onRegisterPress={() =>
-            navigation.navigate(STACKS.EVENTS_STACK, {
-              screen: STACKS.EVENT_REGISTRATION,
-              params: {
-                event: getEventWithRegistrationData(FEATURED_EVENT),
-              },
-            })
-          }
         />
 
         {/* Quick Actions Section */}
@@ -607,6 +598,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   quickActionsGrid: {
+    paddingTop: 16,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
