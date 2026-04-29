@@ -5,23 +5,25 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Platform,
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Modal,
+  SafeAreaView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
+import { Buffer } from 'buffer';
+import { WebView } from 'react-native-webview';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, wp, hp } from '../../utils/Styles';
 import ScreenHeader from '../../common/screenHeader';
 import { useNotification } from '../../contexts/notificationContext';
 import { fetchNotificationRequest, readNotificationRequest, deleteNotificationRequest, deleteAllNotificationRequest } from '../../api/notification.api';
+import notification_request from '../../api/notification_request';
 import moment from 'moment';
 
 const Notifications = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const auth = useSelector(state => state.auth);
   const user = auth.user || auth.userDetail;
   const userId =
@@ -41,7 +43,179 @@ const Notifications = ({ navigation }) => {
   } = useNotification();
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('all'); // all, payment, subscription, unread
-    
+  const [pdfViewer, setPdfViewer] = useState({
+    visible: false,
+    html: '',
+  });
+
+  const buildPdfHtml = base64 => `
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+        <style>
+          html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #f3f4f6;
+          }
+          #status {
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #374151;
+            font-size: 14px;
+          }
+          #viewer {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+          }
+          .page-wrap {
+            margin: 0 auto 12px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            width: fit-content;
+          }
+          canvas {
+            display: block;
+          }
+        </style>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+      </head>
+      <body>
+        <div id="status">Loading PDF...</div>
+        <div id="viewer"></div>
+        <script>
+          (function () {
+            const base64 = '${base64}';
+            const status = document.getElementById('status');
+            const viewer = document.getElementById('viewer');
+
+            function base64ToUint8Array(b64) {
+              const raw = atob(b64);
+              const arr = new Uint8Array(raw.length);
+              for (let i = 0; i < raw.length; i += 1) {
+                arr[i] = raw.charCodeAt(i);
+              }
+              return arr;
+            }
+
+            async function renderPdf() {
+              try {
+                if (!window.pdfjsLib) {
+                  throw new Error('PDF engine failed to load');
+                }
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+                const pdfData = base64ToUint8Array(base64);
+                const pdf = await window.pdfjsLib.getDocument({ data: pdfData }).promise;
+                status.textContent = 'Rendering ' + pdf.numPages + ' page(s)...';
+
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum += 1) {
+                  const page = await pdf.getPage(pageNum);
+                  const baseViewport = page.getViewport({ scale: 1 });
+                  const targetWidth = Math.max(window.innerWidth - 16, 320);
+                  const fitScale = targetWidth / baseViewport.width;
+                  const viewport = page.getViewport({ scale: fitScale });
+                  const canvas = document.createElement('canvas');
+                  const context = canvas.getContext('2d');
+                  canvas.width = viewport.width;
+                  canvas.height = viewport.height;
+
+                  await page.render({
+                    canvasContext: context,
+                    viewport,
+                  }).promise;
+
+                  const wrap = document.createElement('div');
+                  wrap.className = 'page-wrap';
+                  wrap.appendChild(canvas);
+                  viewer.appendChild(wrap);
+                }
+
+                status.style.display = 'none';
+              } catch (error) {
+                status.textContent = 'Unable to render PDF';
+                status.style.color = '#dc2626';
+              }
+            }
+
+            renderPdf();
+          })();
+        </script>
+      </body>
+    </html>
+  `;
+
+  const resolveAttachmentPath = attachment => {
+    return (
+      attachment?.downloadUrl ||
+      attachment?.url ||
+      attachment?.path ||
+      ''
+    );
+  };
+
+  const resolvePdfAttachments = notif => {
+    const attachments = Array.isArray(notif?.attachments)
+      ? notif.attachments
+      : Array.isArray(notif?.metadata?.attachments)
+      ? notif.metadata.attachments
+      : [];
+
+    return attachments.filter(attachment =>
+      String(attachment?.mimeType || '')
+        .toLowerCase()
+        .includes('pdf'),
+    );
+  };
+
+  const handleDownloadAttachment = async attachment => {
+    const attachmentPath = resolveAttachmentPath(attachment);
+    const base64Data = attachment?.dataBase64 || attachment?.base64Data || '';
+
+    try {
+      if (attachmentPath) {
+        const requestPath = attachmentPath.startsWith('/')
+          ? attachmentPath
+          : `/${attachmentPath}`;
+
+        const response = await notification_request.get(requestPath, {
+          responseType: 'arraybuffer',
+        });
+
+        if (response?.status !== 200 || !response?.data) {
+          Alert.alert('Download failed', 'Failed to download attachment');
+          return;
+        }
+
+        const base64FromResponse = Buffer.from(response.data).toString('base64');
+        setPdfViewer({
+          visible: true,
+          html: buildPdfHtml(base64FromResponse),
+        });
+        return;
+      }
+
+      if (!attachmentPath && base64Data) {
+        setPdfViewer({
+          visible: true,
+          html: buildPdfHtml(base64Data),
+        });
+        return;
+      }
+
+      Alert.alert('Download failed', 'No attachment data found for this notification');
+    } catch (error) {
+      console.error('Attachment download failed:', error);
+      Alert.alert('Download failed', 'Failed to download attachment');
+    }
+  };
+
 
   // Fetch notifications from API
   const fetchNotifications = async () => {
@@ -64,21 +238,33 @@ const Notifications = ({ navigation }) => {
         }
         
         // Map API response to notification format
-        const mappedNotifications = notificationsList.map(notif => ({
-          messageId: notif._id || notif.messageId || notif.id || Date.now().toString(),
-          from: notif.from,
-          title: notif.title || 'Notification',
-          body: notif.body || notif.message || '',
-          read: notif.isRead || notif.read || false,
-          timestamp: notif.sentAt || notif.createdAt || notif.timestamp || new Date().toISOString(),
-          data: notif.data || {},
-          // Extract type from data or infer from title/body
-          type: notif.data?.type || (notif.title?.toLowerCase().includes('payment') ? 'payment' : 'subscription'),
-          // Format time
-          time: (notif.sentAt || notif.createdAt || notif.timestamp) 
-            ? moment(notif.sentAt || notif.createdAt || notif.timestamp).fromNow() 
-            : 'Just now',
-        }));
+        const mappedNotifications = notificationsList.map(notif => {
+          const pdfAttachments = resolvePdfAttachments(notif);
+          return {
+            messageId: notif._id || notif.messageId || notif.id || Date.now().toString(),
+            from: notif.from,
+            title: notif.title || 'Notification',
+            body: notif.body || notif.message || '',
+            read: notif.isRead || notif.read || false,
+            timestamp:
+              notif.sentAt || notif.createdAt || notif.timestamp || new Date().toISOString(),
+            data: notif.data || {},
+            attachments: Array.isArray(notif?.attachments)
+              ? notif.attachments
+              : Array.isArray(notif?.metadata?.attachments)
+              ? notif.metadata.attachments
+              : [],
+            pdfAttachments,
+            // Extract type from data or infer from title/body
+            type:
+              notif.data?.type ||
+              (notif.title?.toLowerCase().includes('payment') ? 'payment' : 'subscription'),
+            // Format time
+            time: notif.sentAt || notif.createdAt || notif.timestamp
+              ? moment(notif.sentAt || notif.createdAt || notif.timestamp).fromNow()
+              : 'Just now',
+          };
+        });
         
         setNotificationsValue(mappedNotifications);
         
@@ -279,6 +465,43 @@ const Notifications = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <Modal
+        visible={pdfViewer.visible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        statusBarTranslucent={false}
+        onRequestClose={() =>
+          setPdfViewer({ visible: false, html: '' })
+        }>
+        <SafeAreaView style={styles.pdfModalContainer}>
+          <View style={styles.pdfModalHeader}>
+            <Text style={styles.pdfModalTitle}>PDF Attachment</Text>
+            <TouchableOpacity
+              onPress={() =>
+                setPdfViewer({ visible: false, html: '' })
+              }
+              style={styles.pdfModalCloseButton}>
+              <Ionicons name="close" size={24} color={Colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <WebView
+            source={{ html: pdfViewer.html || '<html><body></body></html>' }}
+            style={styles.pdfWebView}
+            startInLoadingState={true}
+            renderLoading={() => (
+              <View style={styles.pdfLoadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Opening PDF...</Text>
+              </View>
+            )}
+            onError={() => {
+              setPdfViewer({ visible: false, html: '' });
+              Alert.alert('Download failed', 'Unable to open PDF attachment');
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
+
       {/* Header */}
       <ScreenHeader title="Notifications" />
       
@@ -460,17 +683,45 @@ const Notifications = ({ navigation }) => {
                               : '📋 Subscription'}
                           </Text>
                         </View>
+                        {notification.pdfAttachments?.length > 0 && (
+                          <View style={styles.pdfBadge}>
+                            <Ionicons
+                              name="document-text-outline"
+                              size={11}
+                              color="#B91C1C"
+                            />
+                            <Text style={styles.pdfBadgeText}>PDF</Text>
+                          </View>
+                        )}
                       </View>
-                      {!notification.read && (
-                        <TouchableOpacity
-                          onPress={() => markAsRead(notification.messageId)}
-                          style={styles.markReadButton}
-                        >
-                          <Text style={styles.markReadButtonText}>
-                            Mark as read
-                          </Text>
-                        </TouchableOpacity>
-                      )}
+                      <View style={styles.footerActions}>
+                        {notification.pdfAttachments?.length > 0 && (
+                          <TouchableOpacity
+                            onPress={() =>
+                              handleDownloadAttachment(notification.pdfAttachments[0])
+                            }
+                            style={styles.downloadPdfButton}>
+                            <Ionicons
+                              name="download-outline"
+                              size={14}
+                              color="#DC2626"
+                            />
+                            <Text style={styles.downloadPdfButtonText}>
+                              Download PDF
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                        {!notification.read && (
+                          <TouchableOpacity
+                            onPress={() => markAsRead(notification.messageId)}
+                            style={styles.markReadButton}
+                          >
+                            <Text style={styles.markReadButtonText}>
+                              Mark as read
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -647,11 +898,13 @@ const styles = StyleSheet.create({
   notificationFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   footerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     flex: 1,
   },
   notificationTime: {
@@ -679,6 +932,39 @@ const styles = StyleSheet.create({
   },
   typeBadgeTextSubscription: {
     color: '#7C3AED',
+  },
+  pdfBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  pdfBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#B91C1C',
+  },
+  footerActions: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  downloadPdfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+  },
+  downloadPdfButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#DC2626',
   },
   markReadButton: {
     paddingHorizontal: 12,
@@ -728,6 +1014,38 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 14,
     color: Colors.textSecondary,
+  },
+  pdfModalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  pdfModalHeader: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: Colors.surface,
+  },
+  pdfModalTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+  },
+  pdfModalCloseButton: {
+    padding: 4,
+  },
+  pdfWebView: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  pdfLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.background,
   },
 });
 

@@ -11,6 +11,7 @@ import { useApplication } from '../../contexts/applicationContext';
 import { applicationConfirmationRequest } from '../../api/application.api';
 import StandingBankersOrder from './StandingBankersOrder';
 import DirectDebit from './DirectDebit';
+import SalaryDeduction from './SalaryDeduction';
 import ScreenHeader from '../../common/screenHeader';
 import { Colors, hp, wp } from '../../utils/Styles';
 
@@ -42,7 +43,15 @@ const PaymentMethod = () => {
       return 'Direct Debit';
     }
 
-    // Return null for unrecognized payment types (Credit Card, Salary Deduction, etc.)
+    // Handle Salary Deduction / Deduction at Source
+    if (
+      (normalized.includes('salary') && normalized.includes('deduction')) ||
+      (normalized.includes('deduction') && normalized.includes('source'))
+    ) {
+      return 'Salary Deduction';
+    }
+
+    // Return null for unrecognized payment types (Credit Card, etc.)
     return null;
   };
 
@@ -104,10 +113,11 @@ const PaymentMethod = () => {
     loading,
   ]);
 
-  // Payment type options - only Standing Banking Order and Direct Debit
+  // Payment type options supported in mobile flow
   const paymentTypes = [
     { value: 'Standing Banking Order', label: 'Standing Banking Order' },
     { value: 'Direct Debit', label: 'Direct Debit' },
+    { value: 'Salary Deduction', label: 'Salary Deduction' },
   ];
 
   // Render the appropriate payment component
@@ -121,6 +131,8 @@ const PaymentMethod = () => {
         return <StandingBankersOrder />;
       case 'Direct Debit':
         return <DirectDebit />;
+      case 'Salary Deduction':
+        return <SalaryDeduction />;
       default:
         return null;
     }

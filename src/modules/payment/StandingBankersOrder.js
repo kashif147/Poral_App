@@ -121,7 +121,7 @@ const StandingBankersOrder = () => {
   const beneficiaryDetails = {
     accountName: 'Irish Nurses and Midwives Organization (INMO)',
     iban: 'IE99 BOFI 9000 1234 5678 99',
-    reference: `{resolvedMembershipNumber || '0000'}`,
+    reference: `${resolvedMembershipNumber} || '0000'`,
   };
 
   // Auto-populate branch address based on bank selection
