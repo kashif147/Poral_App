@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Image, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { Colors, wp, hp } from '../../utils/Styles';
 import PersonalInformation from '../application/PersonalInformation';
 import { Button } from '../../common/button';
@@ -33,6 +33,7 @@ const Profile = () => {
 
   const [loading, setLoading] = useState(false);
   const [personalInfo, setPersonalInfo] = useState({});
+  const [showValidation, setShowValidation] = useState(false);
   const [showPersonalInfoForm, setShowPersonalInfoForm] = useState(false);
   const [localProfileImage, setLocalProfileImage] = useState(null);
   
@@ -124,6 +125,7 @@ const Profile = () => {
   };
 
   const handleSave = async () => {
+    setShowValidation(true);
     setLoading(true);
     try {
       // Build payload for application API
@@ -207,8 +209,11 @@ const Profile = () => {
       // Update both APIs if they exist (matching web version)
       const requests = [];
 
-      if (personalDetail?.applicationId) {
-        requests.push(updatePersonalDetailRequest(personalDetail.applicationId, personalInfoData));
+      const resolvedApplicationId =
+        personalDetail?.ApplicationId || personalDetail?.applicationId;
+
+      if (resolvedApplicationId) {
+        requests.push(updatePersonalDetailRequest(resolvedApplicationId, personalInfoData));
       }
 
       if (profileByIdDetail) {
@@ -226,12 +231,13 @@ const Profile = () => {
 
       if (allOk) {
         Alert.alert('Success', 'Personal detail updated successfully');
-        if (personalDetail?.applicationId) {
+        if (resolvedApplicationId) {
           getPersonalDetail?.();
         }
         if (profileDetail?.profileId) {
           getProfileByIdDetail(profileDetail.profileId);
         }
+        setShowValidation(false);
         setShowPersonalInfoForm(false);
       } else {
         const firstError = responses.find(r => r?.status !== 200);
@@ -322,6 +328,18 @@ const Profile = () => {
             <Text style={styles.profileId}>
               {profileDetail?.membershipNumber ? `Member ID: ${profileDetail.membershipNumber}` : profileDetail?.profileId ? 'Member' : 'Non Member'}
             </Text>
+            {isMember && (
+              <TouchableOpacity
+                style={styles.editProfileButton}
+                onPress={() => {
+                  setShowValidation(false);
+                  setShowPersonalInfoForm(true);
+                }}
+                activeOpacity={0.8}>
+                <Ionicons name="create-outline" size={16} color={Colors.white} />
+                <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Personal Information Section */}
@@ -331,7 +349,10 @@ const Profile = () => {
             {isMember ? (
               <TouchableOpacity 
                 style={styles.listItem} 
-                onPress={() => setShowPersonalInfoForm(!showPersonalInfoForm)}
+                onPress={() => {
+                  setShowValidation(false);
+                  setShowPersonalInfoForm(true);
+                }}
                 activeOpacity={0.7}
               >
                 <View style={styles.listItemIcon}>
@@ -481,42 +502,65 @@ const Profile = () => {
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
 
-          {/* Edit Form Modal (shown when clicking items) */}
-          {showPersonalInfoForm && (
-            <View style={styles.formModal}>
-              <View style={styles.formHeader}>
-                <Text style={styles.formTitle}>Edit Personal Information</Text>
-                <TouchableOpacity onPress={() => setShowPersonalInfoForm(false)}>
-                  <Ionicons name="close" size={24} color={Colors.textPrimary} />
-                </TouchableOpacity>
-              </View>
-              
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Edit Form Modal */}
+      <Modal
+        visible={showPersonalInfoForm}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setShowValidation(false);
+          setShowPersonalInfoForm(false);
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.formModal}>
+            <View style={styles.formHeader}>
+              <Text style={styles.formTitle}>Edit Personal Information</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowValidation(false);
+                  setShowPersonalInfoForm(false);
+                }}>
+                <Ionicons name="close" size={24} color={Colors.textPrimary} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.formScroll}
+              contentContainerStyle={{ paddingBottom: 24 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled">
               <PersonalInformation
                 formData={personalInfo}
                 onFormDataChange={setPersonalInfo}
-                showValidation={false}
+                showValidation={showValidation}
               />
-              
-              <View style={{ flexDirection: 'row', marginTop: 20, gap: 12 }}>
-                <Button 
-                  title={loading ? 'Saving…' : 'Save Changes'} 
-                  onPress={handleSave} 
-                  primary 
-                  style={{ flex: 1 }}
-                  disabled={loading}
-                />
-                <Button 
-                  title={'Cancel'} 
-                  onPress={() => setShowPersonalInfoForm(false)} 
-                  outlined 
-                  style={{ flex: 1 }}
-                  disabled={loading}
-                />
-              </View>
+            </ScrollView>
+
+            <View style={styles.formActions}>
+              <Button
+                title={loading ? 'Saving…' : 'Save Changes'}
+                onPress={handleSave}
+                primary
+                style={{ flex: 1 }}
+                disabled={loading}
+              />
+              <Button
+                title="Cancel"
+                onPress={() => {
+                  setShowValidation(false);
+                  setShowPersonalInfoForm(false);
+                }}
+                outlined
+                style={{ flex: 1 }}
+                disabled={loading}
+              />
             </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -601,6 +645,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontWeight: '400',
+  },
+  editProfileButton: {
+    marginTop: 14,
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  editProfileButtonText: {
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   // Section Container
@@ -704,8 +763,9 @@ const styles = StyleSheet.create({
   // Form Modal
   formModal: {
     backgroundColor: Colors.white,
-    marginHorizontal: 16,
-    marginTop: 24,
+    marginHorizontal: 12,
+    marginTop: hp(6),
+    marginBottom: hp(3),
     padding: 16,
     borderRadius: 16,
     shadowColor: '#000',
@@ -713,6 +773,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 6,
+    flex: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  formScroll: {
+    flex: 1,
   },
   formHeader: {
     flexDirection: 'row',
@@ -727,6 +795,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: Colors.textPrimary,
+  },
+  formActions: {
+    flexDirection: 'row',
+    marginTop: 14,
+    gap: 12,
   },
 });
 

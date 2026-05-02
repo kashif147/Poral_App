@@ -30,6 +30,7 @@ const SalaryDeduction = () => {
     date: '',
   });
   const [showValidation, setShowValidation] = useState(false);
+  const [signatureDrawing, setSignatureDrawing] = useState(false);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -153,7 +154,9 @@ const SalaryDeduction = () => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={!signatureDrawing}
+        keyboardShouldPersistTaps="handled">
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIcon}>
@@ -248,6 +251,7 @@ const SalaryDeduction = () => {
               value={formState.signature}
               required={true}
               showValidation={showValidation}
+              onDrawingActiveChange={setSignatureDrawing}
             />
           </View>
 

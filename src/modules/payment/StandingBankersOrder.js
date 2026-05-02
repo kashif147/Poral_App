@@ -62,6 +62,17 @@ const StandingBankersOrder = () => {
 
   const [showValidation, setShowValidation] = useState(false);
   const [ibanError, setIbanError] = useState('');
+  const signatureDrawLockRef = useRef(0);
+  const [scrollEnabled, setScrollEnabled] = useState(true);
+
+  const handleSignatureDrawingActive = active => {
+    if (active) {
+      signatureDrawLockRef.current += 1;
+    } else {
+      signatureDrawLockRef.current = Math.max(0, signatureDrawLockRef.current - 1);
+    }
+    setScrollEnabled(signatureDrawLockRef.current === 0);
+  };
 
   // Load user data
   useEffect(() => {
@@ -316,7 +327,9 @@ const StandingBankersOrder = () => {
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={scrollEnabled}
+        keyboardShouldPersistTaps="handled">
         {/* Your Account Details Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -620,6 +633,7 @@ const StandingBankersOrder = () => {
               value={formState.accountHolderSignature}
               required={true}
               showValidation={showValidation}
+              onDrawingActiveChange={handleSignatureDrawingActive}
             />
             <DatePicker
               label="Date"
@@ -642,6 +656,7 @@ const StandingBankersOrder = () => {
               value={formState.secondSignature}
               required={false}
               showValidation={showValidation}
+              onDrawingActiveChange={handleSignatureDrawingActive}
             />
             <DatePicker
               label="Date"

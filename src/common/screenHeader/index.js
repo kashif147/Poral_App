@@ -6,7 +6,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../utils/Styles';
 import { IMAGES } from '../../assets/images';
@@ -14,12 +14,33 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useProfile } from '../../contexts/profileContext';
 import { Label } from '../text/label';
 import { useNotification } from '../../contexts/notificationContext';
+import { fetchNotificationRequest } from '../../api/notification.api';
 
 const ScreenHeader = ({ title, showBack }) => {
   const { profileDetail } = useProfile();
-  const { unreadCount } = useNotification();
+  const { unreadCount, setUnreadCountValue } = useNotification();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+
+  const syncUnreadCount = React.useCallback(async () => {
+    try {
+      const response = await fetchNotificationRequest({ page: 1, limit: 1 });
+      if (response?.status === 200 && response?.data?.success) {
+        const apiUnreadCount = response?.data?.data?.unreadCount;
+        if (typeof apiUnreadCount === 'number') {
+          setUnreadCountValue(apiUnreadCount);
+        }
+      }
+    } catch (error) {
+      // Keep existing count if sync fails
+    }
+  }, [setUnreadCountValue]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      syncUnreadCount();
+    }, [syncUnreadCount]),
+  );
 
   const handleBack = () => {
     if (navigation.canGoBack()) {

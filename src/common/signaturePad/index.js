@@ -10,6 +10,8 @@ const SignaturePad = ({
   required = false,
   showValidation = false,
   disabled = false,
+  /** When the user starts/ends a stroke; use to set ScrollView scrollEnabled={false} while true. */
+  onDrawingActiveChange,
 }) => {
   const signatureRef = useRef(null);
   const [hasSignature, setHasSignature] = useState(!!value);
@@ -44,6 +46,19 @@ const SignaturePad = ({
     if (signatureRef.current) {
       signatureRef.current.readSignature();
     }
+  };
+
+  const handleBegin = () => {
+    if (!disabled) {
+      onDrawingActiveChange?.(true);
+    }
+  };
+
+  const handleEndStroke = () => {
+    if (!disabled) {
+      onDrawingActiveChange?.(false);
+    }
+    handleEnd();
   };
 
   const isEmpty = required && !hasSignature && showValidation;
@@ -93,11 +108,13 @@ const SignaturePad = ({
           styles.signatureContainer,
           isEmpty && styles.signatureContainerError,
           disabled && styles.signatureContainerDisabled,
-        ]}>
+        ]}
+        collapsable={false}>
         <SignatureCanvas
           ref={signatureRef}
           onOK={handleOK}
-          onEnd={handleEnd}
+          onBegin={handleBegin}
+          onEnd={handleEndStroke}
           descriptionText=""
           clearText="Clear"
           confirmText="Save"
