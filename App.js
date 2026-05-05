@@ -26,6 +26,7 @@ import {
 import { deleteVerifier } from './src/helpers/verifier.helper';
 import { signInMicrosoftRequest } from './src/api/auth.api';
 import WebViewLogin from './src/common/WebViewLogin';
+import { buildB2CAuthorizeUrl } from './src/helpers/b2cMobileAuthorize';
 import {
   getFcmToken,
   registerListenerWithFcm,
@@ -249,10 +250,18 @@ function App() {
     setShowWebView(true);
   };
 
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setAuthMode('gmail');
     saveFlowToStorage('gmail');
-    setShowWebView(true);
+    try {
+      const { authUrl } = await buildB2CAuthorizeUrl('gmail');
+      await Linking.openURL(authUrl);
+    } catch (e) {
+      Alert.alert(
+        'Error',
+        e?.message || 'Failed to start Google sign-in. Please try again.',
+      );
+    }
   };
 
   const handleSignUp = () => {

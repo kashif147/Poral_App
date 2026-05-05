@@ -5,18 +5,13 @@ import {
   StyleSheet,
   ActivityIndicator,
   Linking,
-  Platform,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import { generatePKCE } from '../../helpers/crypt.helper';
-import { setVerifier, getVerifier } from '../../helpers/verifier.helper';
-
-const POLICY_BY_MODE = {
-  signin: 'B2C_1_projectshell_signin',
-  signup: 'B2C_1_projectshell_signup',
-  gmail: 'B2C_1_projectshell_signup_signin_gmail',
-  default: 'B2C_1_projectshell',
-};
+import { getVerifier } from '../../helpers/verifier.helper';
+import {
+  buildB2CAuthorizeUrl,
+  getB2CRedirectUri,
+} from '../../helpers/b2cMobileAuthorize';
 
 const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onError }) => {
   const [loading, setLoading] = useState(true);
@@ -25,52 +20,16 @@ const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onErro
   const [codeVerifier, setCodeVerifier] = useState(null);
   const webViewRef = React.useRef(null);
 
-  const getRedirectUri = () => {
-    return Platform.OS === 'android'
-      ? 'com.portal://com.portal/android/callback'
-      : 'com.portal://com.portal/ios/callback';
-  };
-
-  // Generate PKCE and create auth URL when modal opens
+  // Generate PKCE and create auth URL when modal opens (shared helper)
   useEffect(() => {
     if (visible) {
       const initializeAuth = async () => {
         try {
-          // Generate PKCE
-          const { code_verifier, code_challenge } = await generatePKCE();
-
-          // Save code_verifier
-          await setVerifier(code_verifier);
-          setCodeVerifier(code_verifier);
-
-          // Build auth URL with PKCE
-          const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309';
-          const tenant = 'projectshellAB2C.onmicrosoft.com';
-          const policy = POLICY_BY_MODE[authMode] || POLICY_BY_MODE.default;
-          const b2cDomain = 'projectshellAB2C.b2clogin.com';
-          const redirectUri = getRedirectUri();
-
-          const url = new URL(
-            `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/authorize`,
-          );
-
-          const params = {
-            client_id: clientId,
-            response_type: 'code',
-            redirect_uri: redirectUri,
-            scope: 'openid profile offline_access',
-            response_mode: 'query',
-            code_challenge: code_challenge,
-            code_challenge_method: 'S256',
-            prompt: 'login',
-          };
-
-          Object.keys(params).forEach(key =>
-            url.searchParams.append(key, params[key]),
-          );
-
-          console.log('Auth URL with PKCE:', url.toString(), 'mode:', authMode);
-          setAuthUrl(url.toString());
+          const { authUrl: nextUrl, codeVerifier: verifier } =
+            await buildB2CAuthorizeUrl(authMode);
+          setCodeVerifier(verifier);
+          console.log('Auth URL with PKCE:', nextUrl, 'mode:', authMode);
+          setAuthUrl(nextUrl);
           setLoading(true);
         } catch (error) {
           console.error('Error initializing auth:', error);
@@ -312,7 +271,7 @@ const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onErro
     const b2cDomain = 'projectshellAB2C.b2clogin.com';
 
     // Use provided redirectUri or default based on platform
-    const finalRedirectUri = redirectUri || getRedirectUri();
+    const finalRedirectUri = redirectUri || getB2CRedirectUri();
 
     const tokenUrl = `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`;
 
