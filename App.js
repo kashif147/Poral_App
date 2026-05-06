@@ -60,6 +60,9 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const navigationRef = useRef(null);
   const notificationUnsubscribeRef = useRef(null);
+  const notificationsInitializedRef = useRef(false);
+  const notificationSetupTimeoutRef = useRef(null);
+  const notificationRetryTimeoutRef = useRef(null);
 
   const saveFlowToStorage = flow => {
     AsyncStorage.setItem(B2C_FLOW_STORAGE_KEY, flow).catch(() => {});
@@ -441,6 +444,11 @@ function App() {
   // Initialize FCM when user is signed in
   useEffect(() => {
     if (isSignedIn) {
+      if (notificationsInitializedRef.current) {
+        return undefined;
+      }
+      notificationsInitializedRef.current = true;
+
       const initializeNotifications = async () => {
         try {
           console.log('Initializing FCM notifications...');
@@ -468,12 +476,12 @@ function App() {
           console.log('FCM Token from AsyncStorage:', storedToken);
 
           // Wait a bit for navigation to be ready
-          setTimeout(() => {
+          notificationSetupTimeoutRef.current = setTimeout(() => {
             if (navigationRef.current) {
               const unsubscribe = registerListenerWithFcm(navigationRef);
               notificationUnsubscribeRef.current = unsubscribe;
             } else {
-              setTimeout(() => {
+              notificationRetryTimeoutRef.current = setTimeout(() => {
                 if (navigationRef.current) {
                   const unsubscribe = registerListenerWithFcm(navigationRef);
                   notificationUnsubscribeRef.current = unsubscribe;
@@ -490,7 +498,16 @@ function App() {
 
       initializeNotifications();
     } else {
+      notificationsInitializedRef.current = false;
       // Clean up on logout
+      if (notificationSetupTimeoutRef.current) {
+        clearTimeout(notificationSetupTimeoutRef.current);
+        notificationSetupTimeoutRef.current = null;
+      }
+      if (notificationRetryTimeoutRef.current) {
+        clearTimeout(notificationRetryTimeoutRef.current);
+        notificationRetryTimeoutRef.current = null;
+      }
       if (notificationUnsubscribeRef.current) {
         notificationUnsubscribeRef.current();
         notificationUnsubscribeRef.current = null;
@@ -501,12 +518,20 @@ function App() {
     }
 
     return () => {
+      if (notificationSetupTimeoutRef.current) {
+        clearTimeout(notificationSetupTimeoutRef.current);
+        notificationSetupTimeoutRef.current = null;
+      }
+      if (notificationRetryTimeoutRef.current) {
+        clearTimeout(notificationRetryTimeoutRef.current);
+        notificationRetryTimeoutRef.current = null;
+      }
       if (notificationUnsubscribeRef.current) {
         notificationUnsubscribeRef.current();
         notificationUnsubscribeRef.current = null;
       }
     };
-  }, [isSignedIn, user]);
+  }, [isSignedIn]);
 
   if (isLoading || (!isSignedIn && showUnauthSplash)) {
     return <SplashScreen />;

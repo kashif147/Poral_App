@@ -1,17 +1,31 @@
 import messaging from '@react-native-firebase/messaging';
 import { PERMISSIONS, request } from 'react-native-permissions';
-import notifee, { EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance, AndroidStyle, AndroidVisibility, EventType } from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { registerToken } from '../api/notification.api';
 
+const NOTIFICATION_CHANNEL_ID = 'portal_default_v2';
+
 // Store notification context methods globally for notification handlers
 let notificationContextMethods = null;
+let activeForegroundUnsubscribe = null;
+let activeNotificationOpenedUnsubscribe = null;
+let isNotifeeBackgroundHandlerRegistered = false;
 
 // Function to set notification context methods (called from component)
 const setNotificationContextMethods = (methods) => {
   notificationContextMethods = methods;
+};
+
+const ensureDefaultChannel = async () => {
+  const channelId = await notifee.createChannel({
+    id: NOTIFICATION_CHANNEL_ID,
+    name: 'Portal Notifications',
+    importance: AndroidImportance.HIGH,
+  });
+  return channelId;
 };
 
 // Generate or retrieve persistent device ID
@@ -81,6 +95,16 @@ const registerFcmTokenWithBackend = async (fcmToken, userId, tenantId, deviceId,
 
 const getFcmToken = async (userData = null) => {
   let token = null;
+  await messaging().setAutoInitEnabled(true);
+  if (Platform.OS === 'android') {
+    try {
+      // Keep notification handling in-app for consistent shade behavior.
+      await messaging().setNotificationDelegationEnabled(false);
+    } catch (error) {
+      console.log('Unable to disable Android notification delegation', error);
+    }
+  }
+  await ensureDefaultChannel();
   await checkApplicationNotificationsPermission();
   await registerAppWithFcm();
   try {
@@ -240,16 +264,38 @@ const unRegisterAppWithFcm = async () => {
 };
 
 const registerListenerWithFcm = (navigationRef) => {
+  if (activeForegroundUnsubscribe) {
+    return () => {
+      if (activeForegroundUnsubscribe) {
+        activeForegroundUnsubscribe();
+        activeForegroundUnsubscribe = null;
+      }
+      if (activeNotificationOpenedUnsubscribe) {
+        activeNotificationOpenedUnsubscribe();
+        activeNotificationOpenedUnsubscribe = null;
+      }
+    };
+  }
+
   const unsubscribe = messaging().onMessage(async remoteMessage => {
     console.log('Foreground message received', remoteMessage);
     
     // Handle new payload structure: { from, messageId, notification: { title, body } }
-    const notificationTitle = remoteMessage?.notification?.title;
-    const notificationBody = remoteMessage?.notification?.body;
+    const notificationTitle =
+      remoteMessage?.notification?.title ||
+      remoteMessage?.data?.title ||
+      'Notification';
+    const notificationBody =
+      remoteMessage?.notification?.body ||
+      remoteMessage?.data?.body ||
+      remoteMessage?.data?.message ||
+      remoteMessage?.data?.detail?.message ||
+      remoteMessage?.data?.details?.message ||
+      '';
     const messageId = remoteMessage?.messageId;
     const from = remoteMessage?.from;
     
-    if (notificationTitle && notificationBody) {
+    if (notificationTitle || notificationBody) {
       // Display notification
       onDisplayNotificaiton(
         notificationTitle,
@@ -274,28 +320,31 @@ const registerListenerWithFcm = (navigationRef) => {
   });
 
   // Merged background event handler
-  notifee.onBackgroundEvent(async ({ type, detail }) => {
-    const { notification, pressAction } = detail;
-    
-    switch (type) {
-      case EventType.DISMISSED:
-        console.log('notification dismissed', notification);
-        break;
-      case EventType.PRESS:
-        console.log('notification pressed', notification);
-        handleNotificationOpenApp(notification, navigationRef);
-        break;
-      case EventType.ACTION_PRESS:
-        if (pressAction?.id === 'mark-as-read') {
-          console.log('onBackgroundEvent: mark-as-read', notification);
+  if (!isNotifeeBackgroundHandlerRegistered) {
+    isNotifeeBackgroundHandlerRegistered = true;
+    notifee.onBackgroundEvent(async ({ type, detail }) => {
+      const { notification, pressAction } = detail;
+      
+      switch (type) {
+        case EventType.DISMISSED:
+          console.log('notification dismissed', notification);
+          break;
+        case EventType.PRESS:
+          console.log('notification pressed', notification);
           handleNotificationOpenApp(notification, navigationRef);
-          await notifee.dismissNotification(notification.id);
-        }
-        break;
-    }
-  });
+          break;
+        case EventType.ACTION_PRESS:
+          if (pressAction?.id === 'mark-as-read') {
+            console.log('onBackgroundEvent: mark-as-read', notification);
+            handleNotificationOpenApp(notification, navigationRef);
+            await notifee.dismissNotification(notification.id);
+          }
+          break;
+      }
+    });
+  }
 
-  messaging().onNotificationOpenedApp(remoteMessage => {
+  activeNotificationOpenedUnsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
     console.log('notification opened app', remoteMessage);
     handleNotificationOpenApp(remoteMessage, navigationRef);
   });
@@ -309,7 +358,18 @@ const registerListenerWithFcm = (navigationRef) => {
       }
     });
     
-  return unsubscribe;
+  activeForegroundUnsubscribe = unsubscribe;
+
+  return () => {
+    if (activeForegroundUnsubscribe) {
+      activeForegroundUnsubscribe();
+      activeForegroundUnsubscribe = null;
+    }
+    if (activeNotificationOpenedUnsubscribe) {
+      activeNotificationOpenedUnsubscribe();
+      activeNotificationOpenedUnsubscribe = null;
+    }
+  };
 };
 
 const handleNotificationOpenApp = (remoteMessageOrNotification, navigationRef) => {
@@ -354,16 +414,30 @@ const onDisplayNotificaiton = async (title, body, data) => {
   console.log('displaying notification', JSON.stringify(data));
   await notifee.requestPermission();
 
-  const channelId = await notifee.createChannel({
-    id: 'default',
-    name: 'Default Channel',
-  });
+  const channelId = await ensureDefaultChannel();
+  const resolvedBody =
+    body ||
+    data?.body ||
+    data?.message ||
+    data?.detail?.message ||
+    data?.details?.message ||
+    '';
+
   await notifee.displayNotification({
-    title: title,
-    body: body,
+    id: data?.notificationId || data?.messageId || Date.now().toString(),
+    title: title || data?.title || 'Notification',
+    body: resolvedBody,
     data: data,
     android: {
       channelId,
+      importance: AndroidImportance.HIGH,
+      visibility: AndroidVisibility.PUBLIC,
+      showTimestamp: true,
+      // Force expanded content so full message is visible in notification shade.
+      style: {
+        type: AndroidStyle.BIGTEXT,
+        text: resolvedBody,
+      },
       pressAction: {
         id: 'default',
       },
