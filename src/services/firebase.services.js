@@ -1,12 +1,22 @@
 import messaging from '@react-native-firebase/messaging';
-import { PERMISSIONS, request } from 'react-native-permissions';
-import notifee, { AndroidImportance, AndroidStyle, AndroidVisibility, EventType } from '@notifee/react-native';
+import {
+  PERMISSIONS,
+  request,
+  check,
+  RESULTS,
+} from 'react-native-permissions';
+import notifee, {
+  AndroidImportance,
+  AndroidStyle,
+  AndroidVisibility,
+  EventType,
+} from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { registerToken } from '../api/notification.api';
 
-const NOTIFICATION_CHANNEL_ID = 'portal_default_v2';
+const NOTIFICATION_CHANNEL_ID = 'portal_alerting_v1';
 
 // Store notification context methods globally for notification handlers
 let notificationContextMethods = null;
@@ -15,15 +25,17 @@ let activeNotificationOpenedUnsubscribe = null;
 let isNotifeeBackgroundHandlerRegistered = false;
 
 // Function to set notification context methods (called from component)
-const setNotificationContextMethods = (methods) => {
+const setNotificationContextMethods = methods => {
   notificationContextMethods = methods;
 };
 
 const ensureDefaultChannel = async () => {
   const channelId = await notifee.createChannel({
     id: NOTIFICATION_CHANNEL_ID,
-    name: 'Portal Notifications',
+    name: 'Portal Alerts',
     importance: AndroidImportance.HIGH,
+    sound: 'default',
+    vibration: true,
   });
   return channelId;
 };
@@ -31,29 +43,33 @@ const ensureDefaultChannel = async () => {
 // Generate or retrieve persistent device ID
 const getOrCreateDeviceId = async () => {
   const STORAGE_KEY = 'fcmDeviceId';
-  
+
   try {
     let deviceId = await AsyncStorage.getItem(STORAGE_KEY);
-    
+
     if (!deviceId) {
-      // Generate new device ID using UUID
       deviceId = uuidv4();
       await AsyncStorage.setItem(STORAGE_KEY, deviceId);
       console.log('Generated new device ID:', deviceId);
     } else {
       console.log('Retrieved existing device ID:', deviceId);
     }
-    
+
     return deviceId;
   } catch (error) {
     console.error('Error getting/creating device ID:', error);
-    // Fallback: generate a new ID for this session
     return uuidv4();
   }
 };
 
 // Register FCM token with backend
-const registerFcmTokenWithBackend = async (fcmToken, userId, tenantId, deviceId, platform = 'ios') => {
+const registerFcmTokenWithBackend = async (
+  fcmToken,
+  userId,
+  tenantId,
+  deviceId,
+  platform = 'ios',
+) => {
   if (!fcmToken || !userId || !tenantId || !deviceId) {
     console.warn('Missing required data for FCM token registration:', {
       hasToken: !!fcmToken,
@@ -65,26 +81,23 @@ const registerFcmTokenWithBackend = async (fcmToken, userId, tenantId, deviceId,
   }
 
   try {
-    const registrationData = {
-      fcmToken,
-      userId,
-      tenantId,
-      deviceId,
-      platform,
-    };
+    const registrationData = { fcmToken, userId, tenantId, deviceId, platform };
 
     console.log('Registering FCM token with backend:', {
       ...registrationData,
-      fcmToken: fcmToken.substring(0, 20) + '...', // Log partial token for debugging
+      fcmToken: fcmToken.substring(0, 20) + '...',
     });
 
     const response = await registerToken(registrationData);
-    
+
     if (response?.status === 200 || response?.data?.status === 'success') {
       console.log('FCM token registered successfully');
       return true;
     } else {
-      console.error('FCM token registration failed:', response?.data?.message || 'Unknown error');
+      console.error(
+        'FCM token registration failed:',
+        response?.data?.message || 'Unknown error',
+      );
       return false;
     }
   } catch (error) {
@@ -96,42 +109,46 @@ const registerFcmTokenWithBackend = async (fcmToken, userId, tenantId, deviceId,
 const getFcmToken = async (userData = null) => {
   let token = null;
   await messaging().setAutoInitEnabled(true);
+
   if (Platform.OS === 'android') {
     try {
-      // Keep notification handling in-app for consistent shade behavior.
-      await messaging().setNotificationDelegationEnabled(false);
+      // Must stay enabled so FCM payloads that include a `notification` block are
+      // shown by the system when the app is backgrounded. Those messages are not
+      // delivered to setBackgroundMessageHandler; disabling delegation leaves
+      // nothing visible. Data-only messages still use Notifee in index.js.
+      await messaging().setNotificationDelegationEnabled(true);
     } catch (error) {
-      console.log('Unable to disable Android notification delegation', error);
+      console.log('Unable to set Android notification delegation', error);
     }
   }
+
   await ensureDefaultChannel();
   await checkApplicationNotificationsPermission();
   await registerAppWithFcm();
+
   try {
     token = await messaging().getToken();
-    console.log('FCM token=========>', token);
-    console.log('FCM Token (for API):', token);
-    
-    // Store token in AsyncStorage
+    console.log('FCM Token:', token);
+
     if (token) {
       await AsyncStorage.setItem('fcmToken', token);
       console.log('FCM token stored in AsyncStorage');
-      
-      // Register token with backend if user data is provided
+
       if (userData) {
         const userId = userData.userId;
         const tenantId = userData.tenantId;
         const deviceId = await getOrCreateDeviceId();
         const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-        
+
         if (userId && tenantId && deviceId) {
-          // Register token asynchronously (don't block token retrieval)
           registerFcmTokenWithBackend(token, userId, tenantId, deviceId, platform)
             .then(success => {
               if (success) {
                 console.log('FCM token registration completed successfully');
               } else {
-                console.warn('FCM token registration failed, but token is still available');
+                console.warn(
+                  'FCM token registration failed, but token is still available',
+                );
               }
             })
             .catch(error => {
@@ -152,41 +169,58 @@ const getFcmToken = async (userData = null) => {
     }
   } catch (error) {
     console.log('Error getting FCM token', error);
-    console.error('FCM Token Error Details:', error.message);
     token = 'DeviceToken';
   }
+
   return token;
 };
 
 const checkApplicationNotificationsPermission = async () => {
   try {
-    // Request permission from Firebase (works on both iOS and Android)
-    const authStatus = await messaging().requestPermission();
-    const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-    if (enabled) {
-      console.log('Notifications permission granted', authStatus);
-    } else {
-      console.log('Notifications permission not granted', authStatus);
+    if (Platform.OS === 'ios') {
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      if (enabled) {
+        console.log('Notifications permission granted', authStatus);
+      } else {
+        console.log('Notifications permission not granted', authStatus);
+      }
+      await notifee.requestPermission();
+      return;
     }
 
-    // For Android 13+ (API 33+), also request POST_NOTIFICATIONS permission
-    if (Platform.OS === 'android' && Platform.Version >= 33) {
+    // Android 13+ (API 33): POST_NOTIFICATIONS must be granted for any tray posting.
+    // Check first so we do not stack duplicate system dialogs with Notifee.
+    if (Platform.Version >= 33) {
       try {
-        const result = await request(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
-        console.log('Android POST_NOTIFICATIONS permission result', result);
-      } catch (error) {
-        console.log('Android POST_NOTIFICATIONS permission error', error);
+        const current = await check(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
+        if (current === RESULTS.BLOCKED) {
+          console.warn(
+            '[notifications] POST_NOTIFICATIONS blocked — enable in Settings → Apps → portal → Notifications',
+          );
+        } else if (current === RESULTS.DENIED) {
+          const afterRequest = await request(
+            PERMISSIONS.ANDROID.POST_NOTIFICATIONS,
+          );
+          console.log('Android POST_NOTIFICATIONS result', afterRequest);
+        }
+      } catch (e) {
+        console.log('Android POST_NOTIFICATIONS check/request error', e);
       }
     }
+
+    // Notifee: aligns permission state and is required for local/display APIs on Android 13+.
+    await notifee.requestPermission();
+
+    await messaging().requestPermission();
   } catch (error) {
     console.log('Error requesting notification permissions', error);
   }
 };
 
 const registerAppWithFcm = async () => {
-  // Register device for remote messages (iOS-only)
   if (Platform.OS === 'ios') {
     try {
       await messaging()
@@ -195,36 +229,41 @@ const registerAppWithFcm = async () => {
           console.log('Device registered for remote messages', result);
         })
         .catch(error => {
-          // Handle specific error about missing aps-environment entitlement
-          if (error?.message?.includes('aps-environment') || error?.code === 'messaging/unknown') {
+          if (
+            error?.message?.includes('aps-environment') ||
+            error?.code === 'messaging/unknown'
+          ) {
             console.warn(
-              'Push notifications not configured: Missing "aps-environment" entitlement. ' +
-              'Please enable Push Notifications capability in Xcode under Signing & Capabilities.'
+              'Push notifications not configured: Missing "aps-environment" entitlement.',
             );
           } else {
-            console.log('Error registering device for remote messages:', error.message || error);
+            console.log(
+              'Error registering device for remote messages:',
+              error.message || error,
+            );
           }
-          // Don't throw - allow app to continue without push notifications
         });
     } catch (error) {
-      // Handle errors gracefully - app can function without push notifications
-      if (error?.message?.includes('aps-environment') || error?.code === 'messaging/unknown') {
+      if (
+        error?.message?.includes('aps-environment') ||
+        error?.code === 'messaging/unknown'
+      ) {
         console.warn(
-          'Push notifications not configured: Missing "aps-environment" entitlement. ' +
-          'Please enable Push Notifications capability in Xcode under Signing & Capabilities.'
+          'Push notifications not configured: Missing "aps-environment" entitlement.',
         );
       } else {
-        console.log('Error registering device for remote messages:', error.message || error);
+        console.log(
+          'Error registering device for remote messages:',
+          error.message || error,
+        );
       }
     }
   } else {
-    // Android doesn't need explicit registration
     console.log('Android device - remote message registration not required');
   }
 };
 
 const unRegisterAppWithFcm = async () => {
-  // Unregister device for remote messages (iOS-only)
   if (Platform.OS === 'ios') {
     try {
       await messaging()
@@ -233,28 +272,28 @@ const unRegisterAppWithFcm = async () => {
           console.log('Device unregistered for remote messages', result);
         })
         .catch(error => {
-          // Silently handle error - device may not be registered
-          console.log('Error unregistering device for remote messages', error.message || error);
+          console.log(
+            'Error unregistering device for remote messages',
+            error.message || error,
+          );
         });
     } catch (error) {
-      // Silently handle error - device may not be registered
-      console.log('Error unregistering device for remote messages', error.message || error);
+      console.log(
+        'Error unregistering device for remote messages',
+        error.message || error,
+      );
     }
   }
-  
-  // Delete token on both platforms
-  // Note: This may fail if Firebase isn't fully initialized or device isn't registered
-  // It's safe to ignore this error during logout
+
   try {
     await messaging().deleteToken();
     console.log('FCM token deleted');
-    // Also remove from AsyncStorage
     await AsyncStorage.removeItem('fcmToken');
   } catch (error) {
-    // Silently handle error - token deletion is not critical during logout
-    // The token will be invalidated when user logs back in and gets a new token
-    console.log('Error deleting FCM token (non-critical):', error.message || error);
-    // Still try to remove from AsyncStorage even if Firebase deletion fails
+    console.log(
+      'Error deleting FCM token (non-critical):',
+      error.message || error,
+    );
     try {
       await AsyncStorage.removeItem('fcmToken');
     } catch (storageError) {
@@ -263,7 +302,8 @@ const unRegisterAppWithFcm = async () => {
   }
 };
 
-const registerListenerWithFcm = (navigationRef) => {
+const registerListenerWithFcm = navigationRef => {
+  // Prevent duplicate listeners
   if (activeForegroundUnsubscribe) {
     return () => {
       if (activeForegroundUnsubscribe) {
@@ -277,33 +317,33 @@ const registerListenerWithFcm = (navigationRef) => {
     };
   }
 
+  // ─── Foreground message handler ───────────────────────────────────────────
   const unsubscribe = messaging().onMessage(async remoteMessage => {
     console.log('Foreground message received', remoteMessage);
-    
-    // Handle new payload structure: { from, messageId, notification: { title, body } }
+
     const notificationTitle =
-      remoteMessage?.notification?.title ||
       remoteMessage?.data?.title ||
+      remoteMessage?.notification?.title ||
       'Notification';
+
     const notificationBody =
-      remoteMessage?.notification?.body ||
       remoteMessage?.data?.body ||
+      remoteMessage?.notification?.body ||
       remoteMessage?.data?.message ||
       remoteMessage?.data?.detail?.message ||
       remoteMessage?.data?.details?.message ||
       '';
+
     const messageId = remoteMessage?.messageId;
     const from = remoteMessage?.from;
-    
+
     if (notificationTitle || notificationBody) {
-      // Display notification
       onDisplayNotificaiton(
         notificationTitle,
         notificationBody,
         remoteMessage?.data,
       );
 
-      // Increment unread count and add notification to context
       if (notificationContextMethods) {
         notificationContextMethods.incrementUnreadCount();
         notificationContextMethods.addNotification({
@@ -319,12 +359,12 @@ const registerListenerWithFcm = (navigationRef) => {
     }
   });
 
-  // Merged background event handler
+  // ─── Notifee background event handler (register once) ────────────────────
   if (!isNotifeeBackgroundHandlerRegistered) {
     isNotifeeBackgroundHandlerRegistered = true;
     notifee.onBackgroundEvent(async ({ type, detail }) => {
       const { notification, pressAction } = detail;
-      
+
       switch (type) {
         case EventType.DISMISSED:
           console.log('notification dismissed', notification);
@@ -344,11 +384,15 @@ const registerListenerWithFcm = (navigationRef) => {
     });
   }
 
-  activeNotificationOpenedUnsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
-    console.log('notification opened app', remoteMessage);
-    handleNotificationOpenApp(remoteMessage, navigationRef);
-  });
+  // ─── App opened from background notification ──────────────────────────────
+  activeNotificationOpenedUnsubscribe = messaging().onNotificationOpenedApp(
+    remoteMessage => {
+      console.log('notification opened app', remoteMessage);
+      handleNotificationOpenApp(remoteMessage, navigationRef);
+    },
+  );
 
+  // ─── App launched from quit state via notification ────────────────────────
   messaging()
     .getInitialNotification()
     .then(remoteMessage => {
@@ -357,7 +401,7 @@ const registerListenerWithFcm = (navigationRef) => {
         handleNotificationOpenApp(remoteMessage, navigationRef);
       }
     });
-    
+
   activeForegroundUnsubscribe = unsubscribe;
 
   return () => {
@@ -384,12 +428,12 @@ const handleNotificationOpenApp = (remoteMessageOrNotification, navigationRef) =
     return;
   }
 
-  // Handle both Firebase remoteMessage and Notifee notification objects
-  // Notifee notification has data in notification.data
-  // Firebase remoteMessage has data in remoteMessage.data
-  const data = remoteMessageOrNotification?.data || remoteMessageOrNotification?.notification?.data || {};
+  const data =
+    remoteMessageOrNotification?.data ||
+    remoteMessageOrNotification?.notification?.data ||
+    {};
 
-  let obj = {
+  const obj = {
     roomId: data?.roomId,
     userInfo: {
       id: data?.detail?.id || data?.details?.id,
@@ -398,13 +442,10 @@ const handleNotificationOpenApp = (remoteMessageOrNotification, navigationRef) =
     },
   };
 
-  // Navigate based on notification data
   if (obj.roomId) {
-    // Future: Navigate to chat screen with roomId
     console.log('Navigate to chat with roomId:', obj.roomId);
     // navigation.navigate('Chat', { roomId: obj.roomId });
   } else {
-    // Navigate to Notifications screen
     console.log('Navigate to Notifications screen');
     navigation.navigate('Notifications');
   }
@@ -415,6 +456,7 @@ const onDisplayNotificaiton = async (title, body, data) => {
   await notifee.requestPermission();
 
   const channelId = await ensureDefaultChannel();
+
   const resolvedBody =
     body ||
     data?.body ||
@@ -424,7 +466,8 @@ const onDisplayNotificaiton = async (title, body, data) => {
     '';
 
   await notifee.displayNotification({
-    id: data?.notificationId || data?.messageId || Date.now().toString(),
+    id:
+      data?.notificationId || data?.messageId || Date.now().toString(),
     title: title || data?.title || 'Notification',
     body: resolvedBody,
     data: data,
@@ -433,11 +476,11 @@ const onDisplayNotificaiton = async (title, body, data) => {
       importance: AndroidImportance.HIGH,
       visibility: AndroidVisibility.PUBLIC,
       showTimestamp: true,
-      // Force expanded content so full message is visible in notification shade.
       style: {
         type: AndroidStyle.BIGTEXT,
         text: resolvedBody,
       },
+      sound: 'default',
       pressAction: {
         id: 'default',
       },

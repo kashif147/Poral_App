@@ -18,6 +18,7 @@ import { setSignedIn, setUser, setDetail } from '../store/slice/auth.slice';
 import { getMemberDetail } from '../helpers/decode.helper';
 import { toast } from '../utils/toast.utils';
 import { decryptToken } from '../helpers/crypt.helper';
+import { unRegisterAppWithFcm } from './firebase.services';
 
 const normalizeRefreshToken = async token => {
   if (!token || typeof token !== 'string') return null;
@@ -146,6 +147,7 @@ export const signOut = navigation => {
       dispatch(setSignedIn(false));
       dispatch(setUser({}));
       dispatch(setDetail(null));
+      await unRegisterAppWithFcm()
     } catch (error) {
       console.error('Sign out error:', error);
       dispatch(setSignedIn(false));

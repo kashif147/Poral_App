@@ -22,7 +22,7 @@ export const ProfileProvider = ({ children }) => {
           setLoading(false);
         } else {
           setLoading(false);
-          Alert.alert('Error', res?.data?.message ?? 'Unable to get profile detail');
+          // Alert.alert('Error', res?.data?.message ?? 'Unable to get profile detail');
         }
       })
       .catch(error => {
@@ -41,7 +41,7 @@ export const ProfileProvider = ({ children }) => {
           setLoading(false);
         } else {
           setLoading(false);
-          Alert.alert('Error', res?.data?.message ?? 'Unable to get profile detail');
+          // Alert.alert('Error', res?.data?.message ?? 'Unable to get profile detail');
         }
       })
       .catch(error => {

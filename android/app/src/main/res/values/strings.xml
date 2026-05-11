@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">portal</string>
-    <string name="default_notification_channel_id">portal_default_v2</string>
+    <!-- Must match backend FCM notification.android.channelId / channel_id -->
+    <string name="default_notification_channel_id">portal_alerting_v1</string>
 </resources>

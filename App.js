@@ -29,6 +29,7 @@ import WebViewLogin from './src/common/WebViewLogin';
 import { buildB2CAuthorizeUrl } from './src/helpers/b2cMobileAuthorize';
 import {
   getFcmToken,
+  checkApplicationNotificationsPermission,
   registerListenerWithFcm,
   unRegisterAppWithFcm,
   setNotificationContextMethods,
@@ -52,7 +53,6 @@ function App() {
   const dispatch = useDispatch();
   const isSignedIn = useSelector(state => state.auth.isSignedIn);
   const isLoading = useSelector(state => state.auth.isLoading);
-  const user = useSelector(state => state.auth.user);
   const [showWebView, setShowWebView] = useState(false);
   const [authMode, setAuthMode] = useState('signin');
   const [showUnauthSplash, setShowUnauthSplash] = useState(true);
@@ -89,6 +89,14 @@ function App() {
     }
     await AsyncStorage.setItem(LOGIN_STATUS_STORAGE_KEY, 'true');
   };
+
+  // Android 13+: request POST_NOTIFICATIONS on first launch so delivery is not gated
+  // until after login (Samsung often hides this under Settings → Notifications, not App permissions).
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      checkApplicationNotificationsPermission().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -212,6 +220,8 @@ function App() {
                 dispatch(setUser(response.data.user));
               }
               await finalizeSuccessfulAuth();
+              const memberDetail = await getMemberDetail();
+              await registerFcmOnAuth(response.data.user, memberDetail);
             } else {
               dispatch(setLoading(false));
               const errorMsg =
@@ -290,6 +300,41 @@ function App() {
     }
   };
 
+  const registerFcmOnAuth = async (authenticatedUser, memberDetail) => {
+    try {
+      const userData = authenticatedUser || {};
+      const tokenData = memberDetail || {};
+      const userId =
+        userData?.id ||
+        userData?._id ||
+        tokenData?.id ||
+        tokenData?._id ||
+        tokenData?.userId ||
+        tokenData?.uid ||
+        tokenData?.oid ||
+        tokenData?.sub;
+      const tenantId =
+        userData?.tenantId ||
+        userData?.userTenantId ||
+        tokenData?.tenantId ||
+        tokenData?.userTenantId ||
+        tokenData?.tid;
+      const userDataForRegistration =
+        userId && tenantId ? { userId, tenantId } : null;
+
+      if (!userDataForRegistration) {
+        console.warn('FCM registration skipped: userId/tenantId missing', {
+          hasUserId: !!userId,
+          hasTenantId: !!tenantId,
+        });
+      }
+
+      await getFcmToken(userDataForRegistration);
+    } catch (error) {
+      console.log('Error registering FCM after auth', error);
+    }
+  };
+
   const handleLoginSuccess = async result => {
     setShowWebView(false);
 
@@ -297,9 +342,8 @@ function App() {
       dispatch(setLoading(true));
       try {
         const data = await buildAuthPayload(result.code, result.codeVerifier);
-
         const response = await signInMicrosoftRequest(data);
-
+        console.log('Response from signInMicrosoftRequest=============>', response);
         if (response && response.status >= 200 && response.status < 300) {
           if (response.data) {
             const accessToken =
@@ -341,6 +385,7 @@ function App() {
           await finalizeSuccessfulAuth();
           try {
             const memberDetail = await getMemberDetail();
+            await registerFcmOnAuth(response.data.user,memberDetail);
             dispatch(setDetail(memberDetail));
           } catch (e) {
             // Token may not be readable yet or decode failed; leave userDetail for validation to set
@@ -381,6 +426,7 @@ function App() {
     } else if (result.accessToken) {
       dispatch(setLoading(true));
       try {
+        let decodedUser = null;
         await AsyncStorage.setItem('token', result.accessToken);
         await setBearerToken(result.accessToken);
 
@@ -394,12 +440,16 @@ function App() {
                 : claims.email) || '',
             oid: claims.oid || claims.sub,
           };
+          decodedUser = user;
           await saveUser(user);
           dispatch(setUser(user));
         }
 
         dispatch(setSignedIn(true));
         await finalizeSuccessfulAuth();
+        const memberDetail = await getMemberDetail();
+        await registerFcmOnAuth(decodedUser || result?.user, memberDetail);
+        dispatch(setDetail(memberDetail));
       } catch (error) {
         dispatch(setLoading(false));
         Alert.alert('Error', 'Failed to save authentication data');
@@ -452,28 +502,6 @@ function App() {
       const initializeNotifications = async () => {
         try {
           console.log('Initializing FCM notifications...');
-          
-          // Extract user data from Redux state
-          const userData = user || {};
-          const userId = userData?.id || userData?._id;
-          const tenantId = userData?.tenantId || userData?.userTenantId;
-          
-          console.log('User data for FCM registration:', {
-            hasUserId: !!userId,
-            hasTenantId: !!tenantId,
-            userId: userId ? userId.substring(0, 10) + '...' : 'N/A',
-            tenantId: tenantId ? tenantId.substring(0, 10) + '...' : 'N/A',
-          });
-          
-          // Prepare user data for token registration
-          const userDataForRegistration = userId && tenantId ? { userId, tenantId } : null;
-          
-          const token = await getFcmToken(userDataForRegistration);
-          console.log('FCM Token retrieved in App:', token);
-          
-          // Also log from AsyncStorage
-          const storedToken = await AsyncStorage.getItem('fcmToken');
-          console.log('FCM Token from AsyncStorage:', storedToken);
 
           // Wait a bit for navigation to be ready
           notificationSetupTimeoutRef.current = setTimeout(() => {
@@ -512,9 +540,9 @@ function App() {
         notificationUnsubscribeRef.current();
         notificationUnsubscribeRef.current = null;
       }
-      unRegisterAppWithFcm().catch(() => {
-        // Error handled silently
-      });
+      // unRegisterAppWithFcm().catch(() => {
+      //   // Error handled silently
+      // });
     }
 
     return () => {
