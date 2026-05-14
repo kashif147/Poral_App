@@ -86,6 +86,24 @@ You've successfully run and modified your React Native App. :partying_face:
 
 If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
 
+## Push notifications (FCM)
+
+The app registers the device token with the **notification service** (`NOTIFICATION_URL` in [`src/constants/api.js`](src/constants/api.js), path `/api/firebase/register-token`). **Delivering** pushes to FCM is done only on that server, using [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup) or [FCM HTTP v1](https://firebase.google.com/docs/cloud-messaging/send-message) with **Google service account** credentials—not the mobile user JWT.
+
+### If notification records show `error` about missing OAuth 2 access token
+
+That response comes from Google’s API when the notification service calls FCM **without** valid server credentials (for example missing `GOOGLE_APPLICATION_CREDENTIALS`, broken workload identity, or a code path that omits the auth client). **Fix this in the notification-service repository and deployment**, not in this app:
+
+1. Trace every code path that sends to FCM (`send`, `sendEachForMulticast`, or raw HTTP to `fcm.googleapis.com`) and ensure each uses the same initialized Admin app or OAuth client.
+2. In every runtime (containers, workers, serverless), provide credentials: service account JSON via `GOOGLE_APPLICATION_CREDENTIALS`, or [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials) on GCP (metadata / workload identity).
+3. In Google Cloud: enable **Firebase Cloud Messaging API** (and related APIs your stack uses); grant the service account roles needed to mint tokens and call FCM.
+4. Use the **same Firebase project** as [`ios/GoogleService-Info.plist`](ios/GoogleService-Info.plist) and [`android/app/google-services.json`](android/app/google-services.json) (`PROJECT_ID` / sender).
+
+### iOS delivery after server auth is fixed
+
+- In [Firebase Console](https://console.firebase.google.com): register the iOS app, upload an **APNs authentication key** (or certificates) under Project settings → Cloud Messaging.
+- Xcode: **Push Notifications** capability enabled; **Release** builds use [`ios/portal/portalRelease.entitlements`](ios/portal/portalRelease.entitlements) with `aps-environment` **production**; **Debug** uses [`ios/portal/portalDebug.entitlements`](ios/portal/portalDebug.entitlements) with **development** for dev provisioning.
+
 # Learn More
 
 To learn more about React Native, take a look at the following resources:

@@ -20,7 +20,7 @@ import { applicationConfirmationRequest } from '../../api/application.api';
 import { getAccountNetBalanceRequest } from '../../api/account.api';
 import { useProfile } from '../../contexts/profileContext';
 import ScreenHeader from '../../common/screenHeader';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import DetailModal from '../../common/detailModal';
 import { getEventWithRegistrationData } from '../../constants/eventData';
 import {
@@ -29,6 +29,7 @@ import {
   UPCOMING_EVENTS,
 } from '../../constants/dashboard';
 import { useMemberRole } from '../../hooks/useMemberRole';
+import { validation } from '../../services/auth.services';
 import DashboardPaymentModal from './DashboardPaymentModal';
 import { QuickActionCard } from '../../common/QuickActionCard';
 import {
@@ -42,6 +43,7 @@ import {
 
 const DashBoard = () => {
   const navigation = useNavigation();
+  const dispatch = useDispatch();
   const user = useSelector(state => state.auth.user);
   const { isMember } = useMemberRole();
   const insets = useSafeAreaInsets();
@@ -157,6 +159,7 @@ const DashBoard = () => {
     try {
       setRefreshing(true);
       await Promise.all([
+        dispatch(validation()),
         loadProfile(),
         // loadLookups(),
         loadApplicationStatus(),
@@ -259,6 +262,12 @@ const DashBoard = () => {
     (normalizedApplicationStatus === 'submitted' ||
       normalizedApplicationStatus === 'approved');
   const shouldStartFresh = isInactiveLikeStatus || normalizedApplicationStatus === 'rejected';
+
+  // FAB: only when user has an application record in a non-terminal state (e.g. draft / in review / rejected).
+  // Hidden when no application exists yet — Application card + status banner already start the flow.
+  const hasStartedApplication = !!personalDetail?.applicationId;
+  const showApplicationFab =
+    hasStartedApplication && !isSubmittedOrApproved;
 
   const applicationSubtitle = isInactiveLikeStatus
     ? 'Start Application'
@@ -443,8 +452,8 @@ const DashBoard = () => {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button - hide once active application is submitted/approved */}
-      {!isSubmittedOrApproved && (
+      {/* FAB: continue application only after a record exists; not for brand-new "none" users */}
+      {showApplicationFab && (
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom }]}
           onPress={() =>
@@ -598,8 +607,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   quickActionsGrid: {
-    paddingTop: 16,
-    backgroundColor: '#fff',
+    // paddingTop: 16,
+    // backgroundColor: '#fff',
     borderRadius: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',

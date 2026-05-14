@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { registerToken } from '../api/notification.api';
+import { maybeDispatchSessionRefresh } from './sessionRefresh.helper';
 
 const NOTIFICATION_CHANNEL_ID = 'portal_alerting_v1';
 
@@ -357,6 +358,8 @@ const registerListenerWithFcm = navigationRef => {
         });
       }
     }
+
+    maybeDispatchSessionRefresh();
   });
 
   // ─── Notifee background event handler (register once) ────────────────────
@@ -417,6 +420,8 @@ const registerListenerWithFcm = navigationRef => {
 };
 
 const handleNotificationOpenApp = (remoteMessageOrNotification, navigationRef) => {
+  maybeDispatchSessionRefresh();
+
   if (!navigationRef) {
     console.log('Navigation ref not available for notification handling');
     return;

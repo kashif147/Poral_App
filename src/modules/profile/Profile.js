@@ -21,6 +21,21 @@ import { useMemberRole } from '../../hooks/useMemberRole';
 import ScreenHeader from '../../common/screenHeader';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 
+/** Backend allows only "home" | "work" for contactInfo.preferredAddress (Joi / AppError). */
+function mapPreferredAddressForApi(value) {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  const s = String(value).trim().toLowerCase();
+  if (s === 'home' || s === 'work') {
+    return s;
+  }
+  if (s === 'other') {
+    return 'home';
+  }
+  return undefined;
+}
+
 const Profile = () => {
   const user = useSelector(state => state.auth.user);
   const { personalDetail, getPersonalDetail, subscriptionDetail } = useApplication();
@@ -146,8 +161,12 @@ const Profile = () => {
         }
       });
 
+      const apiPreferredAddress = mapPreferredAddressForApi(
+        personalInfo.preferredAddress,
+      );
+
       const contactFields = {
-        preferredAddress: personalInfo.preferredAddress,
+        preferredAddress: apiPreferredAddress,
         eircode: personalInfo.eircode ?? '',
         buildingOrHouse: personalInfo.addressLine1,
         streetOrRoad: personalInfo.addressLine2 ?? '',
@@ -171,7 +190,7 @@ const Profile = () => {
 
       // Build payload for profile API (preferences.consent)
       const profileContactFields = {
-        preferredAddress: personalInfo.preferredAddress,
+        preferredAddress: apiPreferredAddress,
         buildingOrHouse: personalInfo.addressLine1,
         streetOrRoad: personalInfo.addressLine2 ?? '',
         areaOrTown: personalInfo.addressLine3 ?? '',
@@ -227,6 +246,7 @@ const Profile = () => {
       }
 
       const responses = await Promise.all(requests);
+      console.log('responses===============>', responses);
       const allOk = responses.every(res => res?.status === 200);
 
       if (allOk) {
@@ -241,7 +261,12 @@ const Profile = () => {
         setShowPersonalInfoForm(false);
       } else {
         const firstError = responses.find(r => r?.status !== 200);
-        Alert.alert('Error', firstError?.data?.message ?? 'Unable to update personal detail');
+        const errBody = firstError?.data;
+        const errMsg =
+          errBody?.error?.message ||
+          errBody?.message ||
+          'Unable to update personal detail';
+        Alert.alert('Error', errMsg);
       }
     } catch (e) {
       Alert.alert('Error', 'Something went wrong');

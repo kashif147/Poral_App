@@ -13,6 +13,7 @@ import notifee, {
 } from '@notifee/react-native';
 import App from './App';
 import { name as appName } from './app.json';
+import { maybeDispatchSessionRefresh } from './src/services/sessionRefresh.helper';
 
 const NOTIFICATION_CHANNEL_ID = 'portal_alerting_v1';
 
@@ -109,6 +110,8 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
       pressAction: { id: 'default' },
     },
   });
+
+  maybeDispatchSessionRefresh();
 });
 
 // Keep notifee background events registered at module scope.
