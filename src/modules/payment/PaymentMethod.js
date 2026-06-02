@@ -2,123 +2,171 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import { useApplication } from '../../contexts/applicationContext';
-import { applicationConfirmationRequest } from '../../api/application.api';
+import { useProfile } from '../../contexts/profileContext';
+import { getMyPortalPaymentForms } from '../../api/paymentForms.api';
+import { getSubscriptionRequest } from '../../api/subscription.api';
 import StandingBankersOrder from './StandingBankersOrder';
 import DirectDebit from './DirectDebit';
 import SalaryDeduction from './SalaryDeduction';
 import ScreenHeader from '../../common/screenHeader';
 import { Colors, hp, wp } from '../../utils/Styles';
 
+const FORM_TYPE_TO_TAB = {
+  DD_MANDATE: 'Direct Debit',
+  SALARY_DEDUCTION: 'Salary Deduction',
+  STANDING_ORDER: 'Standing Banking Order',
+};
+
+const normalizePaymentType = paymentType => {
+  if (!paymentType) return null;
+  const normalized = paymentType.toString().toLowerCase();
+  const compact = normalized.replace(/[^a-z]/g, '');
+
+  // More tolerant matching for typos like "Stanfding Order"
+  if (
+    (normalized.includes('order') || compact.includes('order')) &&
+    (normalized.includes('stand') ||
+      compact.includes('stand') ||
+      compact.includes('stan') ||
+      compact.startsWith('st'))
+  ) {
+    return 'Standing Banking Order';
+  }
+
+  if (
+    normalized.includes('standing') &&
+    (normalized.includes('banker') ||
+      normalized.includes('bank') ||
+      normalized.includes('order'))
+  ) {
+    return 'Standing Banking Order';
+  }
+  if (normalized.includes('direct') && normalized.includes('debit')) {
+    return 'Direct Debit';
+  }
+  if (
+    (normalized.includes('salary') && normalized.includes('deduction')) ||
+    normalized === 'deduction' ||
+    normalized.includes('payroll') ||
+    (normalized.includes('deduction') && normalized.includes('source'))
+  ) {
+    return 'Salary Deduction';
+  }
+  return null;
+};
+
+const getTabKeyForPortalForm = form => {
+  if (!form) return null;
+  return (
+    FORM_TYPE_TO_TAB[form.formType] ||
+    normalizePaymentType(form.formTypeLabel) ||
+    normalizePaymentType(form.formType) ||
+    null
+  );
+};
+
 const PaymentMethod = () => {
-  const navigation = useNavigation();
-  const { personalDetail, subscriptionDetail } = useApplication();
+  const { subscriptionDetail } = useApplication();
+  const { profileDetail } = useProfile();
   const [selectedPaymentType, setSelectedPaymentType] = useState(null);
-  const [applicationStatus, setApplicationStatus] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Normalize payment type to match component mapping
-  const normalizePaymentType = (paymentType) => {
-    if (!paymentType) return null;
-
-    const normalized = paymentType.toString().toLowerCase();
-
-    // Handle Standing Bankers Order variations
-    if (
-      normalized.includes('standing') &&
-      (normalized.includes('banker') ||
-        normalized.includes('bank') ||
-        normalized.includes('order'))
-    ) {
-      return 'Standing Banking Order';
-    }
-
-    // Handle Direct Debit
-    if (normalized.includes('direct') && normalized.includes('debit')) {
-      return 'Direct Debit';
-    }
-
-    // Handle Salary Deduction / Deduction at Source
-    if (
-      (normalized.includes('salary') && normalized.includes('deduction')) ||
-      (normalized.includes('deduction') && normalized.includes('source'))
-    ) {
-      return 'Salary Deduction';
-    }
-
-    // Return null for unrecognized payment types (Credit Card, etc.)
-    return null;
+  const getPaymentTypeFromProfileSubscription = subscription => {
+    if (!subscription) return null;
+    return (
+      subscription.paymentType ??
+      subscription.paymentMethod ??
+      subscription.preferredPaymentType ??
+      subscription._subscriptionService?.paymentType ??
+      subscription.subscriptionService?.paymentType ??
+      subscription.subscription?.paymentType ??
+      null
+    );
   };
 
-  // Get default payment type based on application status
-  const getDefaultPaymentType = () => {
-    if (applicationStatus === 'approved' || applicationStatus === 'submitted') {
-      const paymentType =
-        subscriptionDetail?.subscriptionDetails?.paymentType;
-      if (paymentType) {
-        const normalized = normalizePaymentType(paymentType);
-        // Only return if it's a valid payment type (Standing Banking Order or Direct Debit)
-        if (normalized) {
-          return normalized;
-        }
-      }
-    }
-    return null; // No default payment type
-  };
-
-  // Check application status on mount
   useEffect(() => {
-    const checkApplicationStatus = async () => {
-      if (personalDetail?.applicationId) {
-        try {
-          const response = await applicationConfirmationRequest(
-            personalDetail.applicationId,
-          );
+    const loadPaymentMethod = async () => {
+      setLoading(true);
+      try {
+        let selected = null;
 
-          if (
-            response?.status === 200 ||
-            response?.data?.status === 'success'
-          ) {
-            const status =
-              response?.data?.data?.applicationStatus ||
-              response?.data?.applicationStatus;
-            setApplicationStatus(status);
+        if (profileDetail?.profileId) {
+          const subRes = await getSubscriptionRequest(profileDetail.profileId);
+          if (subRes?.status >= 200 && subRes?.status < 300) {
+            const items = subRes?.data?.data?.data ?? subRes?.data?.data ?? [];
+            const subscriptions = Array.isArray(items) ? items : items ? [items] : [];
+            const activeSubscription =
+              subscriptions.find(
+                sub => String(sub?.subscriptionStatus || '').toLowerCase() === 'active',
+              ) || subscriptions[0];
+            const raw = getPaymentTypeFromProfileSubscription(activeSubscription);
+            selected = normalizePaymentType(raw);
           }
-        } catch (error) {
-          console.error('Failed to fetch application status:', error);
-          setApplicationStatus(null);
         }
+
+        if (!selected) {
+          const rootSubscriptionSource = subscriptionDetail || null;
+          const nestedSubscriptionSource = subscriptionDetail?.subscriptionDetails || null;
+          selected = normalizePaymentType(
+            getPaymentTypeFromProfileSubscription(rootSubscriptionSource) ||
+              getPaymentTypeFromProfileSubscription(nestedSubscriptionSource) ||
+              profileDetail?.paymentType ||
+              profileDetail?.preferredPaymentType,
+          );
+        }
+
+        const mineRes = await getMyPortalPaymentForms();
+        if (mineRes?.status >= 200 && mineRes?.status < 300) {
+          const formsRaw =
+            mineRes?.data?.data?.paymentForms ??
+            mineRes?.data?.paymentForms ??
+            mineRes?.data?.data ??
+            [];
+          const forms = Array.isArray(formsRaw)
+            ? formsRaw
+            : formsRaw
+              ? [formsRaw]
+              : [];
+          const activeForms = forms.filter(
+            item => String(item?.status || '').toLowerCase() === 'active',
+          );
+          const matchedByProfile = selected
+            ? activeForms.find(form => getTabKeyForPortalForm(form) === selected)
+            : null;
+          const fallbackActive = matchedByProfile || activeForms[0] || null;
+          const tabFromActive = getTabKeyForPortalForm(fallbackActive) || null;
+          if (!selected) {
+            selected = tabFromActive;
+          }
+        }
+
+        setSelectedPaymentType(selected || null);
+      } catch (error) {
+        console.error('Failed to load payment method:', error);
+        setSelectedPaymentType(
+          normalizePaymentType(
+            getPaymentTypeFromProfileSubscription(subscriptionDetail) ||
+              getPaymentTypeFromProfileSubscription(subscriptionDetail?.subscriptionDetails) ||
+              profileDetail?.paymentType ||
+              profileDetail?.preferredPaymentType,
+          ) || null,
+        );
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    checkApplicationStatus();
-  }, [personalDetail?.applicationId]);
-
-  // Set default payment type once status is checked
-  useEffect(() => {
-    if (!loading) {
-      const defaultType = getDefaultPaymentType();
-      setSelectedPaymentType(defaultType);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    loadPaymentMethod();
   }, [
-    applicationStatus,
+    profileDetail?.profileId,
+    profileDetail?.paymentType,
+    profileDetail?.preferredPaymentType,
     subscriptionDetail?.subscriptionDetails?.paymentType,
-    loading,
   ]);
-
-  // Payment type options supported in mobile flow
-  const paymentTypes = [
-    { value: 'Standing Banking Order', label: 'Standing Banking Order' },
-    { value: 'Direct Debit', label: 'Direct Debit' },
-    { value: 'Salary Deduction', label: 'Salary Deduction' },
-  ];
 
   // Render the appropriate payment component
   const renderPaymentComponent = () => {
@@ -150,33 +198,6 @@ const PaymentMethod = () => {
   return (
     <View style={styles.container}>
       <ScreenHeader title="Payment Method" />
-      
-      {/* Payment Type Selector Bar - Sticky at top */}
-      <View style={styles.selectorBar}>
-        <View style={styles.selectorContent}>
-          <Text style={styles.selectorLabel}>Select payment method</Text>
-          <View style={styles.tabContainer}>
-            {paymentTypes.map((type) => (
-              <TouchableOpacity
-                key={type.value}
-                onPress={() => setSelectedPaymentType(type.value)}
-                style={[
-                  styles.tabButton,
-                  selectedPaymentType === type.value && styles.tabButtonActive,
-                ]}>
-                <Text
-                  style={[
-                    styles.tabButtonText,
-                    selectedPaymentType === type.value &&
-                      styles.tabButtonTextActive,
-                  ]}>
-                  {type.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </View>
 
       {/* Payment Component Container */}
       <View style={styles.contentContainer}>
@@ -189,11 +210,10 @@ const PaymentMethod = () => {
                 <Text style={styles.emptyStateIconText}>💳</Text>
               </View>
               <Text style={styles.emptyStateTitle}>
-                Change Your Payment Method
+                Payment Method Unavailable
               </Text>
               <Text style={styles.emptyStateText}>
-                Please select a payment method from the options above to
-                continue.
+                Your profile does not currently have a supported payment method.
               </Text>
             </View>
           </View>
@@ -218,57 +238,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: hp(1.8),
     color: Colors.textSecondary,
-  },
-  selectorBar: {
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  selectorContent: {
-    paddingHorizontal: wp(4),
-    paddingVertical: hp(1.5),
-  },
-  selectorLabel: {
-    fontSize: hp(1.4),
-    color: Colors.textSecondary,
-    marginBottom: hp(1),
-    fontWeight: '500',
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    gap: wp(2),
-  },
-  tabButton: {
-    flex: 1,
-    paddingHorizontal: wp(2),
-    paddingVertical: hp(1.2),
-    borderRadius: 8,
-    backgroundColor: Colors.lightgrey,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabButtonActive: {
-    backgroundColor: Colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  tabButtonText: {
-    fontSize: hp(1.4),
-    fontWeight: '600',
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  tabButtonTextActive: {
-    color: Colors.primary,
-    fontWeight: '700',
   },
   contentContainer: {
     flex: 1,

@@ -21,6 +21,103 @@ import { Button } from '../../common/button';
 import { Colors, hp, wp } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useProfile } from '../../contexts/profileContext';
+import {
+  createPortalPaymentForm,
+  getPaymentFormPrefill,
+  getPortalPaymentForm,
+  submitPortalPaymentForm,
+  updatePortalPaymentForm,
+  uploadPortalPaymentSignature,
+} from '../../api/paymentForms.api';
+
+const PAYMENT_FORM_TYPE = 'STANDING_ORDER';
+const isPaymentApiSuccess = response => response?.status >= 200 && response?.status < 300;
+const getPaymentApiErrorMessage = (response, fallback) => {
+  const data = response?.data;
+  if (!data) return response?.status ? `${fallback} (HTTP ${response.status})` : fallback;
+  if (typeof data === 'string') return data;
+  if (data.message) return data.message;
+  if (typeof data.error === 'string') return data.error;
+  return fallback;
+};
+const shouldRetryCreateAsPatch = response => {
+  const status = response?.status;
+  const msg = getPaymentApiErrorMessage(response, '').toLowerCase();
+  return (
+    status === 409 ||
+    status === 400 ||
+    status === 422 ||
+    msg.includes('already exist') ||
+    msg.includes('duplicate')
+  );
+};
+const extractPortalPaymentForm = response => {
+  const body = response?.data;
+  if (!body || typeof body !== 'object') return null;
+  if (body._id || body.id || body.formType) return body;
+  const nested = body.data;
+  if (nested && typeof nested === 'object' && (nested._id || nested.id || nested.formType)) {
+    return nested;
+  }
+  return null;
+};
+const getPortalFormId = form => (form ? form._id ?? form.id ?? null : null);
+const extractPortalFormId = response => {
+  const fromForm = getPortalFormId(extractPortalPaymentForm(response));
+  if (fromForm) return fromForm;
+  const body = response?.data;
+  if (!body || typeof body !== 'object') return null;
+  const findId = (obj, depth = 0) => {
+    if (!obj || typeof obj !== 'object' || depth > 4) return null;
+    if (typeof obj._id === 'string' && obj._id.length > 0) return obj._id;
+    for (const value of Object.values(obj)) {
+      const found = findId(value, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  };
+  return findId(body);
+};
+const portalFormHasExistingRecord = portalForm => {
+  if (!portalForm) return false;
+  if (portalForm.unsaved === true) return false;
+  if (portalForm.formType && portalForm.formType !== PAYMENT_FORM_TYPE) return false;
+  return Boolean(portalForm._id || portalForm.id);
+};
+const cleanIban = iban => (iban || '').replace(/\s/g, '').toUpperCase();
+const toIsoDate = value => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+};
+const pickNonEmpty = (...values) => {
+  for (const value of values) {
+    if (value !== null && value !== undefined && String(value).trim() !== '') {
+      return value;
+    }
+  }
+  return '';
+};
+const formatIbanForDisplay = iban => cleanIban(iban).replace(/(.{4})/g, '$1 ').trim();
+const extractPrefillForm = response =>
+  response?.data?.data?.paymentForm ?? response?.data?.paymentForm ?? null;
+const mergeStandingOrderData = (activeForm, prefillForm) => {
+  const active = activeForm?.standingOrder || {};
+  const prefill = prefillForm?.standingOrder || {};
+  const activeDates = Array.isArray(active.signatureDates) ? active.signatureDates : [];
+  const prefillDates = Array.isArray(prefill.signatureDates) ? prefill.signatureDates : [];
+  return {
+    debtorBankName: pickNonEmpty(active.debtorBankName, prefill.debtorBankName),
+    debtorBankAddress: pickNonEmpty(active.debtorBankAddress, prefill.debtorBankAddress),
+    debtorAccountName: pickNonEmpty(active.debtorAccountName, prefill.debtorAccountName),
+    debtorIban: pickNonEmpty(active.debtorIban, prefill.debtorIban),
+    debtorBic: pickNonEmpty(active.debtorBic, prefill.debtorBic),
+    startDate: pickNonEmpty(active.startDate, prefill.startDate),
+    signatureDatePrimary: pickNonEmpty(activeDates[0], prefillDates[0]),
+    signatureDateSecondary: pickNonEmpty(activeDates[1], prefillDates[1]),
+  };
+};
 
 const StandingBankersOrder = () => {
   const { subscriptionDetail, categoryData, getCategoryData } = useApplication();
@@ -64,6 +161,10 @@ const StandingBankersOrder = () => {
   const [ibanError, setIbanError] = useState('');
   const signatureDrawLockRef = useRef(0);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activePortalForm, setActivePortalForm] = useState(null);
+  const [prefillPortalForm, setPrefillPortalForm] = useState(null);
+  const [hasPortalDataApplied, setHasPortalDataApplied] = useState(false);
 
   const handleSignatureDrawingActive = active => {
     if (active) {
@@ -97,6 +198,7 @@ const StandingBankersOrder = () => {
 
   // Set form state when category data is loaded
   useEffect(() => {
+    if (hasPortalDataApplied) return;
     if (categoryData?.currentPricing?.price && user) {
       const priceInEuros = categoryData.currentPricing.price / 100;
       setFormState(prev => ({
@@ -108,7 +210,7 @@ const StandingBankersOrder = () => {
             : user?.userName || '',
       }));
     }
-  }, [categoryData, user]);
+  }, [categoryData, user, hasPortalDataApplied]);
 
   // Bank list
   const bankOptions = [
@@ -137,6 +239,7 @@ const StandingBankersOrder = () => {
 
   // Auto-populate branch address based on bank selection
   useEffect(() => {
+    if (hasPortalDataApplied) return;
     if (formState.bankName) {
       const branchAddresses = {
         AIB: '12 Main St, Dublin (Auto-filled)',
@@ -152,7 +255,57 @@ const StandingBankersOrder = () => {
         branchAddress: branchAddresses[formState.bankName] || '',
       }));
     }
-  }, [formState.bankName]);
+  }, [formState.bankName, hasPortalDataApplied]);
+
+  useEffect(() => {
+    const loadPortalPrefillAndActive = async () => {
+      try {
+        const [activeRes, prefillRes] = await Promise.all([
+          getPortalPaymentForm(),
+          profileDetail?.profileId
+            ? getPaymentFormPrefill(profileDetail.profileId)
+            : Promise.resolve(null),
+        ]);
+        const activeForm = isPaymentApiSuccess(activeRes)
+          ? extractPortalPaymentForm(activeRes)
+          : null;
+        const prefillForm =
+          prefillRes && isPaymentApiSuccess(prefillRes)
+            ? extractPrefillForm(prefillRes)
+            : null;
+        setActivePortalForm(activeForm);
+        setPrefillPortalForm(prefillForm);
+      } catch (error) {
+        console.error('Failed to load standing order prefill/active form:', error);
+      }
+    };
+    loadPortalPrefillAndActive();
+  }, [profileDetail?.profileId]);
+
+  useEffect(() => {
+    const merged = mergeStandingOrderData(activePortalForm, prefillPortalForm);
+    if (!Object.values(merged).some(Boolean)) return;
+
+    setFormState(prev => ({
+      ...prev,
+      bankName: pickNonEmpty(merged.debtorBankName, prev.bankName),
+      branchAddress: pickNonEmpty(merged.debtorBankAddress, prev.branchAddress),
+      accountName: pickNonEmpty(merged.debtorAccountName, prev.accountName),
+      iban: pickNonEmpty(formatIbanForDisplay(merged.debtorIban), prev.iban),
+      bic: pickNonEmpty(merged.debtorBic, prev.bic),
+      startDate: pickNonEmpty(merged.startDate, prev.startDate),
+      accountHolderSignatureDate: pickNonEmpty(
+        merged.signatureDatePrimary,
+        prev.accountHolderSignatureDate,
+      ),
+      secondSignatureDate: pickNonEmpty(
+        merged.signatureDateSecondary,
+        prev.secondSignatureDate,
+      ),
+      authorization: true,
+    }));
+    setHasPortalDataApplied(true);
+  }, [activePortalForm, prefillPortalForm]);
 
   // IBAN formatting function - adds spaces every 4 characters
   const formatIBAN = (value, cursorPosition = null) => {
@@ -294,27 +447,111 @@ const StandingBankersOrder = () => {
     return true;
   };
 
-  const handleSaveOrder = () => {
+  const handleSaveOrder = async () => {
     setShowValidation(true);
     if (!validateForm()) {
       Alert.alert('Validation Error', 'Please fill in all required fields');
       return;
     }
 
-    const orderData = {
-      ...formState,
-      beneficiaryDetails,
-      userDetails: {
-        name:
-          user?.userFirstName && user?.userLastName
-            ? `${user.userFirstName} ${user.userLastName}`
-            : user?.userName || '',
-        email: user?.userEmail || user?.email || '',
+    const signatureDates = [
+      toIsoDate(formState.accountHolderSignatureDate),
+      toIsoDate(formState.secondSignatureDate),
+    ].filter(Boolean);
+
+    const createPayload = {
+      formType: PAYMENT_FORM_TYPE,
+      standingOrder: {
+        debtorBankName: formState.bankName,
+        debtorBankAddress: formState.branchAddress,
+        debtorAccountName: formState.accountName,
+        debtorIban: cleanIban(formState.iban),
+        debtorBic: formState.bic || '',
+        startDate: toIsoDate(formState.startDate),
+        signatureDates,
+      },
+      gdpr: {
+        consentCapturedAt: new Date().toISOString(),
       },
     };
+    const patchPayload = {
+      standingOrder: createPayload.standingOrder,
+      gdpr: createPayload.gdpr,
+    };
 
-    console.log('Standing Order Data:', orderData);
-    Alert.alert('Success', 'Order saved successfully!');
+    setIsSubmitting(true);
+    try {
+      const existingRes = await getPortalPaymentForm();
+      const existingForm = isPaymentApiSuccess(existingRes)
+        ? extractPortalPaymentForm(existingRes)
+        : null;
+      const hasExisting = portalFormHasExistingRecord(existingForm);
+
+      let saveRes = hasExisting
+        ? await updatePortalPaymentForm(patchPayload)
+        : await createPortalPaymentForm(createPayload);
+
+      if (!hasExisting && !isPaymentApiSuccess(saveRes) && shouldRetryCreateAsPatch(saveRes)) {
+        saveRes = await updatePortalPaymentForm(patchPayload);
+      }
+
+      if (!isPaymentApiSuccess(saveRes)) {
+        throw new Error(
+          getPaymentApiErrorMessage(saveRes, 'Failed to save standing order form. Please try again.'),
+        );
+      }
+
+      let formId = extractPortalFormId(saveRes) ?? getPortalFormId(existingForm);
+      if (!formId) {
+        const reloadRes = await getPortalPaymentForm();
+        const reloadedForm = isPaymentApiSuccess(reloadRes)
+          ? extractPortalPaymentForm(reloadRes)
+          : null;
+        formId = getPortalFormId(reloadedForm);
+      }
+      if (!formId) {
+        throw new Error('Payment form was saved but no form id was returned. Please refresh and try again.');
+      }
+
+      const signatures = [
+        {
+          slot: 0,
+          imageBase64: formState.accountHolderSignature,
+          signedDate: toIsoDate(formState.accountHolderSignatureDate),
+        },
+        {
+          slot: 1,
+          imageBase64: formState.secondSignature,
+          signedDate: toIsoDate(formState.secondSignatureDate),
+        },
+      ].filter(item => item.imageBase64);
+
+      for (const sig of signatures) {
+        const uploadRes = await uploadPortalPaymentSignature(formId, {
+          imageBase64: sig.imageBase64,
+          slot: sig.slot,
+          signedDate: sig.signedDate,
+        });
+        if (!isPaymentApiSuccess(uploadRes)) {
+          throw new Error(
+            getPaymentApiErrorMessage(uploadRes, 'Failed to upload signature. Please try again.'),
+          );
+        }
+      }
+
+      const submitRes = await submitPortalPaymentForm(formId);
+      if (!isPaymentApiSuccess(submitRes)) {
+        throw new Error(
+          getPaymentApiErrorMessage(submitRes, 'Failed to submit standing order form. Please try again.'),
+        );
+      }
+
+      Alert.alert('Success', 'Standing order submitted successfully!');
+    } catch (error) {
+      Alert.alert('Error', error?.message || 'Unable to submit standing order form');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isFormValid = validateForm();
@@ -671,9 +908,10 @@ const StandingBankersOrder = () => {
         {/* Action Buttons */}
         <View style={styles.buttonContainer}>
           <Button
-            title="Save Order"
+            title={isSubmitting ? 'Submitting...' : 'Save Order'}
             onPress={handleSaveOrder}
             primary
+            disabled={isSubmitting || !isFormValid}
             style={styles.saveButton}
           />
         </View>
