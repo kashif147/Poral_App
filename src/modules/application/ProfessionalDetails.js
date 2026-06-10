@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Platform,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
@@ -85,6 +86,58 @@ const mapNurseTypeToAPI = displayValue => {
   return displayValue; // Return original if no match found
 };
 
+const CATEGORY_DISPLAY_NAME_BY_TYPE = {
+  undergraduate_student: 'Undergraduate Student',
+  retired_associate: 'Retired Associate',
+  postgraduate_student: 'Postgraduate Student',
+  general: 'General (all grades)',
+  private_nursing_home: 'Private nursing home',
+  short_term_relief: 'Short-term/Relief (under 12 hrs/wk average)',
+  associate: 'Associate (not currently employed as a nurse/midwife)',
+  affiliate: 'Affiliate members (non-practicing)',
+  lecturing: 'Lecturing (employed in universities and IT institutes)',
+};
+
+const REDUCED_RATE_CATEGORY_TYPES = [
+  'affiliate',
+  'associate',
+  'short_term_relief',
+];
+
+const isReducedRateMembershipCategory = categoryLabel => {
+  if (!categoryLabel) return false;
+
+  const label = String(categoryLabel).toLowerCase();
+
+  if (
+    REDUCED_RATE_CATEGORY_TYPES.some(
+      type => CATEGORY_DISPLAY_NAME_BY_TYPE[type] === categoryLabel,
+    )
+  ) {
+    return true;
+  }
+
+  if (
+    (label.includes('short-term') || label.includes('short term')) &&
+    label.includes('relief')
+  ) {
+    return true;
+  }
+
+  if (label.includes('affiliate') && label.includes('non-practicing')) {
+    return true;
+  }
+
+  if (
+    label.includes('associate') &&
+    label.includes('not currently employed')
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
 // studyLocations will be populated from lookup context
 
 const ProfessionalDetails = ({
@@ -98,7 +151,12 @@ const ProfessionalDetails = ({
     categoryLookups,
     gradeLookups,
     studyLocationLookups,
+    disciplineLookups,
   } = useLookup() || {};
+
+  const safeDisciplineLookups = Array.isArray(disciplineLookups)
+    ? disciplineLookups
+    : [];
 
   const safeWorkLocationLookups = Array.isArray(workLocationLookups)
     ? workLocationLookups
@@ -126,6 +184,49 @@ const ProfessionalDetails = ({
       .filter(option => option.value); // Filter out empty values
     return mapped;
   }, [safeStudyLocationLookups]);
+
+  const disciplineOptions = useMemo(
+    () =>
+      (safeDisciplineLookups || [])
+        .map(item => {
+          const name =
+            item?.DisplayName || item?.lookupname || item?.name || '';
+          return { value: name, label: name };
+        })
+        .filter(option => option.value),
+    [safeDisciplineLookups],
+  );
+
+  const applyMembershipCategory = categoryValue => {
+    onFormDataChange({
+      ...formData,
+      membershipCategory: categoryValue,
+    });
+  };
+
+  const handleMembershipCategoryChange = value => {
+    if (!value) {
+      applyMembershipCategory('');
+      return;
+    }
+
+    if (isReducedRateMembershipCategory(value)) {
+      Alert.alert(
+        'Membership Category Confirmation',
+        'You have selected a reduced-rate membership category. Please ensure you meet the eligibility criteria, as this category may provide different benefits and entitlements than a full membership.\n\nAre you sure you want to continue?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Yes, continue',
+            onPress: () => applyMembershipCategory(value),
+          },
+        ],
+      );
+      return;
+    }
+
+    applyMembershipCategory(value);
+  };
 
   // Map category lookups to picker options (matching web version)
   const membershipCategoryOptions = useMemo(() => {
@@ -359,37 +460,13 @@ const ProfessionalDetails = ({
     formData?.nurseType,
   ]);
 
-  // Clear nmbiNo and nurseType when nursingAdaptationProgramme is set to 'no' (matching web version)
+  // Clear nurseType when nursingAdaptationProgramme is set to 'no' (matching web version)
   useEffect(() => {
-    if (formData?.nursingAdaptationProgramme === 'no') {
-      const updates = {};
-      let hasUpdates = false;
-
-      // Clear nmbiNo if it has a value
-      if (formData.nmbiNo) {
-        updates.nmbiNo = '';
-        hasUpdates = true;
-      }
-
-      // Clear nmbiNumber if it has a value (for consistency)
-      if (formData.nmbiNumber) {
-        updates.nmbiNumber = '';
-        hasUpdates = true;
-      }
-
-      // Clear nurseType if it has a value
-      if (formData.nurseType) {
-        updates.nurseType = '';
-        hasUpdates = true;
-      }
-
-      // Apply updates if any
-      if (hasUpdates) {
-        onFormDataChange({
-          ...formData,
-          ...updates,
-        });
-      }
+    if (formData?.nursingAdaptationProgramme === 'no' && formData.nurseType) {
+      onFormDataChange({
+        ...formData,
+        nurseType: '',
+      });
     }
   }, [formData?.nursingAdaptationProgramme]);
 
@@ -422,7 +499,9 @@ const ProfessionalDetails = ({
             selectedValue={formData.membershipCategory || ''}
             
             onValueChange={val => {
-              onFormDataChange({ ...formData, membershipCategory: val });
+              if (val !== undefined) {
+                handleMembershipCategoryChange(val);
+              }
             }}
           >
             <Picker.Item label="Select membership category" value="" />
@@ -443,8 +522,18 @@ const ProfessionalDetails = ({
         {/* Conditional fields for Undergraduate Students */}
         {isUndergraduateStudent && (
           <>
-            <Text style={styles.label}>Discipline</Text>
-            <View style={styles.pickerField}>
+            <Text style={styles.label}>Discipline *</Text>
+            <View
+              style={[
+                styles.pickerField,
+                showValidation &&
+                  !formData.discipline && {
+                    borderColor: Colors.red,
+                    borderWidth: 1,
+                    borderRadius: 12,
+                  },
+              ]}
+            >
               <Picker
                 selectedValue={formData.discipline || ''}
                 onValueChange={val => {
@@ -454,13 +543,21 @@ const ProfessionalDetails = ({
                 }}
               >
                 <Picker.Item label="Select your discipline" value="" />
-                <Picker.Item label="Nursing" value="nursing" />
-                <Picker.Item label="Midwifery" value="midwifery" />
-                <Picker.Item label="Public Health" value="publicHealth" />
-                <Picker.Item label="Mental Health" value="mentalHealth" />
-                <Picker.Item label="Pediatric Nursing" value="pediatric" />
-                <Picker.Item label="Adult Nursing" value="adult" />
-                <Picker.Item label="Other" value="other" />
+                {disciplineOptions.length === 0 ? (
+                  <>
+                    <Picker.Item label="Nursing" value="Nursing" />
+                    <Picker.Item label="Midwifery" value="Midwifery" />
+                    <Picker.Item label="Other" value="other" />
+                  </>
+                ) : (
+                  disciplineOptions.map(option => (
+                    <Picker.Item
+                      key={option.value}
+                      label={option.label}
+                      value={option.value}
+                    />
+                  ))
+                )}
               </Picker>
             </View>
 
@@ -505,18 +602,16 @@ const ProfessionalDetails = ({
         {isRetired && (
           <>
             <Text style={styles.label}>Retired Date</Text>
-            <View style={styles.inputField}>
-              <InputField
-                value={formData.retiredDate}
-                editable={true}
-                holderTextColor={'#94A3B8'}
-                onChange={text =>
-                  onFormDataChange({ ...formData, retiredDate: text })
-                }
-                placeholder="DD/MM/YYYY"
-                keyboardType="numeric"
-              />
-            </View>
+            <DatePicker
+              value={formData.retirementDate || formData.retiredDate}
+              onChange={date =>
+                onFormDataChange({
+                  ...formData,
+                  retirementDate: date,
+                  retiredDate: date,
+                })
+              }
+            />
 
             <Text style={styles.label}>Pension No</Text>
             <View style={styles.inputField}>
@@ -697,10 +792,7 @@ const ProfessionalDetails = ({
                 ...formData,
                 nursingAdaptationProgramme: 'no',
               };
-              // Clear nmbiNo and nurseType when "no" is selected (matching web version)
               if (updatedData.nursingAdaptationProgramme === 'no') {
-                updatedData.nmbiNo = '';
-                updatedData.nmbiNumber = ''; // Also clear nmbiNumber for consistency
                 updatedData.nurseType = '';
               }
               onFormDataChange(updatedData);
@@ -723,9 +815,13 @@ const ProfessionalDetails = ({
         <Text style={styles.label}>NMBI No / An Board Altranais Number</Text>
         <View style={styles.inputField}>
           <InputField
-            value={formData.nmbiNo || ''}
-            editable={adaptationYes}
-            checkValue={showValidation && adaptationYes && !formData.nmbiNo}
+            value={formData.nmbiNo || formData.nmbiNumber || ''}
+            editable={adaptationYes || adaptationNo}
+            checkValue={
+              showValidation &&
+              adaptationNo &&
+              !(formData.nmbiNo || formData.nmbiNumber)
+            }
             holderTextColor={'#94A3B8'}
             onChange={text => {
               // Update both nmbiNo and nmbiNumber for consistency

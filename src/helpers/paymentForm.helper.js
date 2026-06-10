@@ -458,3 +458,22 @@ export const hasCreditorOrganizationDetails = paymentForm => {
   const details = mapCreditorOrganizationDetails(paymentForm);
   return Boolean(details?.name?.trim());
 };
+
+export const getOrganizationNameFromPrefill = paymentForm => {
+  if (!paymentForm) return '';
+
+  const creditor = mapCreditorOrganizationDetails(paymentForm);
+  if (creditor?.name?.trim()) return creditor.name.trim();
+
+  const standingOrder = paymentForm.standingOrder || {};
+  const org = paymentForm.organisationSnapshot || {};
+
+  return (
+    standingOrder.beneficiaryAccountName ||
+    standingOrder.creditorName ||
+    org.legalName ||
+    org.tradingName ||
+    org.bankName ||
+    ''
+  );
+};

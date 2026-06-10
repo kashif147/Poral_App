@@ -17,6 +17,8 @@ const STORAGE_KEYS = {
   grade: 'gradeLookups',
   paymentType: 'paymentTypeLookups',
   studyLocation: 'studyLocationLookups',
+  youthForum: 'youthForumLookups',
+  discipline: 'disciplineLookups',
 };
 
 const LookupContext = createContext();
@@ -73,6 +75,8 @@ export const LookupProvider = ({ children }) => {
   const [gradeLookups, setGradeLookups] = useState([]);
   const [paymentTypeLookups, setPaymentTypeLookups] = useState([]);
   const [studyLocationLookups, setStudyLocationLookups] = useState([]);
+  const [youthForumLookups, setYouthForumLookups] = useState([]);
+  const [disciplineLookups, setDisciplineLookups] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const hasInitializedRef = useRef(false);
@@ -96,6 +100,8 @@ export const LookupProvider = ({ children }) => {
         const gradeData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Grade');
         const paymentTypeData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Payment Type');
         const studyLocationData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Study Location');
+        const youthForumData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Youth Forum');
+        const disciplineData = lookupArray.filter(item => item.lookuptypeId?.lookuptype === 'Discipline');
         
         await saveLocal(STORAGE_KEYS.paymentType, paymentTypeData);
         await saveLocal(STORAGE_KEYS.grade, gradeData);
@@ -105,6 +111,8 @@ export const LookupProvider = ({ children }) => {
         await saveLocal(STORAGE_KEYS.secondarySection, secondarySectionData);
         await saveLocal(STORAGE_KEYS.primarySection, sectionData);
         await saveLocal(STORAGE_KEYS.studyLocation, studyLocationData);
+        await saveLocal(STORAGE_KEYS.youthForum, youthForumData);
+        await saveLocal(STORAGE_KEYS.discipline, disciplineData);
 
         setPaymentTypeLookups(paymentTypeData);
         setGradeLookups(gradeData);
@@ -114,6 +122,8 @@ export const LookupProvider = ({ children }) => {
         setPrimarySectionLookups(sectionData);
         setSecondarySectionLookups(secondarySectionData);
         setStudyLocationLookups(studyLocationData);
+        setYouthForumLookups(youthForumData);
+        setDisciplineLookups(disciplineData);
         setLookups(lookupArray);
       }
       setError(null);
@@ -216,6 +226,8 @@ export const LookupProvider = ({ children }) => {
       const cachedGrade = await fetchLocal(STORAGE_KEYS.grade);
       const cachedPaymentType = await fetchLocal(STORAGE_KEYS.paymentType);
       const cachedStudyLocation = await fetchLocal(STORAGE_KEYS.studyLocation);
+      const cachedYouthForum = await fetchLocal(STORAGE_KEYS.youthForum);
+      const cachedDiscipline = await fetchLocal(STORAGE_KEYS.discipline);
 
       if (cachedGender) setGenderLookups(cachedGender);
       if (cachedCity) setCityLookups(cachedCity);
@@ -228,6 +240,8 @@ export const LookupProvider = ({ children }) => {
       if (cachedGrade) setGradeLookups(cachedGrade);
       if (cachedPaymentType) setPaymentTypeLookups(cachedPaymentType);
       if (cachedStudyLocation) setStudyLocationLookups(cachedStudyLocation);
+      if (cachedYouthForum) setYouthForumLookups(cachedYouthForum);
+      if (cachedDiscipline) setDisciplineLookups(cachedDiscipline);
     };
     loadCached();
   }, []);
@@ -313,6 +327,8 @@ export const LookupProvider = ({ children }) => {
     gradeLookups,
     paymentTypeLookups,
     studyLocationLookups,
+    youthForumLookups,
+    disciplineLookups,
     loading,
     error,
     fetchLookups,
@@ -333,6 +349,8 @@ export const LookupProvider = ({ children }) => {
     gradeLookups,
     paymentTypeLookups,
     studyLocationLookups,
+    youthForumLookups,
+    disciplineLookups,
     loading,
     error,
     fetchLookups,

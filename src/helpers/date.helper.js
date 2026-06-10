@@ -19,4 +19,13 @@ export const isDataFormat = (dateStr) => {
 export const formatToDDMMYYYY = (dateString) => {
   const date = moment(dateString, moment.ISO_8601, true);
   return date.isValid() ? date.format('DD/MM/YYYY') : null;
-}
+};
+
+export const calculateAgeFromDateOfBirth = dateOfBirth => {
+  if (!dateOfBirth) return null;
+
+  const dob = moment(dateOfBirth, [moment.ISO_8601, 'DD/MM/YYYY', 'YYYY-MM-DD'], true);
+  if (!dob.isValid()) return null;
+
+  return moment().diff(dob, 'years');
+};

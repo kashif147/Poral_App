@@ -21,6 +21,11 @@ import {
   updateSubscriptionDetailRequest,
 } from '../../api/application.api';
 import { toast } from '../../utils/toast.utils';
+import { calculateAgeFromDateOfBirth } from '../../helpers/date.helper';
+import {
+  getPaymentFrequencyCategory,
+  isSalaryDeductionPaymentType,
+} from '../../helpers/subscriptionPricing.helper';
 
 const steps = [
   { number: 1, title: 'Personal' },
@@ -238,19 +243,35 @@ const Application = () => {
           workLocation,
           grade,
           membershipCategory,
-          nursingAdaptation,
           nursingAdaptationProgramme,
           nurseType,
           nmbiNo,
+          discipline,
+          studyLocation,
+          graduationDate,
+          pensionNo,
         } = formData.professionalDetails || {};
         if (!membershipCategory) missing.push('Membership category');
-        const isUndergraduateStudent = membershipCategory === 'undergraduate_student';
+        const isUndergraduateStudent = membershipCategory === 'undergraduate_student' ||
+          membershipCategory === 'Undergraduate Student';
         if (!isUndergraduateStudent && !workLocation) missing.push('Work location');
         if (!grade) missing.push('Grade');
-        const isNursingAdaptation = nursingAdaptation === true || nursingAdaptationProgramme === 'yes';
-        if (isNursingAdaptation) {
-          if (!nurseType) missing.push('Nurse type');
-          if (!nmbiNo) missing.push('NMBI number');
+        if (isUndergraduateStudent) {
+          if (!discipline) missing.push('Discipline');
+          if (!studyLocation) missing.push('Study location');
+          if (!graduationDate) missing.push('Graduation date');
+        }
+        const isRetiredAssociate =
+          membershipCategory === 'retired_associate' ||
+          membershipCategory === 'Retired Associate';
+        if (isRetiredAssociate && !String(pensionNo || '').trim()) {
+          missing.push('Pension number');
+        }
+        const isNursingAdaptationYes = nursingAdaptationProgramme === 'yes';
+        const isNursingAdaptationNo = nursingAdaptationProgramme === 'no';
+        if (isNursingAdaptationYes && !nurseType) missing.push('Nurse type');
+        if (isNursingAdaptationNo && !String(nmbiNo || '').trim()) {
+          missing.push('NMBI number');
         }
         break;
       }
@@ -258,7 +279,9 @@ const Application = () => {
         const {
           paymentType,
           payrollNo,
+          paymentFrequency,
           otherIrishTradeUnion,
+          otherIrishTradeUnionName,
           otherScheme,
           memberStatus,
           termsAndConditions,
@@ -266,13 +289,39 @@ const Application = () => {
           otherPrimarySection,
           secondarySection,
           otherSecondarySection,
+          joinYouthForum,
+          youthForum,
         } = formData.subscriptionDetails || {};
         if (!paymentType) missing.push('Payment type');
-        const requiresPayrollNo = ['Direct Debit', 'Salary Deduction', 'Deduction at Source'].includes(paymentType);
-        if (requiresPayrollNo && !payrollNo) missing.push('Payroll number');
+        if (
+          isSalaryDeductionPaymentType(paymentType) &&
+          !payrollNo
+        ) {
+          missing.push('Payroll number');
+        }
+        if (getPaymentFrequencyCategory(paymentType) && !paymentFrequency) {
+          missing.push('Payment frequency');
+        }
         if (!memberStatus) missing.push('Member status');
-        if (!otherIrishTradeUnion) missing.push('Other Irish trade union');
-        if (!otherScheme) missing.push('Other scheme');
+        if (memberStatus === 'new' || memberStatus === 'graduate') {
+          if (!otherIrishTradeUnion) missing.push('Other Irish trade union');
+          if (!otherScheme) missing.push('Other scheme');
+          if (
+            otherIrishTradeUnion === 'yes' &&
+            !String(otherIrishTradeUnionName || '').trim()
+          ) {
+            missing.push('Other Irish trade union name');
+          }
+        }
+        const memberAge = calculateAgeFromDateOfBirth(
+          formData.personalInfo?.dob,
+        );
+        if (memberAge !== null && memberAge < 35) {
+          if (!joinYouthForum) missing.push('Youth Forum preference');
+          if (joinYouthForum === 'yes' && !youthForum) {
+            missing.push('Youth Forum');
+          }
+        }
         if (!termsAndConditions) missing.push('Terms and conditions');
         if ((primarySection === 'other' || primarySection === 'Other') && !otherPrimarySection) {
           missing.push('Other primary section');
@@ -328,10 +377,13 @@ const Application = () => {
           workLocation,
           grade,
           membershipCategory,
-          nursingAdaptation,
           nursingAdaptationProgramme,
           nurseType,
           nmbiNo,
+          discipline,
+          studyLocation,
+          graduationDate,
+          pensionNo,
         } = formData.professionalDetails || {};
         
         // Check required fields
@@ -340,16 +392,29 @@ const Application = () => {
         }
         
         // Work location is only required for non-undergraduate students
-        const isUndergraduateStudent = membershipCategory === 'undergraduate_student';
+        const isUndergraduateStudent =
+          membershipCategory === 'undergraduate_student' ||
+          membershipCategory === 'Undergraduate Student';
         if (!isUndergraduateStudent && !workLocation) {
           return false;
         }
+        if (isUndergraduateStudent) {
+          if (!discipline || !studyLocation || !graduationDate) return false;
+        }
+        const isRetiredAssociate =
+          membershipCategory === 'retired_associate' ||
+          membershipCategory === 'Retired Associate';
+        if (isRetiredAssociate && !String(pensionNo || '').trim()) {
+          return false;
+        }
         
-        // Check nursingAdaptationProgramme (can be "yes"/"no" string or boolean)
-        const isNursingAdaptation = nursingAdaptation === true || 
-          nursingAdaptationProgramme === 'yes';
-        if (isNursingAdaptation) {
-          if (!nurseType || !nmbiNo) return false;
+        // Check nursingAdaptationProgramme (matching web version)
+        if (nursingAdaptationProgramme === 'yes' && !nurseType) return false;
+        if (
+          nursingAdaptationProgramme === 'no' &&
+          !String(nmbiNo || '').trim()
+        ) {
+          return false;
         }
         break;
       }
@@ -357,7 +422,9 @@ const Application = () => {
         const {
           paymentType,
           payrollNo,
+          paymentFrequency,
           otherIrishTradeUnion,
+          otherIrishTradeUnionName,
           otherScheme,
           memberStatus,
           termsAndConditions,
@@ -365,19 +432,16 @@ const Application = () => {
           otherPrimarySection,
           secondarySection,
           otherSecondarySection,
-          incomeProtectionScheme,
-          inmoRewards,
         } = formData.subscriptionDetails || {};
         
         console.log('📋 Step 3 Validation Data:', {
           paymentType,
           payrollNo,
+          paymentFrequency,
           otherIrishTradeUnion,
           otherScheme,
           memberStatus,
           termsAndConditions,
-          incomeProtectionScheme,
-          inmoRewards,
         });
         
         // Required fields
@@ -385,23 +449,56 @@ const Application = () => {
           console.log('❌ Validation failed: paymentType missing');
           return false;
         }
-        // Check if payment type requires payroll number (matching web version)
-        const requiresPayrollNo = ['Direct Debit', 'Salary Deduction', 'Deduction at Source'].includes(paymentType);
-        if (requiresPayrollNo && !payrollNo) {
+        if (
+          isSalaryDeductionPaymentType(paymentType) &&
+          !payrollNo
+        ) {
           console.log('❌ Validation failed: payrollNo missing for', paymentType);
+          return false;
+        }
+        if (
+          getPaymentFrequencyCategory(paymentType) &&
+          !paymentFrequency
+        ) {
+          console.log('❌ Validation failed: paymentFrequency missing');
           return false;
         }
         if (!memberStatus) {
           console.log('❌ Validation failed: memberStatus missing');
           return false;
         }
-        if (!otherIrishTradeUnion) {
-          console.log('❌ Validation failed: otherIrishTradeUnion missing');
-          return false;
+        if (memberStatus === 'new' || memberStatus === 'graduate') {
+          if (!otherIrishTradeUnion) {
+            console.log('❌ Validation failed: otherIrishTradeUnion missing');
+            return false;
+          }
+          if (!otherScheme) {
+            console.log('❌ Validation failed: otherScheme missing');
+            return false;
+          }
+          if (
+            otherIrishTradeUnion === 'yes' &&
+            !String(otherIrishTradeUnionName || '').trim()
+          ) {
+            console.log('❌ Validation failed: otherIrishTradeUnionName missing');
+            return false;
+          }
         }
-        if (!otherScheme) {
-          console.log('❌ Validation failed: otherScheme missing');
-          return false;
+        const memberAge = calculateAgeFromDateOfBirth(
+          formData.personalInfo?.dob,
+        );
+        if (memberAge !== null && memberAge < 35) {
+          if (!formData.subscriptionDetails?.joinYouthForum) {
+            console.log('❌ Validation failed: joinYouthForum missing');
+            return false;
+          }
+          if (
+            formData.subscriptionDetails?.joinYouthForum === 'yes' &&
+            !formData.subscriptionDetails?.youthForum
+          ) {
+            console.log('❌ Validation failed: youthForum missing');
+            return false;
+          }
         }
         if (!termsAndConditions) {
           console.log('❌ Validation failed: termsAndConditions missing');
@@ -548,7 +645,8 @@ const Application = () => {
           branch: apiData.branch ?? '',
           pensionNo: apiData.pensionNo ?? '',
           isRetired: apiData.isRetired ?? false,
-          retiredDate: apiData.retiredDate ?? '',
+          retiredDate: apiData.retiredDate ?? apiData.retirementDate ?? '',
+          retirementDate: apiData.retirementDate ?? apiData.retiredDate ?? '',
           studyLocation: apiData.studyLocation ?? '',
           startDate: apiData.startDate ?? '',
           graduationDate: apiData.graduationDate ?? '',
@@ -612,6 +710,14 @@ const Application = () => {
           membershipCategory: subData.membershipCategory || '',
           dateJoined: subData.dateJoined || '',
           paymentFrequency: subData.paymentFrequency || '',
+          previousMembershipNumber: subData.previousMembershipNumber ?? '',
+          joinYouthForum:
+            subData.joinYouthForum === true
+              ? 'yes'
+              : subData.joinYouthForum === false
+              ? 'no'
+              : subData.joinYouthForum || '',
+          youthForum: subData.youthForum ?? '',
         },
       }));
     }
@@ -798,9 +904,11 @@ const Application = () => {
       branch: data.branch,
       pensionNo: data.pensionNo,
       isRetired: data?.membershipCategory === 'retired_associate',
-      retiredDate: data.retiredDate,
+      retiredDate: data.retirementDate || data.retiredDate,
+      retirementDate: data.retirementDate || data.retiredDate,
       studyLocation: data.studyLocation,
       graduationDate: data.graduationDate,
+      discipline: data.discipline,
     };
     const professionalInfo = { professionalDetails: {} };
     Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
@@ -841,9 +949,11 @@ const Application = () => {
       branch: data.branch,
       pensionNo: data.pensionNo,
       isRetired: data?.membershipCategory === 'retired_associate',
-      retiredDate: data.retiredDate,
+      retiredDate: data.retirementDate || data.retiredDate,
+      retirementDate: data.retirementDate || data.retiredDate,
       studyLocation: data.studyLocation,
       graduationDate: data.graduationDate,
+      discipline: data.discipline,
     };
     const professionalInfo = { professionalDetails: {} };
     Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
@@ -873,6 +983,9 @@ const Application = () => {
       otherIrishTradeUnion: data?.otherIrishTradeUnion === 'yes', // Convert string to boolean (matching web version)
       otherIrishTradeUnionName: data?.otherIrishTradeUnionName, // Match web version field name
       otherScheme: data?.otherScheme === 'yes' || data?.otherScheme === true, // Convert string to boolean (matching web version)
+      previousMembershipNumber: data?.previousMembershipNumber,
+      joinYouthForum: data?.joinYouthForum === 'yes',
+      youthForum: data?.youthForum,
       recuritedBy: data?.recuritedBy,
       recuritedByMembershipNo: data?.recuritedByMembershipNo,
       primarySection: data?.primarySection,
@@ -884,7 +997,7 @@ const Application = () => {
       exclusiveDiscountsAndOffers: data?.exclusiveDiscountsAndOffers === true, // Add missing field (matching web version)
       valueAddedServices: data?.valueAddedServices === true,
       termsAndConditions: data?.termsAndConditions === true,
-      paymentFrequency: data?.paymentType === 'Credit Card' ? 'Annually' : 'Monthly', // Add payment frequency (matching web version)
+      paymentFrequency: data?.paymentFrequency,
       ...defaultFields,
     };
     const subscriptionDetails = {};
@@ -936,6 +1049,9 @@ const Application = () => {
       otherIrishTradeUnion: data?.otherIrishTradeUnion === 'yes', // Convert string to boolean (matching web version)
       otherIrishTradeUnionName: data?.otherIrishTradeUnionName, // Match web version field name
       otherScheme: data?.otherScheme === 'yes' || data?.otherScheme === true, // Convert string to boolean (matching web version)
+      previousMembershipNumber: data?.previousMembershipNumber,
+      joinYouthForum: data?.joinYouthForum === 'yes',
+      youthForum: data?.youthForum,
       recuritedBy: data?.recuritedBy,
       recuritedByMembershipNo: data?.recuritedByMembershipNo,
       primarySection: data?.primarySection,
@@ -947,7 +1063,7 @@ const Application = () => {
       exclusiveDiscountsAndOffers: data?.exclusiveDiscountsAndOffers === true, // Add missing field (matching web version)
       valueAddedServices: data?.valueAddedServices === true,
       termsAndConditions: data?.termsAndConditions === true,
-      paymentFrequency: data?.paymentType === 'Credit Card' ? 'Annually' : 'Monthly', // Add payment frequency (matching web version)
+      paymentFrequency: data?.paymentFrequency,
       ...defaultFields,
     };
     const subscriptionDetails = {};
@@ -1015,6 +1131,8 @@ const Application = () => {
               onFormDataChange={data => handleFormDataChange('subscriptionDetails', data)}
               showValidation={showValidation}
               categoryData={categoryData}
+              dateOfBirth={formData.personalInfo?.dob}
+              workLocation={formData.professionalDetails?.workLocation}
             />
           );
         default:

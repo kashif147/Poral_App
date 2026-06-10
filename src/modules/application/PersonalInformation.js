@@ -16,10 +16,17 @@ import { Colors, form, wp } from '../../utils/Styles';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { DatePicker } from '../../common/DatePicker';
 import { useLookup } from '../../contexts/lookupContext';
+import { useProfile } from '../../contexts/profileContext';
+import { getPaymentFormPrefill } from '../../api/paymentForms.api';
+import {
+  extractPaymentFormPrefill,
+  getOrganizationNameFromPrefill,
+  isPaymentApiSuccess,
+} from '../../helpers/paymentForm.helper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import CountryPicker from 'react-native-country-picker-modal';
 
-const preferredAddresses = ['Home', 'Work', 'Other'];
+const preferredAddresses = ['Home', 'Work'];
 const preferredEmails = ['Personal', 'Work'];
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCJYpj8WV5Rzof7O3jGhW9XabD0J4Yqe1o';
@@ -232,9 +239,6 @@ const normalizePreferredAddress = value => {
   const lowerValue = value.toLowerCase();
   if (lowerValue === 'home') return 'Home';
   if (lowerValue === 'work') return 'Work';
-  if (lowerValue === 'other') return 'Other';
-  if (lowerValue === 'personal') return 'Home'; // Map personal to Home
-  // If exact match exists, return it
   if (preferredAddresses.includes(value)) return value;
   return null;
 };
@@ -244,9 +248,20 @@ const normalizePreferredEmail = value => {
   const lowerValue = value.toLowerCase();
   if (lowerValue === 'personal') return 'Personal';
   if (lowerValue === 'work') return 'Work';
-  // If exact match exists, return it
   if (preferredEmails.includes(value)) return value;
   return null;
+};
+
+const toStoredPreferredAddress = value => {
+  const normalized = normalizePreferredAddress(value);
+  if (!normalized) return '';
+  return normalized.toLowerCase();
+};
+
+const toStoredPreferredEmail = value => {
+  const normalized = normalizePreferredEmail(value);
+  if (!normalized) return '';
+  return normalized.toLowerCase();
 };
 
 const PersonalInformation = ({
@@ -263,6 +278,34 @@ const PersonalInformation = ({
     titleLookups = [],
     countryLookups = [],
   } = useLookup() || {};
+  const { profileDetail } = useProfile();
+  const [organizationName, setOrganizationName] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadOrganizationName = async () => {
+      const profileId = profileDetail?.profileId;
+      if (!profileId) return;
+
+      try {
+        const response = await getPaymentFormPrefill(profileId);
+        if (cancelled || !isPaymentApiSuccess(response)) return;
+
+        const prefill = extractPaymentFormPrefill(response);
+        const name = getOrganizationNameFromPrefill(prefill);
+        if (name) setOrganizationName(name);
+      } catch (error) {
+        console.error('Failed to load organization name from prefill:', error);
+      }
+    };
+
+    loadOrganizationName();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileDetail?.profileId]);
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY);
@@ -400,11 +443,11 @@ const PersonalInformation = ({
 
   useEffect(() => {
     if (formData?.preferredEmail) {
-      const normalized = normalizePreferredEmail(formData.preferredEmail);
-      if (normalized && normalized !== formData.preferredEmail) {
+      const stored = toStoredPreferredEmail(formData.preferredEmail);
+      if (stored && stored !== formData.preferredEmail) {
         onFormDataChange({
           ...formData,
-          preferredEmail: normalized,
+          preferredEmail: stored,
         });
       }
     }
@@ -651,7 +694,11 @@ const PersonalInformation = ({
         <View style={styles.termsRow}>
           <View style={styles.termsLabelContainer}>
             <Text style={styles.termsLabel}>
-              I agree to receive correspondence from INMO
+            Consent to receive Correspondence
+            {organizationName ? ` from ${organizationName}` : ''}
+            </Text>
+            <Text style={styles.termsLabelSubtext}>
+              Please un-tick this box if you would<Text style={{ fontWeight: 'bold' }}> NOT like </Text> to receive correspondence via email or phone.
             </Text>
           </View>
           <View style={styles.switchContainer}>
@@ -687,7 +734,10 @@ const PersonalInformation = ({
                 normalizePreferredAddress(formData?.preferredAddress) || ''
               }
               onValueChange={val =>
-                onFormDataChange({ ...formData, preferredAddress: val })
+                onFormDataChange({
+                  ...formData,
+                  preferredAddress: toStoredPreferredAddress(val),
+                })
               }
             >
               <Picker.Item label="Select preferred address..." value="" />
@@ -1081,9 +1131,9 @@ const PersonalInformation = ({
           <Text style={styles.label}>Home / Work Tel Number</Text>
           <View style={styles.inputField}>
             <InputField
-              value={formData.workTel}
+              value={formData.homeWorkTelNo || formData.workTel || ''}
               onChange={text =>
-                onFormDataChange({ ...formData, workTel: text })
+                onFormDataChange({ ...formData, homeWorkTelNo: text, workTel: text })
               }
               placeholder="Enter your work number"
               keyboardType="phone-pad"
@@ -1109,7 +1159,10 @@ const PersonalInformation = ({
                 normalizePreferredEmail(formData?.preferredEmail) || ''
               }
               onValueChange={val =>
-                onFormDataChange({ ...formData, preferredEmail: val })
+                onFormDataChange({
+                  ...formData,
+                  preferredEmail: toStoredPreferredEmail(val),
+                })
               }
             >
               <Picker.Item label="Select preferred email..." value="" />
@@ -1127,7 +1180,8 @@ const PersonalInformation = ({
               value={formData.personalEmail}
               checkValue={
                 showValidation &&
-                formData.preferredEmail === 'Personal' &&
+                (formData.preferredEmail === 'personal' ||
+                  formData.preferredEmail === 'Personal') &&
                 !formData.personalEmail
               }
               onChange={text =>
@@ -1147,7 +1201,8 @@ const PersonalInformation = ({
               value={formData.workEmail}
               checkValue={
                 showValidation &&
-                formData.preferredEmail === 'Work' &&
+                (formData.preferredEmail === 'work' ||
+                  formData.preferredEmail === 'Work') &&
                 !formData.workEmail
               }
               onChange={text =>
