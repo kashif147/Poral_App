@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, useWindowDimensions, Platform, KeyboardAvoidingView, Keyboard, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -21,6 +21,13 @@ import {
   updateSubscriptionDetailRequest,
 } from '../../api/application.api';
 import { toast } from '../../utils/toast.utils';
+import {
+  buildDefaultPersonalInfoFromAuth,
+  detailBelongsToApplication,
+  isResumablePortalApplication,
+  normalizeApplicationStatus,
+  resolveApplicationFormStep,
+} from '../../helpers/applicationPayload.helper';
 import { calculateAgeFromDateOfBirth } from '../../helpers/date.helper';
 import {
   getPaymentFrequencyCategory,
@@ -72,10 +79,16 @@ const Application = () => {
     getPersonalDetail,
     getProfessionalDetail,
     getSubscriptionDetail,
+    refreshApplicationState,
+    applicationStatus,
   } = useApplication();
   const { categoryLookups } = useLookup();
   const navigation = useNavigation();
-  const user = useSelector(state => state.auth.user);
+  const { user, userDetail } = useSelector(state => state.auth);
+  const defaultPersonalInfo = useMemo(
+    () => buildDefaultPersonalInfoFromAuth({ user, userDetail }),
+    [user, userDetail],
+  );
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -85,6 +98,31 @@ const Application = () => {
   const [stepLoading, setStepLoading] = useState(false);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef(null);
+
+  const hasActiveApplication = useMemo(
+    () => isResumablePortalApplication(personalDetail, applicationStatus),
+    [personalDetail, applicationStatus],
+  );
+
+  const activeApplicationId = hasActiveApplication
+    ? personalDetail?.applicationId
+    : null;
+
+  const activeProfessionalDetail = useMemo(
+    () =>
+      detailBelongsToApplication(professionalDetail, activeApplicationId)
+        ? professionalDetail
+        : null,
+    [professionalDetail, activeApplicationId],
+  );
+
+  const activeSubscriptionDetail = useMemo(
+    () =>
+      detailBelongsToApplication(subscriptionDetail, activeApplicationId)
+        ? subscriptionDetail
+        : null,
+    [subscriptionDetail, activeApplicationId],
+  );
 
   // Keyboard event listeners
   useEffect(() => {
@@ -127,23 +165,21 @@ const Application = () => {
     if (isValid) {
       if (currentStep === 1) {
         console.log('📝 Processing step 1...');
-        if (!personalDetail) {
+        if (!hasActiveApplication) {
           createPersonalDetail(formData.personalInfo);
         } else {
           updatePersonalDetail(formData.personalInfo);
         }
       } else if (currentStep === 2) {
         console.log('💼 Processing step 2...');
-        if (!professionalDetail) {
+        if (!activeProfessionalDetail) {
           createProfessionalDetail(formData.professionalDetails);
         } else {
           updateProfessionalDetail(formData.professionalDetails);
         }
       } else if (currentStep === 3) {
         console.log('📋 Processing step 3...');
-        console.log('subscriptionDetail exists?', !!subscriptionDetail);
-        // Always create/update subscription detail first
-        if (!subscriptionDetail) {
+        if (!activeSubscriptionDetail) {
           console.log('Creating new subscription detail...');
           createSubscriptionDetail(formData.subscriptionDetails);
         } else {
@@ -525,21 +561,45 @@ const Application = () => {
     setIsModalVisible(false);
   };
 
-  const handlePaymentSuccess = (paymentData) => {
+  const navigateToDashboardAfterSubmit = async () => {
+    const maxAttempts = 4;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        const result = await refreshApplicationState?.();
+        const normalized = normalizeApplicationStatus(result?.status);
+        if (
+          normalized === 'submitted' ||
+          normalized === 'approved' ||
+          normalized === 'in review'
+        ) {
+          break;
+        }
+      } catch {
+        // Retry on transient failures
+      }
+
+      if (attempt < maxAttempts - 1) {
+        await new Promise(resolve => setTimeout(resolve, 750));
+      }
+    }
+
+    navigation.navigate(STACKS.DASHBOARD_STACK);
+  };
+
+  const handlePaymentSuccess = paymentData => {
     console.log('✅ Payment Success Data:', paymentData);
-    
-    // Close the payment modal
+
     setIsModalVisible(false);
-    
-    // Show success alert and navigate to dashboard (match web)
+
     Alert.alert('Success', 'Payment completed successfully!', [
       {
         text: 'OK',
-        onPress: () => {
+        onPress: async () => {
           setIsSubmitted(true);
-          navigation.navigate(STACKS.DASHBOARD_STACK);
-        }
-      }
+          await navigateToDashboardAfterSubmit();
+        },
+      },
     ]);
   };
 
@@ -555,25 +615,43 @@ const Application = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Seed personal info from auth user when no personalDetail yet (match web)
+  // Reset stale data and prefill basic personal info from auth when starting fresh
   useEffect(() => {
-    if (!user || personalDetail) return;
-    setFormData(prev => ({
-      ...prev,
-      personalInfo: {
-        ...prev.personalInfo,
-        forename: user.firstName ?? user.userFirstName ?? prev.personalInfo.forename,
-        surname: user.lastName ?? user.userLastName ?? prev.personalInfo.surname,
-        personalEmail: user.email ?? user.userEmail ?? prev.personalInfo.personalEmail,
-        mobileNo: user.mobilePhone ?? user.userMobilePhone ?? prev.personalInfo.mobileNo,
-      },
-    }));
-  }, [user, personalDetail]);
+    if (!hasActiveApplication) {
+      setCurrentStep(1);
+      setIsSubmitted(false);
+      setFormData(prev => ({
+        ...prev,
+        personalInfo: {
+          ...initialFormData.personalInfo,
+          ...defaultPersonalInfo,
+        },
+        professionalDetails: {},
+        subscriptionDetails: {},
+      }));
+      return;
+    }
+
+    setCurrentStep(
+      resolveApplicationFormStep({
+        activeSubscriptionDetail,
+        activeProfessionalDetail,
+        activeApplicationId,
+      }),
+    );
+  }, [
+    hasActiveApplication,
+    activeApplicationId,
+    activeProfessionalDetail,
+    activeSubscriptionDetail,
+    defaultPersonalInfo,
+  ]);
 
   // Hydrate form from fetched details
   useEffect(() => {
-    if (personalDetail) {
-      setFormData(prev => ({
+    if (!activeApplicationId || !personalDetail) return;
+
+    setFormData(prev => ({
         ...prev,
         personalInfo: {
           ...prev.personalInfo,
@@ -598,12 +676,12 @@ const Application = () => {
           workEmail: personalDetail?.contactInfo?.workEmail || '',
         },
       }));
-    }
-  }, [personalDetail]);
+  }, [activeApplicationId, personalDetail]);
 
   useEffect(() => {
-    if (professionalDetail) {
-      const apiData = professionalDetail?.professionalDetails || {};
+    if (!activeProfessionalDetail) return;
+
+    const apiData = activeProfessionalDetail?.professionalDetails || {};
       const membershipCategory = apiData.membershipCategory;
       
       // Convert boolean nursingAdaptationProgramme to "yes"/"no" string
@@ -658,13 +736,20 @@ const Application = () => {
       if (membershipCategory) {
         getCategoryData(membershipCategory, categoryLookups || []);
       }
-    }
-  }, [professionalDetail, professionalDetail?.professionalDetails?.membershipCategory]);
+  }, [activeProfessionalDetail, categoryLookups, getCategoryData]);
 
   useEffect(() => {
-    if (subscriptionDetail) {
+    if (!activeSubscriptionDetail) return;
+
+    const subData = activeSubscriptionDetail?.subscriptionDetails || {};
+    const normalizedStatus = normalizeApplicationStatus(applicationStatus);
+    if (
+      normalizedStatus === 'submitted' ||
+      normalizedStatus === 'approved' ||
+      normalizedStatus === 'in review'
+    ) {
       setIsSubmitted(true);
-      const subData = subscriptionDetail?.subscriptionDetails || {};
+    }
       
       // Convert otherIrishTradeUnion from boolean to 'yes'/'no' string (matching web version)
       let otherIrishTradeUnion = '';
@@ -720,8 +805,10 @@ const Application = () => {
           youthForum: subData.youthForum ?? '',
         },
       }));
-    }
-  }, [subscriptionDetail]);
+  }, [activeSubscriptionDetail, applicationStatus]);
+
+  const resolveApplicationId = () =>
+    activeApplicationId ?? personalDetail?.applicationId;
 
   // API create/update helpers
   const createPersonalDetail = data => {
@@ -769,7 +856,8 @@ const Application = () => {
   };
 
   const updatePersonalDetail = data => {
-    if (!personalDetail?.applicationId) return;
+    const applicationId = resolveApplicationId();
+    if (!applicationId) return;
     setStepLoading(true);
     const personalInfo = {};
     const personalFields = {
@@ -799,7 +887,7 @@ const Application = () => {
     };
     personalInfo.contactInfo = {};
     Object.entries(contactFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') personalInfo.contactInfo[k] = v; });
-    updatePersonalDetailRequest(personalDetail.applicationId, personalInfo).then(res => {
+    updatePersonalDetailRequest(applicationId, personalInfo).then(res => {
       setStepLoading(false);
       console.log('🔄 Updating personal detail with:', res);
       if (res?.status === 200) {
@@ -882,7 +970,8 @@ const Application = () => {
   };
 
   const createProfessionalDetail = data => {
-    if (!personalDetail?.applicationId) return;
+    const applicationId = resolveApplicationId();
+    if (!applicationId) return;
     setStepLoading(true);
     
     // Convert nursingAdaptationProgramme from "yes"/"no" string to boolean
@@ -912,7 +1001,7 @@ const Application = () => {
     };
     const professionalInfo = { professionalDetails: {} };
     Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
-    createProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
+    createProfessionalDetailRequest(applicationId, professionalInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
         getProfessionalDetail();
@@ -927,7 +1016,8 @@ const Application = () => {
   };
 
   const updateProfessionalDetail = data => {
-    if (!personalDetail?.applicationId) return;
+    const applicationId = resolveApplicationId();
+    if (!applicationId) return;
     setStepLoading(true);
     
     // Convert nursingAdaptationProgramme from "yes"/"no" string to boolean
@@ -957,7 +1047,7 @@ const Application = () => {
     };
     const professionalInfo = { professionalDetails: {} };
     Object.entries(professionalFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') professionalInfo.professionalDetails[k] = v; });
-    updateProfessionalDetailRequest(personalDetail.applicationId, professionalInfo).then(res => {
+    updateProfessionalDetailRequest(applicationId, professionalInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
         getProfessionalDetail();
@@ -972,7 +1062,8 @@ const Application = () => {
   };
 
   const createSubscriptionDetail = data => {
-    if (!personalDetail?.applicationId) return;
+    const applicationId = resolveApplicationId();
+    if (!applicationId) return;
     const defaultFields = {
       membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
     };
@@ -1004,7 +1095,7 @@ const Application = () => {
     Object.entries(subscriptionFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') subscriptionDetails[k] = v; });
     const subscriptionInfo = { subscriptionDetails };
     setStepLoading(true);
-    createSubscriptionDetailRequest(personalDetail.applicationId, subscriptionInfo).then(res => {
+    createSubscriptionDetailRequest(applicationId, subscriptionInfo).then(res => {
       setStepLoading(false);
       if (res?.status === 200) {
         console.log('✅ Subscription detail created successfully');
@@ -1019,8 +1110,8 @@ const Application = () => {
           Alert.alert('Success', 'Application submitted successfully!', [
             {
               text: 'OK',
-              onPress: () => navigation.navigate(STACKS.DASHBOARD_STACK),
-            }
+              onPress: () => navigateToDashboardAfterSubmit(),
+            },
           ]);
         } else {
           // Trigger payment modal for other categories (matching web version)
@@ -1038,7 +1129,8 @@ const Application = () => {
   };
 
   const updateSubscriptionDetail = data => {
-    if (!personalDetail?.applicationId) return;
+    const applicationId = resolveApplicationId();
+    if (!applicationId) return;
     const defaultFields = {
       membershipCategory: professionalDetail?.professionalDetails?.membershipCategory,
     };
@@ -1070,7 +1162,7 @@ const Application = () => {
     Object.entries(subscriptionFields).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') subscriptionDetails[k] = v; });
     const subscriptionInfo = { subscriptionDetails };
     setStepLoading(true);
-    updateSubscriptionDetailRequest(personalDetail.applicationId, subscriptionInfo).then(res => {
+    updateSubscriptionDetailRequest(applicationId, subscriptionInfo).then(res => {
       console.log('🔄 Updating subscription detail with:', res);
       setStepLoading(false);
       if (res?.status === 200) {
@@ -1086,8 +1178,8 @@ const Application = () => {
           Alert.alert('Success', 'Application updated successfully!', [
             {
               text: 'OK',
-              onPress: () => navigation.navigate(STACKS.DASHBOARD_STACK),
-            }
+              onPress: () => navigateToDashboardAfterSubmit(),
+            },
           ]);
         } else {
           // Trigger payment modal for other categories (matching web version)

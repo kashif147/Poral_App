@@ -177,3 +177,219 @@ export const buildApplicationBundleFromContext = ({
     subscriptionDetail: subscriptionDetail || null,
   };
 };
+
+export const detailBelongsToApplication = (detail, applicationId) =>
+  Boolean(
+    applicationId &&
+      detail?.applicationId &&
+      String(detail.applicationId) === String(applicationId),
+  );
+
+export const isActiveApplicationPersonalDetail = personalDetail => {
+  if (!personalDetail) return false;
+
+  const isActive = coalesce(
+    personalDetail?.meta?.isActive,
+    personalDetail?.isActive,
+  );
+
+  return isActive !== false;
+};
+
+const RESUMABLE_PORTAL_APPLICATION_STATUSES = new Set([
+  'rejected',
+  'in-progress',
+  'in progress',
+]);
+
+export const isResumablePortalApplication = (
+  personalDetail,
+  applicationStatus,
+) => {
+  if (!personalDetail?.applicationId) return false;
+
+  const status = String(
+    coalesce(personalDetail.applicationStatus, applicationStatus) || '',
+  )
+    .trim()
+    .toLowerCase();
+
+  if (RESUMABLE_PORTAL_APPLICATION_STATUSES.has(status)) {
+    return true;
+  }
+
+  if (status === 'approved' || status === 'submitted') {
+    return isActiveApplicationPersonalDetail(personalDetail);
+  }
+
+  if (!isActiveApplicationPersonalDetail(personalDetail)) {
+    return true;
+  }
+
+  return true;
+};
+
+export const normalizePortalPersonalDetail = (
+  personalDetail,
+  applicationStatus,
+) => {
+  if (!personalDetail) return null;
+  if (isResumablePortalApplication(personalDetail, applicationStatus)) {
+    return personalDetail;
+  }
+
+  // Inactive/cancelled applications start fresh; basic info comes from auth user.
+  return null;
+};
+
+export const buildDefaultPersonalInfoFromAuth = ({ user = {}, userDetail = {} } = {}) => {
+  const source = { ...userDetail, ...user };
+
+  return {
+    title: '',
+    forename: coalesce(source.firstName, source.userFirstName, '') || '',
+    surname: coalesce(source.lastName, source.userLastName, '') || '',
+    gender: '',
+    dob: '',
+    countryPrimaryQualification: '',
+    personalEmail: coalesce(source.email, source.userEmail, '') || '',
+    mobileNo:
+      coalesce(source.mobilePhone, source.userMobilePhone, source.mobile, '') ||
+      '',
+    country: 'Ireland',
+    consent: true,
+    addressLine1: '',
+    addressLine2: '',
+    addressLine3: '',
+    addressLine4: '',
+    eircode: '',
+    workTel: '',
+    preferredEmail: '',
+    preferredAddress: '',
+    homeWorkTelNo: '',
+    workEmail: '',
+  };
+};
+
+export const resolveApplicationFormStep = ({
+  activeSubscriptionDetail,
+  activeProfessionalDetail,
+  activeApplicationId,
+} = {}) => {
+  if (activeSubscriptionDetail?.applicationId) {
+    return 3;
+  }
+
+  if (activeProfessionalDetail?.applicationId) {
+    return 3;
+  }
+
+  if (activeApplicationId) {
+    return 2;
+  }
+
+  return 1;
+};
+
+export const normalizeApplicationStatus = status =>
+  String(status || '')
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/-/g, ' ');
+
+export const isTerminalApplicationReviewStatus = status => {
+  const normalized = normalizeApplicationStatus(status);
+  return (
+    normalized === 'submitted' ||
+    normalized === 'approved' ||
+    normalized === 'in review'
+  );
+};
+
+export const getApplicationFormProgress = ({
+  personalDetail,
+  professionalDetail,
+  subscriptionDetail,
+  applicationStatus,
+} = {}) => {
+  const applicationId = isResumablePortalApplication(
+    personalDetail,
+    applicationStatus ?? personalDetail?.applicationStatus,
+  )
+    ? personalDetail?.applicationId
+    : null;
+
+  if (!applicationId) {
+    return { completedSteps: 0, totalSteps: 3, applicationId: null };
+  }
+
+  let completedSteps = 1;
+
+  if (detailBelongsToApplication(professionalDetail, applicationId)) {
+    completedSteps = 2;
+  }
+
+  if (detailBelongsToApplication(subscriptionDetail, applicationId)) {
+    completedSteps = 3;
+  }
+
+  return { completedSteps, totalSteps: 3, applicationId };
+};
+
+export const shouldShowApplicationReviewStatus = ({
+  applicationStatus,
+  isApplicationSubmitted = false,
+  personalDetail,
+  professionalDetail,
+  subscriptionDetail,
+} = {}) => {
+  if (isApplicationSubmitted) {
+    return true;
+  }
+
+  const normalized = normalizeApplicationStatus(applicationStatus);
+  if (!isTerminalApplicationReviewStatus(normalized)) {
+    return false;
+  }
+
+  const { completedSteps, totalSteps } = getApplicationFormProgress({
+    personalDetail,
+    professionalDetail,
+    subscriptionDetail,
+    applicationStatus,
+  });
+
+  return completedSteps >= totalSteps;
+};
+
+export const getApplicationReviewStatusKey = applicationStatus => {
+  const normalized = normalizeApplicationStatus(applicationStatus);
+  if (normalized === 'approved') return 'approved';
+  if (normalized === 'in review') return 'in_review';
+  return 'submitted';
+};
+
+export const getApplicationCompletionPercentage = ({
+  personalDetail,
+  professionalDetail,
+  subscriptionDetail,
+  applicationStatus,
+  isApplicationSubmitted = false,
+} = {}) => {
+  if (isApplicationSubmitted) {
+    return 100;
+  }
+
+  const { completedSteps } = getApplicationFormProgress({
+    personalDetail,
+    professionalDetail,
+    subscriptionDetail,
+    applicationStatus,
+  });
+
+  if (completedSteps === 0) return 0;
+  if (completedSteps === 1) return 33;
+  if (completedSteps === 2) return 67;
+  return 90;
+};

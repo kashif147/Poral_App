@@ -8,13 +8,83 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Label } from '../../../common/text/label';
 import { Colors } from '../../../utils/Styles';
+import {
+  getApplicationFormProgress,
+  getApplicationReviewStatusKey,
+  shouldShowApplicationReviewStatus,
+} from '../../../helpers/applicationPayload.helper';
 
 const hasNoApplication = status =>
   status == null || status === 'none' || status === '';
 
+const FORM_STEPS = [
+  { key: 'personal', label: 'Personal' },
+  { key: 'professional', label: 'Professional' },
+  { key: 'subscription', label: 'Subscription' },
+];
+
+const StepIcon = ({ state, reviewIcon }) => {
+  if (state === 'complete') {
+    return <Ionicons name="checkmark" size={14} color={Colors.primary} />;
+  }
+
+  if (reviewIcon === 'time') {
+    return <Ionicons name="time-outline" size={14} color="#FFA500" />;
+  }
+
+  if (reviewIcon === 'approved') {
+    return <Ionicons name="checkmark-circle" size={14} color="#10B981" />;
+  }
+
+  if (state === 'current') {
+    return <Ionicons name="ellipse" size={10} color={Colors.primary} />;
+  }
+
+  return <Ionicons name="lock-closed-outline" size={14} color="#94A3B8" />;
+};
+
+const Timeline = ({ steps, connectors }) => (
+  <View style={styles.statusTimeline}>
+    {steps.map((step, index) => (
+      <React.Fragment key={step.label}>
+        <View style={styles.statusStep}>
+          <View style={[styles.statusIcon, step.iconStyle]}>
+            <StepIcon state={step.state} reviewIcon={step.reviewIcon} />
+          </View>
+          <View style={styles.statusStepContent}>
+            <Label
+              style={[
+                styles.statusStepLabel,
+                step.labelStyle,
+              ]}
+            >
+              {step.label}
+            </Label>
+          </View>
+        </View>
+        {index < connectors.length ? (
+          <View style={styles.statusConnectorContainer}>
+            <View
+              style={[
+                styles.statusConnector,
+                { backgroundColor: connectors[index] },
+              ]}
+            />
+          </View>
+        ) : null}
+      </React.Fragment>
+    ))}
+  </View>
+);
+
 export const ApplicationStatusCard = ({
   applicationStatus,
+  isApplicationSubmitted = false,
+  personalDetail,
+  professionalDetail,
+  subscriptionDetail,
   onStartApplication,
+  onContinueApplication,
 }) => {
   if (applicationStatus === 'rejected') {
     return (
@@ -41,9 +111,9 @@ export const ApplicationStatusCard = ({
     );
   }
 
-  if (hasNoApplication(applicationStatus)) {
+  if (hasNoApplication(applicationStatus) && !personalDetail?.applicationId) {
     return (
-      <View style={styles.statusCard}> 
+      <View style={styles.statusCard}>
         <View style={styles.noApplicationContent}>
           <Label style={styles.noApplicationMessage}>
             You haven't started an application yet.
@@ -66,186 +136,183 @@ export const ApplicationStatusCard = ({
     );
   }
 
+  const showReviewStatus = shouldShowApplicationReviewStatus({
+    applicationStatus,
+    isApplicationSubmitted,
+    personalDetail,
+    professionalDetail,
+    subscriptionDetail,
+  });
+
+  if (showReviewStatus) {
+    const reviewStatus = getApplicationReviewStatusKey(applicationStatus);
+    const badgeConfig = {
+      approved: { bg: '#D1FAE5', color: '#059669', label: 'Approved' },
+      in_review: { bg: '#FEF3C7', color: '#D97706', label: 'In Review' },
+      submitted: { bg: '#DBEAFE', color: '#2563EB', label: 'Submitted' },
+    }[reviewStatus];
+
+    const reviewSteps = [
+      {
+        label: 'Submitted',
+        state: 'complete',
+        reviewIcon: null,
+        iconStyle: {
+          backgroundColor: '#E8F0FE',
+          borderColor: Colors.primary,
+          borderWidth: 2,
+        },
+        labelStyle: null,
+      },
+      {
+        label: 'In Review',
+        state:
+          reviewStatus === 'in_review' || reviewStatus === 'approved'
+            ? 'complete'
+            : 'pending',
+        reviewIcon: 'time',
+        iconStyle: {
+          backgroundColor:
+            reviewStatus === 'in_review' || reviewStatus === 'approved'
+              ? '#FFF4E6'
+              : '#F1F5F9',
+          borderColor:
+            reviewStatus === 'in_review' || reviewStatus === 'approved'
+              ? '#FFA500'
+              : '#E5E7EB',
+          borderWidth:
+            reviewStatus === 'in_review' || reviewStatus === 'approved' ? 2 : 1,
+        },
+        labelStyle:
+          reviewStatus === 'in_review' || reviewStatus === 'approved'
+            ? { color: '#FFA500', fontWeight: '600' }
+            : null,
+      },
+      {
+        label: 'Approved',
+        state: reviewStatus === 'approved' ? 'complete' : 'pending',
+        reviewIcon: reviewStatus === 'approved' ? 'approved' : null,
+        iconStyle: {
+          backgroundColor:
+            reviewStatus === 'approved' ? '#D1FAE5' : '#F1F5F9',
+          borderColor:
+            reviewStatus === 'approved' ? '#10B981' : '#E5E7EB',
+          borderWidth: reviewStatus === 'approved' ? 2 : 1,
+        },
+        labelStyle:
+          reviewStatus === 'approved'
+            ? { color: '#10B981', fontWeight: '600' }
+            : null,
+      },
+    ];
+
+    const reviewConnectors = [
+      reviewStatus === 'in_review' || reviewStatus === 'approved'
+        ? Colors.primary
+        : '#E5E7EB',
+      reviewStatus === 'approved' ? Colors.primary : '#E5E7EB',
+    ];
+
+    return (
+      <View style={styles.statusCard}>
+        <View style={styles.statusCardHeader}>
+          <Label style={styles.statusCardTitle}>Application Status</Label>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: badgeConfig.bg },
+            ]}
+          >
+            <Text
+              style={[
+                styles.statusBadgeText,
+                { color: badgeConfig.color },
+              ]}
+            >
+              {badgeConfig.label}
+            </Text>
+          </View>
+        </View>
+        <Timeline steps={reviewSteps} connectors={reviewConnectors} />
+      </View>
+    );
+  }
+
+  const { completedSteps } = getApplicationFormProgress({
+    personalDetail,
+    professionalDetail,
+    subscriptionDetail,
+    applicationStatus,
+  });
+
+  const formSteps = FORM_STEPS.map((step, index) => {
+    const stepNumber = index + 1;
+    const isComplete = stepNumber <= completedSteps;
+    const isCurrent =
+      !isComplete &&
+      (completedSteps === 0
+        ? stepNumber === 1
+        : stepNumber === completedSteps + 1);
+
+    return {
+      label: step.label,
+      state: isComplete ? 'complete' : isCurrent ? 'current' : 'pending',
+      iconStyle: {
+        backgroundColor: isComplete
+          ? '#E8F0FE'
+          : isCurrent
+          ? '#E8F0FE'
+          : '#F1F5F9',
+        borderColor: isComplete || isCurrent ? Colors.primary : '#E5E7EB',
+        borderWidth: isComplete || isCurrent ? 2 : 1,
+      },
+      labelStyle:
+        isComplete || isCurrent
+          ? { color: Colors.primary, fontWeight: '600' }
+          : null,
+    };
+  });
+
+  const formConnectors = [
+    completedSteps >= 1 ? Colors.primary : '#E5E7EB',
+    completedSteps >= 2 ? Colors.primary : '#E5E7EB',
+  ];
+
+  const progressLabel =
+    completedSteps >= 3
+      ? 'Almost Done'
+      : `Step ${Math.min(completedSteps + 1, 3)} of 3`;
+
   return (
     <View style={styles.statusCard}>
       <View style={styles.statusCardHeader}>
-        <Label style={styles.statusCardTitle}>Application Status</Label>
-        <View
-          style={[
-            styles.statusBadge,
-            {
-              backgroundColor:
-                applicationStatus === 'approved'
-                  ? '#D1FAE5'
-                  : applicationStatus === 'in_review'
-                  ? '#FEF3C7'
-                  : '#DBEAFE',
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.statusBadgeText,
-              {
-                color:
-                  applicationStatus === 'approved'
-                    ? '#059669'
-                    : applicationStatus === 'in_review'
-                    ? '#D97706'
-                    : '#2563EB',
-              },
-            ]}
-          >
-            {applicationStatus === 'approved'
-              ? 'Approved'
-              : applicationStatus === 'in_review'
-              ? 'In Review'
-              : 'Submitted'}
+        <Label style={styles.statusCardTitle}>Application Progress</Label>
+        <View style={[styles.statusBadge, { backgroundColor: '#DBEAFE' }]}>
+          <Text style={[styles.statusBadgeText, { color: '#2563EB' }]}>
+            {progressLabel}
           </Text>
         </View>
       </View>
 
-      <View style={styles.statusTimeline}>
-      <View style={styles.statusStep}>
-        <View
-          style={[
-            styles.statusIcon,
-            {
-              backgroundColor: '#E8F0FE',
-              borderColor: Colors.primary,
-              borderWidth: 2,
-            },
-          ]}
+      <Timeline steps={formSteps} connectors={formConnectors} />
+
+      {onContinueApplication && (
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={onContinueApplication}
+          activeOpacity={0.8}
         >
-          <Ionicons name="checkmark" size={14} color={Colors.primary} />
-        </View>
-        <View style={styles.statusStepContent}>
-          <Label style={styles.statusStepLabel}>Submitted</Label>
-        </View>
-      </View>
-
-      <View style={styles.statusConnectorContainer}>
-        <View
-          style={[
-            styles.statusConnector,
-            {
-              backgroundColor:
-                applicationStatus === 'in_review' ||
-                applicationStatus === 'approved'
-                  ? Colors.primary
-                  : '#E5E7EB',
-            },
-          ]}
-        />
-      </View>
-
-      <View style={styles.statusStep}>
-        <View
-          style={[
-            styles.statusIcon,
-            {
-              backgroundColor:
-                applicationStatus === 'in_review' ||
-                applicationStatus === 'approved'
-                  ? '#FFF4E6'
-                  : '#F1F5F9',
-              borderColor:
-                applicationStatus === 'in_review' ||
-                applicationStatus === 'approved'
-                  ? '#FFA500'
-                  : '#E5E7EB',
-              borderWidth:
-                applicationStatus === 'in_review' ||
-                applicationStatus === 'approved'
-                  ? 2
-                  : 1,
-            },
-          ]}
-        >
-          <Ionicons
-            name="time-outline"
-            size={14}
-            color={
-              applicationStatus === 'in_review' ||
-              applicationStatus === 'approved'
-                ? '#FFA500'
-                : '#94A3B8'
-            }
-          />
-        </View>
-        <View style={styles.statusStepContent}>
-          <Label
-            style={[
-              styles.statusStepLabel,
-              (applicationStatus === 'in_review' ||
-                applicationStatus === 'approved') && {
-                color: '#FFA500',
-                fontWeight: '600',
-              },
-            ]}
-          >
-            In Review
-          </Label>
-        </View>
-      </View>
-
-      <View style={styles.statusConnectorContainer}>
-        <View
-          style={[
-            styles.statusConnector,
-            {
-              backgroundColor:
-                applicationStatus === 'approved'
-                  ? Colors.primary
-                  : '#E5E7EB',
-            },
-          ]}
-        />
-      </View>
-
-      <View style={styles.statusStep}>
-        <View
-          style={[
-            styles.statusIcon,
-            {
-              backgroundColor:
-                applicationStatus === 'approved' ? '#D1FAE5' : '#F1F5F9',
-              borderColor:
-                applicationStatus === 'approved' ? '#10B981' : '#E5E7EB',
-              borderWidth: applicationStatus === 'approved' ? 2 : 1,
-            },
-          ]}
-        >
-          {applicationStatus === 'approved' ? (
-            <Ionicons
-              name="checkmark-circle"
-              size={14}
-              color="#10B981"
-            />
-          ) : (
-            <Ionicons
-              name="lock-closed-outline"
-              size={14}
-              color="#94A3B8"
-            />
-          )}
-        </View>
-        <View style={styles.statusStepContent}>
-          <Label
-            style={[
-              styles.statusStepLabel,
-              applicationStatus === 'approved' && {
-                color: '#10B981',
-                fontWeight: '600',
-              },
-            ]}
-          >
-            Approved
-          </Label>
-        </View>
-      </View>
+          <Ionicons name="arrow-forward-circle-outline" size={20} color="#fff" />
+          <Text style={styles.startButtonText}>
+            {completedSteps === 0
+              ? 'Start Application'
+              : completedSteps >= 3
+              ? 'Continue Application'
+              : 'Resume Application'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
-  </View>
   );
 };
 
@@ -278,9 +345,6 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 8,
   },
-  noApplicationIcon: {
-    marginBottom: 12,
-  },
   noApplicationMessage: {
     fontSize: 16,
     fontWeight: '600',
@@ -303,6 +367,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 10,
+  },
+  continueButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    marginTop: 16,
   },
   startButtonText: {
     fontSize: 16,

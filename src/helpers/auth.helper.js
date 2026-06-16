@@ -22,7 +22,6 @@ export const getHeaders = async () => {
     if (token.includes(':') && token.split(':').length === 3) {
       try {
         const decryptedToken = await decryptToken(token);
-        console.log('decrypted token=========>',decryptedToken)
         return { token: decryptedToken };
       } catch (error) {
         console.error('Error decrypting token:', error);

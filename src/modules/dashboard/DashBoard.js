@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   ScrollView,
@@ -9,14 +9,13 @@ import {
   StatusBar,
 } from 'react-native';
 import { Label } from '../../common/text/label';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { STACKS } from '../../enums/ScreenEnums';
 import { Colors } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useApplication } from '../../contexts/applicationContext';
 import { useLookup } from '../../contexts/lookupContext';
-import { applicationConfirmationRequest } from '../../api/application.api';
 import { getAccountNetBalanceRequest } from '../../api/account.api';
 import { useProfile } from '../../contexts/profileContext';
 import ScreenHeader from '../../common/screenHeader';
@@ -28,6 +27,7 @@ import {
   FEATURED_EVENT,
   UPCOMING_EVENTS,
 } from '../../constants/dashboard';
+import { normalizeApplicationStatus } from '../../helpers/applicationPayload.helper';
 import { useMemberRole } from '../../hooks/useMemberRole';
 import { validation } from '../../services/auth.services';
 import DashboardPaymentModal from './DashboardPaymentModal';
@@ -47,7 +47,7 @@ const DashBoard = () => {
   const user = useSelector(state => state.auth.user);
   const { isMember } = useMemberRole();
   const insets = useSafeAreaInsets();
-  const { personalDetail, subscriptionDetail, professionalDetail } =
+  const { personalDetail, subscriptionDetail, professionalDetail, applicationStatus: contextApplicationStatus, refreshApplicationState } =
     useApplication();
   const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
@@ -76,6 +76,12 @@ const DashBoard = () => {
         profileDetail?.membershipCategory
       : professionalDetail?.membershipCategory;
   const { categoryLookups } = useLookup();
+  const applicationStatusLoadingRef = useRef(false);
+  const refreshApplicationStateRef = useRef(refreshApplicationState);
+
+  useEffect(() => {
+    refreshApplicationStateRef.current = refreshApplicationState;
+  }, [refreshApplicationState]);
 
   const loadCategoryData = async () => {
     if (!membershipCategory) return;
@@ -102,39 +108,33 @@ const DashBoard = () => {
     }
   };
 
-  const loadApplicationStatus = async () => {
+  const loadApplicationStatus = useCallback(async () => {
+    if (applicationStatusLoadingRef.current) {
+      return;
+    }
+
+    applicationStatusLoadingRef.current = true;
+
     try {
       setApplicationStatusLoading(true);
-      if (personalDetail?.applicationId) {
-        const response = await applicationConfirmationRequest(
-          personalDetail.applicationId,
-        );
-        if (
-          response?.status === 200 ||
-          response?.data?.status === 'success'
-        ) {
-          const status =
-            response?.data?.data?.applicationStatus ||
-            response?.data?.applicationStatus;
-          const isActive =
-            response?.data?.data?.meta?.isActive ??
-            response?.data?.meta?.isActive ??
-            true;
-          setApplicationStatus(status || null);
-          setIsApplicationActive(Boolean(isActive));
-        }
-      } else {
-        setApplicationStatus('none');
-        setIsApplicationActive(true);
+      const result = await refreshApplicationStateRef.current?.();
+
+      if (result?.status != null) {
+        setApplicationStatus(result.status);
+        setIsApplicationActive(Boolean(result.isActive));
+        return;
       }
+
+      setApplicationStatus('none');
+      setIsApplicationActive(true);
     } catch (error) {
-      // Error handled silently
       setApplicationStatus(null);
       setIsApplicationActive(true);
     } finally {
+      applicationStatusLoadingRef.current = false;
       setApplicationStatusLoading(false);
     }
-  };
+  }, []);
 
   const loadAccountNetBalance = async () => {
     if (!resolvedMembershipNumber) {
@@ -161,7 +161,6 @@ const DashBoard = () => {
       await Promise.all([
         dispatch(validation()),
         loadProfile(),
-        // loadLookups(),
         loadApplicationStatus(),
         loadAccountNetBalance(),
         loadCategoryData(),
@@ -181,10 +180,11 @@ const DashBoard = () => {
     loadLookups();
   }, []);
 
-  // Fetch application status
-  useEffect(() => {
-    loadApplicationStatus();
-  }, [personalDetail?.applicationId]);
+  useFocusEffect(
+    useCallback(() => {
+      loadApplicationStatus();
+    }, [loadApplicationStatus]),
+  );
 
   useEffect(() => {
     loadAccountNetBalance();
@@ -249,7 +249,12 @@ const DashBoard = () => {
     return priceInEuros;
   };
 
-  const normalizedApplicationStatus = String(applicationStatus || '').toLowerCase();
+  const effectiveApplicationStatus =
+    applicationStatus ?? contextApplicationStatus;
+
+  const normalizedApplicationStatus = normalizeApplicationStatus(
+    effectiveApplicationStatus,
+  );
   const isUndergraduateStudent = categoryData?.code === 'undergraduate_student';
   const isInactiveLikeStatus =
     !isApplicationActive ||
@@ -257,11 +262,19 @@ const DashBoard = () => {
     normalizedApplicationStatus === 'cancelled' ||
     normalizedApplicationStatus === 'canceled' ||
     normalizedApplicationStatus === 'inactive';
-  const isSubmittedOrApproved =
+  const isApplicationSubmitted =
     isApplicationActive &&
     (normalizedApplicationStatus === 'submitted' ||
       normalizedApplicationStatus === 'approved');
-  const shouldStartFresh = isInactiveLikeStatus || normalizedApplicationStatus === 'rejected';
+  const isSubmittedOrApproved = isApplicationSubmitted;
+  const shouldStartFresh =
+    isInactiveLikeStatus || normalizedApplicationStatus === 'rejected';
+
+  const navigateToApplication = () =>
+    navigation.navigate(STACKS.APPLICATION_STACK, {
+      screen: STACKS.APPLICATION_FORM,
+      params: shouldStartFresh ? { startFresh: true } : undefined,
+    });
 
   // FAB: only when user has an application record in a non-terminal state (e.g. draft / in review / rejected).
   // Hidden when no application exists yet — Application card + status banner already start the flow.
@@ -271,13 +284,18 @@ const DashBoard = () => {
 
   const applicationSubtitle = isInactiveLikeStatus
     ? 'Start Application'
-    : applicationStatus === 'approved'
+    : applicationStatus === 'approved' ||
+        normalizedApplicationStatus === 'approved'
       ? 'Approved'
-      : applicationStatus === 'in_review'
+      : applicationStatus === 'in_review' ||
+          normalizedApplicationStatus === 'in review'
       ? 'In Review'
-      : applicationStatus === 'submitted'
+      : isApplicationSubmitted
       ? 'In Review'
-      : applicationStatus === 'rejected'
+      : personalDetail?.applicationId
+      ? 'Resume Application'
+      : applicationStatus === 'rejected' ||
+          normalizedApplicationStatus === 'rejected'
       ? 'Start Application'
       : 'Start Application';
 
@@ -294,11 +312,7 @@ const DashBoard = () => {
             : normalizedApplicationStatus === 'rejected'
             ? 'red'
             : 'blue',
-        onPress: () =>
-          navigation.navigate(STACKS.APPLICATION_STACK, {
-            screen: STACKS.APPLICATION_FORM,
-            params: shouldStartFresh ? { startFresh: true } : undefined,
-          }),
+        onPress: navigateToApplication,
         disabled: isSubmittedOrApproved,
       },
       ...(isMember
@@ -346,12 +360,14 @@ const DashBoard = () => {
     normalizedApplicationStatus,
     applicationSubtitle,
     isApplicationActive,
+    isApplicationSubmitted,
     shouldStartFresh,
     isSubmittedOrApproved,
     isMember,
     isUndergraduateStudent,
     navigation,
     canPay,
+    navigateToApplication,
   ]);
 
   return (
@@ -390,13 +406,15 @@ const DashBoard = () => {
           />
         ) : (
           <ApplicationStatusCard
-            applicationStatus={isInactiveLikeStatus ? 'none' : applicationStatus}
-            onStartApplication={() =>
-              navigation.navigate(STACKS.APPLICATION_STACK, {
-                screen: STACKS.APPLICATION_FORM,
-                params: shouldStartFresh ? { startFresh: true } : undefined,
-              })
+            applicationStatus={
+              isInactiveLikeStatus ? 'none' : effectiveApplicationStatus
             }
+            isApplicationSubmitted={isApplicationSubmitted}
+            personalDetail={personalDetail}
+            professionalDetail={professionalDetail}
+            subscriptionDetail={subscriptionDetail}
+            onStartApplication={navigateToApplication}
+            onContinueApplication={navigateToApplication}
           />
         )}
 
@@ -456,12 +474,7 @@ const DashBoard = () => {
       {showApplicationFab && (
         <TouchableOpacity
           style={[styles.fab, { bottom: insets.bottom }]}
-          onPress={() =>
-            navigation.navigate(STACKS.APPLICATION_STACK, {
-              screen: STACKS.APPLICATION_FORM,
-              params: shouldStartFresh ? { startFresh: true } : undefined,
-            })
-          }
+          onPress={navigateToApplication}
           activeOpacity={0.8}
         >
           <Ionicons name="add" size={28} color={Colors.white} />

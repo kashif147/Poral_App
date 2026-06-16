@@ -1,11 +1,18 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   fetchPersonalDetail,
   fetchProfessionalDetail,
   fetchSubscriptionDetail,
+  applicationConfirmationRequest,
 } from '../api/application.api';
 import { fetchCategoryByCategoryId } from '../api/category.api';
 import { getAggregatedUserDetailsFromCrmCreateRequest } from '../api/profile.api';
+import {
+  isActiveApplicationPersonalDetail,
+  isResumablePortalApplication,
+  normalizePortalPersonalDetail,
+  detailBelongsToApplication,
+} from '../helpers/applicationPayload.helper';
 
 const ApplicationContext = createContext();
 
@@ -19,6 +26,18 @@ export const ApplicationProvider = ({ children }) => {
   const [categoryLoading, setCategoryLoading] = useState(false);
   const [isCrmUser, setIsCrmUser] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState(null);
+  const personalDetailRef = useRef(personalDetail);
+  const applicationStatusRef = useRef(applicationStatus);
+  const refreshInFlightRef = useRef(false);
+  const personalDetailInFlightRef = useRef(false);
+
+  useEffect(() => {
+    personalDetailRef.current = personalDetail;
+  }, [personalDetail]);
+
+  useEffect(() => {
+    applicationStatusRef.current = applicationStatus;
+  }, [applicationStatus]);
 
   const applyAggregatedResponse = data => {
     if (data?.personalDetails) setPersonalDetail(data.personalDetails);
@@ -29,50 +48,161 @@ export const ApplicationProvider = ({ children }) => {
     setLoading(false);
   };
 
+  const applyCancelledAggregateResponse = data => {
+    if (data?.personalDetails) {
+      setPersonalDetail(
+        normalizePortalPersonalDetail(
+          data.personalDetails,
+          data.personalDetails?.applicationStatus,
+        ),
+      );
+      setApplicationStatus(data.personalDetails?.applicationStatus ?? null);
+    }
+    setProfessionalDetail(null);
+    setSubscriptionDetail(null);
+    setIsCrmUser(false);
+  };
+
+  const applyPortalPersonalDetail = portalPersonal => {
+    const status = portalPersonal?.applicationStatus ?? null;
+    setPersonalDetail(normalizePortalPersonalDetail(portalPersonal, status));
+    setApplicationStatus(status);
+    setIsCrmUser(false);
+  };
+
+  const enrichPortalPersonalDetail = portalPersonal =>
+    applicationConfirmationRequest(portalPersonal.applicationId)
+      .then(response => {
+        if (
+          response?.status !== 200 &&
+          response?.data?.status !== 'success'
+        ) {
+          return portalPersonal;
+        }
+
+        const statusPayload = response?.data?.data || response?.data || {};
+        const nextStatus =
+          statusPayload.applicationStatus ??
+          portalPersonal?.applicationStatus ??
+          null;
+        const metaIsActive =
+          statusPayload?.meta?.isActive ?? statusPayload?.isActive;
+
+        return {
+          ...portalPersonal,
+          applicationStatus: nextStatus,
+          ...(metaIsActive !== undefined
+            ? {
+                meta: {
+                  ...portalPersonal?.meta,
+                  isActive: metaIsActive,
+                },
+              }
+            : {}),
+        };
+      })
+      .catch(() => portalPersonal);
+
+  const loadPortalPersonalDetail = portalPersonal => {
+    if (!portalPersonal?.applicationId) {
+      applyPortalPersonalDetail(portalPersonal);
+      return Promise.resolve(portalPersonal);
+    }
+
+    return enrichPortalPersonalDetail(portalPersonal).then(enriched => {
+      applyPortalPersonalDetail(enriched);
+      return enriched;
+    });
+  };
+
+  const loadResumableApplicationDetails = useCallback(portalPersonal => {
+      const status =
+        portalPersonal?.applicationStatus ??
+        applicationStatusRef.current ??
+        null;
+      if (
+        !portalPersonal?.applicationId ||
+        !isResumablePortalApplication(portalPersonal, status)
+      ) {
+        return Promise.resolve();
+      }
+
+      const appId = portalPersonal.applicationId;
+      return Promise.allSettled([
+        fetchProfessionalDetail(appId).then(res => {
+          if (res?.status === 200) {
+            setProfessionalDetail(res?.data?.data);
+          }
+        }),
+        fetchSubscriptionDetail(appId).then(res => {
+          if (res?.status === 200) {
+            setSubscriptionDetail(res?.data?.data);
+          }
+        }),
+      ]);
+    }, []);
+
   // Simple setter without localStorage persistence
   const setCurrentStep = stepUpdater => {
     setCurrentStepState(prev => (typeof stepUpdater === 'function' ? stepUpdater(prev) : stepUpdater));
   };
 
-  const getPersonalDetail = () => {
+  const applyPersonalDetailResponse = data => {
+    if (!data) return;
+    loadPortalPersonalDetail(data);
+  };
+
+  const getPersonalDetail = useCallback(() => {
+    if (personalDetailInFlightRef.current) {
+      return Promise.resolve();
+    }
+
+    personalDetailInFlightRef.current = true;
     setLoading(true);
 
-    getAggregatedUserDetailsFromCrmCreateRequest()
+    return getAggregatedUserDetailsFromCrmCreateRequest()
       .then(res => {
-        if (res?.status === 200 && res?.data?.data) {
+        if (res?.status === 200 && res?.data?.data?.personalDetails) {
           const data = res.data.data;
-          if (data?.personalDetails) {
+          if (isActiveApplicationPersonalDetail(data.personalDetails)) {
             applyAggregatedResponse(data);
-            return Promise.resolve();
+            return null;
           }
+
+          applyCancelledAggregateResponse(data);
         }
         return fetchPersonalDetail();
       })
       .then(res => {
-        if (res && res?.status === 200) {
-          setPersonalDetail(res?.data?.data);
-          setIsCrmUser(false);
-          setApplicationStatus(null);
-          setLoading(false);
-        } else if (res) {
-          setLoading(false);
+        if (!res) {
+          return null;
         }
+
+        if (res?.status === 200 && res?.data?.data) {
+          return loadPortalPersonalDetail(res.data.data).then(loadedPersonal =>
+            loadResumableApplicationDetails(loadedPersonal),
+          );
+        }
+
+        return null;
       })
-      .catch(() => {
+      .catch(() =>
         fetchPersonalDetail()
           .then(res => {
-            if (res?.status === 200) {
-              setPersonalDetail(res?.data?.data);
-              setIsCrmUser(false);
-              setApplicationStatus(null);
+            if (res?.status === 200 && res?.data?.data) {
+              return loadPortalPersonalDetail(res.data.data).then(loadedPersonal =>
+                loadResumableApplicationDetails(loadedPersonal),
+              );
             }
-            setLoading(false);
+            return null;
           })
-          .catch(() => {
-            setLoading(false);
-          });
+          .catch(() => null),
+      )
+      .finally(() => {
+        personalDetailInFlightRef.current = false;
+        setLoading(false);
       });
-  };
+  }, [loadResumableApplicationDetails]);
 
   const getProfessionalDetail = applicationId => {
     if (isCrmUser) {
@@ -138,6 +268,89 @@ export const ApplicationProvider = ({ children }) => {
       .catch(() => setLoading(false));
   };
 
+  const refreshApplicationState = useCallback(async () => {
+    if (refreshInFlightRef.current) {
+      return null;
+    }
+
+    refreshInFlightRef.current = true;
+
+    try {
+      const finalizePortalPersonal = async portalPersonal => {
+        const enriched = portalPersonal?.applicationId
+          ? await enrichPortalPersonalDetail(portalPersonal)
+          : portalPersonal;
+
+        const status = enriched?.applicationStatus ?? null;
+        const resumable = isResumablePortalApplication(enriched, status);
+
+        if (!resumable) {
+          setPersonalDetail(normalizePortalPersonalDetail(enriched, status));
+          setProfessionalDetail(null);
+          setSubscriptionDetail(null);
+          setApplicationStatus(status);
+          setIsCrmUser(false);
+          return {
+            status,
+            isActive: isActiveApplicationPersonalDetail(enriched),
+          };
+        }
+
+        applyPortalPersonalDetail(enriched);
+        await loadResumableApplicationDetails(enriched);
+
+        return {
+          status,
+          isActive: isActiveApplicationPersonalDetail(enriched),
+        };
+      };
+
+      try {
+        const aggregatedRes = await getAggregatedUserDetailsFromCrmCreateRequest();
+        if (aggregatedRes?.status === 200 && aggregatedRes?.data?.data?.personalDetails) {
+          const data = aggregatedRes.data.data;
+          if (isActiveApplicationPersonalDetail(data.personalDetails)) {
+            applyAggregatedResponse(data);
+            const status = data.personalDetails?.applicationStatus ?? null;
+            return {
+              status,
+              isActive: isActiveApplicationPersonalDetail(data.personalDetails),
+            };
+          }
+
+          applyCancelledAggregateResponse(data);
+          return {
+            status: data.personalDetails?.applicationStatus ?? null,
+            isActive: false,
+          };
+        }
+      } catch {
+        // Fall through to portal detail refresh
+      }
+
+      try {
+        const personalRes = await fetchPersonalDetail();
+        if (personalRes?.status === 200 && personalRes?.data?.data) {
+          return finalizePortalPersonal(personalRes.data.data);
+        }
+      } catch {
+        // Keep existing personal detail
+      }
+
+      const currentPersonalDetail = personalDetailRef.current;
+      if (!currentPersonalDetail?.applicationId) {
+        return {
+          status: applicationStatusRef.current,
+          isActive: true,
+        };
+      }
+
+      return finalizePortalPersonal(currentPersonalDetail);
+    } finally {
+      refreshInFlightRef.current = false;
+    }
+  }, [loadResumableApplicationDetails]);
+
   const getCategoryData = useCallback((categoryNameOrId, categoryLookups = []) => {
     if (!categoryNameOrId) {
       setCategoryData(null);
@@ -196,20 +409,22 @@ export const ApplicationProvider = ({ children }) => {
       });
   }, []);
 
-  // Cascade fetch based on user type
+  // Cascade fetch based on user type — only for resumable applications
   useEffect(() => {
-    // For CRM users, professional and subscription details don't require applicationId
-    // For portal users, we need applicationId from personalDetail
     if (isCrmUser) {
-      // CRM user: fetch professional and subscription details without applicationId
       if (!professionalDetail) {
         getProfessionalDetail();
       }
       if (!subscriptionDetail) {
         getSubscriptionDetail();
       }
-    } else if (personalDetail?.applicationId) {
-      // Portal user: fetch with applicationId
+      return;
+    }
+
+    if (
+      personalDetail?.applicationId &&
+      isResumablePortalApplication(personalDetail, applicationStatus)
+    ) {
       if (!professionalDetail) {
         getProfessionalDetail(personalDetail.applicationId);
       }
@@ -218,27 +433,38 @@ export const ApplicationProvider = ({ children }) => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personalDetail?.applicationId, isCrmUser]);
+  }, [personalDetail?.applicationId, applicationStatus, isCrmUser]);
 
   // Initialize: load personal detail
   useEffect(() => {
-    // Kick off initial personal detail fetch
     getPersonalDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-advance step based on which details exist
+  // Auto-advance step based on resumable application progress
   useEffect(() => {
-    if (!personalDetail) {
+    const activeApplicationId = isResumablePortalApplication(
+      personalDetail,
+      applicationStatus,
+    )
+      ? personalDetail?.applicationId
+      : null;
+
+    if (!activeApplicationId) {
       setCurrentStepState(1);
-    } else if (personalDetail && !professionalDetail) {
-      setCurrentStepState(2);
-    } else if (personalDetail && professionalDetail && !subscriptionDetail) {
-      setCurrentStepState(3);
-    } else if (personalDetail && professionalDetail && subscriptionDetail) {
-      setCurrentStepState(3);
+      return;
     }
-  }, [personalDetail, professionalDetail, subscriptionDetail]);
+
+    if (
+      detailBelongsToApplication(subscriptionDetail, activeApplicationId) ||
+      detailBelongsToApplication(professionalDetail, activeApplicationId)
+    ) {
+      setCurrentStepState(3);
+      return;
+    }
+
+    setCurrentStepState(2);
+  }, [personalDetail, professionalDetail, subscriptionDetail, applicationStatus]);
 
   // Helper function to check if user has CRM data
   const isCrmUserCheck = () => {
@@ -265,6 +491,7 @@ export const ApplicationProvider = ({ children }) => {
     getPersonalDetail,
     getProfessionalDetail,
     getSubscriptionDetail,
+    refreshApplicationState,
     getCategoryData,
     isCrmUser: isCrmUserCheck(),
   }), [
@@ -277,6 +504,8 @@ export const ApplicationProvider = ({ children }) => {
     categoryData,
     categoryLoading,
     getCategoryData,
+    getPersonalDetail,
+    refreshApplicationState,
     isCrmUser,
   ]);
 
