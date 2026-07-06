@@ -1,7 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import SignatureCanvas from 'react-native-signature-canvas';
 import { Colors, hp, wp } from '../../utils/Styles';
+
+const isRemoteImageUrl = value =>
+  typeof value === 'string' &&
+  (value.startsWith('http://') || value.startsWith('https://'));
+
+const isDataUrlImage = value =>
+  typeof value === 'string' && value.startsWith('data:image/');
 
 const SignaturePad = ({
   label,
@@ -17,9 +24,7 @@ const SignaturePad = ({
   const [hasSignature, setHasSignature] = useState(!!value);
 
   useEffect(() => {
-    if (value && signatureRef.current) {
-      setHasSignature(true);
-    }
+    setHasSignature(!!value);
   }, [value]);
 
   const handleOK = (signature) => {
@@ -62,6 +67,8 @@ const SignaturePad = ({
   };
 
   const isEmpty = required && !hasSignature && showValidation;
+  const isRemoteSignature = isRemoteImageUrl(value);
+  const canvasImageData = isDataUrlImage(value) ? value : null;
 
   const style = `
     body,html {
@@ -107,29 +114,40 @@ const SignaturePad = ({
         style={[
           styles.signatureContainer,
           isEmpty && styles.signatureContainerError,
-          disabled && styles.signatureContainerDisabled,
+          (disabled || isRemoteSignature) && styles.signatureContainerDisabled,
         ]}
         collapsable={false}>
-        <SignatureCanvas
-          ref={signatureRef}
-          onOK={handleOK}
-          onBegin={handleBegin}
-          onEnd={handleEndStroke}
-          descriptionText=""
-          clearText="Clear"
-          confirmText="Save"
-          webStyle={style}
-          imageDataURL={value}
-          autoClear={false}
-          backgroundColor="#ffffff"
-          penColor="#000000"
-        />
-        {!hasSignature && (
-          <View style={styles.placeholderContainer} pointerEvents="none">
-            <Text style={styles.placeholderText}>Tap to sign</Text>
-          </View>
+        {isRemoteSignature ? (
+          <Image
+            source={{ uri: value }}
+            style={styles.signatureImage}
+            resizeMode="contain"
+          />
+        ) : (
+          <>
+            <SignatureCanvas
+              ref={signatureRef}
+              onOK={handleOK}
+              onBegin={handleBegin}
+              onEnd={handleEndStroke}
+              descriptionText=""
+              clearText="Clear"
+              confirmText="Save"
+              webStyle={style}
+              imageDataURL={canvasImageData}
+              autoClear={false}
+              backgroundColor="#ffffff"
+              penColor="#000000"
+            />
+            {!hasSignature && (
+              <View style={styles.placeholderContainer} pointerEvents="none">
+                <Text style={styles.placeholderText}>Tap to sign</Text>
+              </View>
+            )}
+          </>
         )}
       </View>
+      {!isRemoteSignature && (
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           onPress={handleClear}
@@ -147,6 +165,7 @@ const SignaturePad = ({
           </Text>
         </TouchableOpacity>
       </View>
+      )}
     </View>
   );
 };
@@ -189,6 +208,11 @@ const styles = StyleSheet.create({
   },
   signatureContainerDisabled: {
     opacity: 0.5,
+  },
+  signatureImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.white,
   },
   placeholderContainer: {
     position: 'absolute',

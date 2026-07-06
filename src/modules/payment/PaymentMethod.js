@@ -1,192 +1,232 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useApplication } from '../../contexts/applicationContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { useProfile } from '../../contexts/profileContext';
-import { getMyPortalPaymentForms } from '../../api/paymentForms.api';
+import {
+  getMyPortalPaymentForms,
+  getPaymentFormPrefill,
+} from '../../api/paymentForms.api';
 import { getSubscriptionRequest } from '../../api/subscription.api';
 import StandingBankersOrder from './StandingBankersOrder';
 import DirectDebit from './DirectDebit';
 import SalaryDeduction from './SalaryDeduction';
 import ScreenHeader from '../../common/screenHeader';
 import { Colors, hp, wp } from '../../utils/Styles';
+import {
+  extractMyPortalPaymentForms,
+  extractPaymentFormPrefill,
+  formMatchesProfilePaymentType,
+  getExistingPaymentFormForProfile,
+  getPaymentTypeFromProfileSubscription,
+  getPortalFormSeedKey,
+  getTabKeyForPortalForm,
+  isPaymentApiSuccess,
+  isPortalPaymentFormTab,
+  isPortalPaymentFormViewOnly,
+  mergePaymentFormWithPrefill,
+  normalizePaymentType,
+} from '../../helpers/paymentForm.helper';
 
-const FORM_TYPE_TO_TAB = {
-  DD_MANDATE: 'Direct Debit',
-  SALARY_DEDUCTION: 'Salary Deduction',
-  STANDING_ORDER: 'Standing Banking Order',
-};
-
-const normalizePaymentType = paymentType => {
-  if (!paymentType) return null;
-  const normalized = paymentType.toString().toLowerCase();
-  const compact = normalized.replace(/[^a-z]/g, '');
-
-  // More tolerant matching for typos like "Stanfding Order"
-  if (
-    (normalized.includes('order') || compact.includes('order')) &&
-    (normalized.includes('stand') ||
-      compact.includes('stand') ||
-      compact.includes('stan') ||
-      compact.startsWith('st'))
-  ) {
-    return 'Standing Banking Order';
+const loadPaymentFormPrefill = async (profileId, paymentTab) => {
+  if (!profileId || !paymentTab) return null;
+  try {
+    const prefillRes = await getPaymentFormPrefill(profileId);
+    if (!isPaymentApiSuccess(prefillRes)) return null;
+    const prefill = extractPaymentFormPrefill(prefillRes);
+    if (!prefill) return null;
+    if (formMatchesProfilePaymentType(prefill, paymentTab)) {
+      return prefill;
+    }
+    const tabFromPrefill =
+      getTabKeyForPortalForm(prefill) ||
+      normalizePaymentType(prefill.memberPaymentType);
+    return tabFromPrefill === paymentTab ? prefill : null;
+  } catch (error) {
+    console.error('Failed to load payment form prefill:', error);
+    return null;
   }
-
-  if (
-    normalized.includes('standing') &&
-    (normalized.includes('banker') ||
-      normalized.includes('bank') ||
-      normalized.includes('order'))
-  ) {
-    return 'Standing Banking Order';
-  }
-  if (normalized.includes('direct') && normalized.includes('debit')) {
-    return 'Direct Debit';
-  }
-  if (
-    (normalized.includes('salary') && normalized.includes('deduction')) ||
-    normalized === 'deduction' ||
-    normalized.includes('payroll') ||
-    (normalized.includes('deduction') && normalized.includes('source'))
-  ) {
-    return 'Salary Deduction';
-  }
-  return null;
-};
-
-const getTabKeyForPortalForm = form => {
-  if (!form) return null;
-  return (
-    FORM_TYPE_TO_TAB[form.formType] ||
-    normalizePaymentType(form.formTypeLabel) ||
-    normalizePaymentType(form.formType) ||
-    null
-  );
 };
 
 const PaymentMethod = () => {
-  const { subscriptionDetail } = useApplication();
   const { profileDetail } = useProfile();
   const [selectedPaymentType, setSelectedPaymentType] = useState(null);
+  const [activePortalForm, setActivePortalForm] = useState(null);
+  const [prefillPortalForm, setPrefillPortalForm] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const loadInFlightRef = useRef(false);
+  const hasInitiallyLoadedRef = useRef(false);
 
-  const getPaymentTypeFromProfileSubscription = subscription => {
-    if (!subscription) return null;
-    return (
-      subscription.paymentType ??
-      subscription.paymentMethod ??
-      subscription.preferredPaymentType ??
-      subscription._subscriptionService?.paymentType ??
-      subscription.subscriptionService?.paymentType ??
-      subscription.subscription?.paymentType ??
-      null
-    );
-  };
+  const loadPaymentMethod = useCallback(
+    async ({ showFullLoading = false } = {}) => {
+      if (!profileDetail?.profileId) {
+        setActivePortalForm(null);
+        setPrefillPortalForm(null);
+        setSelectedPaymentType(null);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
 
-  useEffect(() => {
-    const loadPaymentMethod = async () => {
-      setLoading(true);
+      if (loadInFlightRef.current) {
+        return;
+      }
+
+      loadInFlightRef.current = true;
+      if (showFullLoading) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
       try {
-        let selected = null;
+        let profilePaymentTypeTab = null;
 
-        if (profileDetail?.profileId) {
-          const subRes = await getSubscriptionRequest(profileDetail.profileId);
-          if (subRes?.status >= 200 && subRes?.status < 300) {
-            const items = subRes?.data?.data?.data ?? subRes?.data?.data ?? [];
-            const subscriptions = Array.isArray(items) ? items : items ? [items] : [];
-            const activeSubscription =
-              subscriptions.find(
-                sub => String(sub?.subscriptionStatus || '').toLowerCase() === 'active',
-              ) || subscriptions[0];
-            const raw = getPaymentTypeFromProfileSubscription(activeSubscription);
-            selected = normalizePaymentType(raw);
-          }
-        }
-
-        if (!selected) {
-          const rootSubscriptionSource = subscriptionDetail || null;
-          const nestedSubscriptionSource = subscriptionDetail?.subscriptionDetails || null;
-          selected = normalizePaymentType(
-            getPaymentTypeFromProfileSubscription(rootSubscriptionSource) ||
-              getPaymentTypeFromProfileSubscription(nestedSubscriptionSource) ||
-              profileDetail?.paymentType ||
-              profileDetail?.preferredPaymentType,
-          );
-        }
-
-        const mineRes = await getMyPortalPaymentForms();
-        if (mineRes?.status >= 200 && mineRes?.status < 300) {
-          const formsRaw =
-            mineRes?.data?.data?.paymentForms ??
-            mineRes?.data?.paymentForms ??
-            mineRes?.data?.data ??
-            [];
-          const forms = Array.isArray(formsRaw)
-            ? formsRaw
-            : formsRaw
-              ? [formsRaw]
+        const subRes = await getSubscriptionRequest(profileDetail.profileId);
+        if (isPaymentApiSuccess(subRes)) {
+          const items = subRes?.data?.data?.data ?? subRes?.data?.data ?? [];
+          const subscriptions = Array.isArray(items)
+            ? items
+            : items
+              ? [items]
               : [];
-          const activeForms = forms.filter(
-            item => String(item?.status || '').toLowerCase() === 'active',
-          );
-          const matchedByProfile = selected
-            ? activeForms.find(form => getTabKeyForPortalForm(form) === selected)
-            : null;
-          const fallbackActive = matchedByProfile || activeForms[0] || null;
-          const tabFromActive = getTabKeyForPortalForm(fallbackActive) || null;
-          if (!selected) {
-            selected = tabFromActive;
+          const activeSubscription =
+            subscriptions.find(
+              sub =>
+                String(sub?.subscriptionStatus || '').toLowerCase() === 'active',
+            ) || subscriptions[0];
+          const raw = getPaymentTypeFromProfileSubscription(activeSubscription);
+          profilePaymentTypeTab = normalizePaymentType(raw);
+        }
+
+        let paymentForms = [];
+        const mineRes = await getMyPortalPaymentForms();
+        if (isPaymentApiSuccess(mineRes)) {
+          paymentForms = extractMyPortalPaymentForms(mineRes);
+
+          if (!profilePaymentTypeTab && paymentForms.length > 0) {
+            const firstActive = paymentForms.find(
+              form => String(form?.status || '').toLowerCase() === 'active',
+            );
+            profilePaymentTypeTab = getTabKeyForPortalForm(firstActive);
           }
         }
 
-        setSelectedPaymentType(selected || null);
+        const existingForm =
+          profilePaymentTypeTab && isPortalPaymentFormTab(profilePaymentTypeTab)
+            ? getExistingPaymentFormForProfile(
+                paymentForms,
+                profilePaymentTypeTab,
+              )
+            : !profilePaymentTypeTab
+              ? getExistingPaymentFormForProfile(paymentForms, null)
+              : null;
+
+        setActivePortalForm(existingForm);
+
+        const candidateTab =
+          profilePaymentTypeTab ||
+          (existingForm ? getTabKeyForPortalForm(existingForm) : null);
+        const paymentTab = isPortalPaymentFormTab(candidateTab)
+          ? candidateTab
+          : null;
+        setSelectedPaymentType(paymentTab);
+
+        if (paymentTab && isPortalPaymentFormTab(paymentTab)) {
+          const prefill = await loadPaymentFormPrefill(
+            profileDetail.profileId,
+            paymentTab,
+          );
+          setPrefillPortalForm(prefill);
+        } else {
+          setPrefillPortalForm(null);
+        }
+
+        setRefreshToken(token => token + 1);
+        hasInitiallyLoadedRef.current = true;
       } catch (error) {
         console.error('Failed to load payment method:', error);
-        setSelectedPaymentType(
-          normalizePaymentType(
-            getPaymentTypeFromProfileSubscription(subscriptionDetail) ||
-              getPaymentTypeFromProfileSubscription(subscriptionDetail?.subscriptionDetails) ||
-              profileDetail?.paymentType ||
-              profileDetail?.preferredPaymentType,
-          ) || null,
-        );
+        setActivePortalForm(null);
+        setPrefillPortalForm(null);
+        setSelectedPaymentType(null);
       } finally {
+        loadInFlightRef.current = false;
         setLoading(false);
+        setRefreshing(false);
       }
-    };
+    },
+    [profileDetail?.profileId],
+  );
 
-    loadPaymentMethod();
-  }, [
-    profileDetail?.profileId,
-    profileDetail?.paymentType,
-    profileDetail?.preferredPaymentType,
-    subscriptionDetail?.subscriptionDetails?.paymentType,
-  ]);
+  useFocusEffect(
+    useCallback(() => {
+      loadPaymentMethod({ showFullLoading: !hasInitiallyLoadedRef.current });
+    }, [loadPaymentMethod]),
+  );
 
-  // Render the appropriate payment component
+  const handleRefresh = useCallback(() => {
+    loadPaymentMethod({ showFullLoading: false });
+  }, [loadPaymentMethod]);
+
+  const seedPortalForm = useMemo(() => {
+    if (activePortalForm) {
+      return mergePaymentFormWithPrefill(activePortalForm, prefillPortalForm);
+    }
+    return prefillPortalForm;
+  }, [activePortalForm, prefillPortalForm]);
+
+  const formRefreshKey = useMemo(() => {
+    const seedKey = getPortalFormSeedKey(seedPortalForm);
+    return `${refreshToken}|${selectedPaymentType || 'none'}|${seedKey}`;
+  }, [refreshToken, selectedPaymentType, seedPortalForm]);
+
+  const isActivePaymentMethod = useMemo(
+    () => isPortalPaymentFormViewOnly(activePortalForm),
+    [activePortalForm],
+  );
+
+  const headerSubtitle = useMemo(() => {
+    if (isActivePaymentMethod) {
+      return 'View your submitted payment authorization';
+    }
+    if (selectedPaymentType) {
+      return 'Complete and submit your payment authorization';
+    }
+    return null;
+  }, [isActivePaymentMethod, selectedPaymentType]);
+
+  const sharedFormProps = {
+    seedPortalForm,
+    refreshing,
+    onRefresh: handleRefresh,
+  };
+
   const renderPaymentComponent = () => {
-    if (!selectedPaymentType) {
+    if (!selectedPaymentType || !isPortalPaymentFormTab(selectedPaymentType)) {
       return null;
     }
 
     switch (selectedPaymentType) {
       case 'Standing Banking Order':
-        return <StandingBankersOrder />;
+        return (
+          <StandingBankersOrder key={formRefreshKey} {...sharedFormProps} />
+        );
       case 'Direct Debit':
-        return <DirectDebit />;
+        return <DirectDebit key={formRefreshKey} {...sharedFormProps} />;
       case 'Salary Deduction':
-        return <SalaryDeduction />;
+        return <SalaryDeduction key={formRefreshKey} {...sharedFormProps} />;
       default:
         return null;
     }
   };
 
-  if (loading) {
+  if (loading && !hasInitiallyLoadedRef.current) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
@@ -198,8 +238,21 @@ const PaymentMethod = () => {
   return (
     <View style={styles.container}>
       <ScreenHeader title="Payment Method" />
+      {selectedPaymentType && (
+        <View style={styles.headerMeta}>
+          {headerSubtitle ? (
+            <Text style={styles.headerSubtitle}>{headerSubtitle}</Text>
+          ) : null}
+          {isActivePaymentMethod && activePortalForm?.status ? (
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusBadgeText}>
+                {String(activePortalForm.status).toUpperCase()}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      )}
 
-      {/* Payment Component Container */}
       <View style={styles.contentContainer}>
         {selectedPaymentType ? (
           renderPaymentComponent()
@@ -238,6 +291,33 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: hp(1.8),
     color: Colors.textSecondary,
+  },
+  headerMeta: {
+    paddingHorizontal: wp(4),
+    paddingBottom: hp(1),
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  headerSubtitle: {
+    fontSize: hp(1.5),
+    color: Colors.textSecondary,
+    marginBottom: hp(0.5),
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    paddingHorizontal: wp(2.5),
+    paddingVertical: hp(0.4),
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  statusBadgeText: {
+    fontSize: hp(1.2),
+    fontWeight: '700',
+    color: '#047857',
+    letterSpacing: 0.5,
   },
   contentContainer: {
     flex: 1,

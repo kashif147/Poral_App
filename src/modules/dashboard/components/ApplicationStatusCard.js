@@ -13,6 +13,7 @@ import {
   getApplicationReviewStatusKey,
   shouldShowApplicationReviewStatus,
 } from '../../../helpers/applicationPayload.helper';
+import { REJECTED_APPLICATION_REAPPLY_MESSAGE } from '../../../helpers/paymentIntent.helper';
 
 const hasNoApplication = status =>
   status == null || status === 'none' || status === '';
@@ -85,22 +86,27 @@ export const ApplicationStatusCard = ({
   subscriptionDetail,
   onStartApplication,
   onContinueApplication,
+  actionsDisabled = false,
 }) => {
   if (applicationStatus === 'rejected') {
     return (
       <View style={styles.statusCard}>
         <View style={styles.noApplicationContent}>
           <Label style={styles.noApplicationMessage}>
-            Your application was rejected.
+            Your application was not approved.
           </Label>
           <Label style={styles.noApplicationSubtext}>
-            Please update your details and re-apply.
+            {REJECTED_APPLICATION_REAPPLY_MESSAGE}
           </Label>
           {onStartApplication && (
             <TouchableOpacity
-              style={styles.startButton}
+              style={[
+                styles.startButton,
+                actionsDisabled && styles.actionButtonDisabled,
+              ]}
               onPress={onStartApplication}
               activeOpacity={0.8}
+              disabled={actionsDisabled}
             >
               <Ionicons name="refresh-outline" size={20} color="#fff" />
               <Text style={styles.startButtonText}>Re-apply</Text>
@@ -123,9 +129,13 @@ export const ApplicationStatusCard = ({
           </Label>
           {onStartApplication && (
             <TouchableOpacity
-              style={styles.startButton}
+              style={[
+                styles.startButton,
+                actionsDisabled && styles.actionButtonDisabled,
+              ]}
               onPress={onStartApplication}
               activeOpacity={0.8}
+              disabled={actionsDisabled}
             >
               <Ionicons name="add-circle-outline" size={20} color="#fff" />
               <Text style={styles.startButtonText}>Start Application</Text>
@@ -298,9 +308,13 @@ export const ApplicationStatusCard = ({
 
       {onContinueApplication && (
         <TouchableOpacity
-          style={styles.continueButton}
+          style={[
+            styles.continueButton,
+            actionsDisabled && styles.actionButtonDisabled,
+          ]}
           onPress={onContinueApplication}
           activeOpacity={0.8}
+          disabled={actionsDisabled}
         >
           <Ionicons name="arrow-forward-circle-outline" size={20} color="#fff" />
           <Text style={styles.startButtonText}>
@@ -383,6 +397,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  actionButtonDisabled: {
+    opacity: 0.6,
   },
   statusBadge: {
     paddingHorizontal: 10,

@@ -27,7 +27,12 @@ import {
   FEATURED_EVENT,
   UPCOMING_EVENTS,
 } from '../../constants/dashboard';
-import { normalizeApplicationStatus } from '../../helpers/applicationPayload.helper';
+import {
+  isActiveApplicationCompleteStatus,
+  isProcessedApplicationStatus,
+  normalizeApplicationStatus,
+  resolveEffectiveApplicationStatus,
+} from '../../helpers/applicationPayload.helper';
 import { useMemberRole } from '../../hooks/useMemberRole';
 import { validation } from '../../services/auth.services';
 import DashboardPaymentModal from './DashboardPaymentModal';
@@ -47,8 +52,14 @@ const DashBoard = () => {
   const user = useSelector(state => state.auth.user);
   const { isMember } = useMemberRole();
   const insets = useSafeAreaInsets();
-  const { personalDetail, subscriptionDetail, professionalDetail, applicationStatus: contextApplicationStatus, refreshApplicationState } =
-    useApplication();
+  const {
+    personalDetail,
+    subscriptionDetail,
+    professionalDetail,
+    applicationStatus: contextApplicationStatus,
+    refreshApplicationState,
+    loading: applicationContextLoading,
+  } = useApplication();
   const { fetchAllLookups } = useLookup();
   const [applicationStatus, setApplicationStatus] = useState(null);
   const [isApplicationActive, setIsApplicationActive] = useState(true);
@@ -69,12 +80,6 @@ const DashBoard = () => {
     user?.membershipId ||
     null;
 
-  // Match web: use subscriptionDetails.membershipCategory when available, then profile
-  const membershipCategory =
-    applicationStatus === 'approved'
-      ? subscriptionDetail?.subscriptionDetails?.membershipCategory ||
-        profileDetail?.membershipCategory
-      : professionalDetail?.membershipCategory;
   const { categoryLookups } = useLookup();
   const applicationStatusLoadingRef = useRef(false);
   const refreshApplicationStateRef = useRef(refreshApplicationState);
@@ -135,6 +140,42 @@ const DashBoard = () => {
       setApplicationStatusLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (applicationStatusLoading || applicationContextLoading) {
+      return;
+    }
+
+    const resolvedStatus = resolveEffectiveApplicationStatus({
+      localStatus: applicationStatus,
+      contextStatus: contextApplicationStatus,
+      personalDetail,
+    });
+
+    if (resolvedStatus === 'none') {
+      return;
+    }
+
+    if (
+      applicationStatus == null ||
+      applicationStatus === 'none' ||
+      applicationStatus !== resolvedStatus
+    ) {
+      setApplicationStatus(resolvedStatus);
+      setIsApplicationActive(
+        personalDetail?.meta?.isActive ?? personalDetail?.isActive ?? true,
+      );
+    }
+  }, [
+    applicationStatus,
+    applicationStatusLoading,
+    applicationContextLoading,
+    contextApplicationStatus,
+    personalDetail,
+    personalDetail?.applicationStatus,
+    personalDetail?.meta?.isActive,
+    personalDetail?.isActive,
+  ]);
 
   const loadAccountNetBalance = async () => {
     if (!resolvedMembershipNumber) {
@@ -249,12 +290,21 @@ const DashBoard = () => {
     return priceInEuros;
   };
 
-  const effectiveApplicationStatus =
-    applicationStatus ?? contextApplicationStatus;
+  const effectiveApplicationStatus = resolveEffectiveApplicationStatus({
+    localStatus: applicationStatus,
+    contextStatus: contextApplicationStatus,
+    personalDetail,
+  });
 
   const normalizedApplicationStatus = normalizeApplicationStatus(
     effectiveApplicationStatus,
   );
+  const membershipCategory =
+    normalizedApplicationStatus === 'processed' ||
+    normalizedApplicationStatus === 'approved'
+      ? subscriptionDetail?.subscriptionDetails?.membershipCategory ||
+        profileDetail?.membershipCategory
+      : professionalDetail?.membershipCategory;
   const isUndergraduateStudent = categoryData?.code === 'undergraduate_student';
   const isInactiveLikeStatus =
     !isApplicationActive ||
@@ -262,30 +312,52 @@ const DashBoard = () => {
     normalizedApplicationStatus === 'cancelled' ||
     normalizedApplicationStatus === 'canceled' ||
     normalizedApplicationStatus === 'inactive';
-  const isApplicationSubmitted =
-    isApplicationActive &&
-    (normalizedApplicationStatus === 'submitted' ||
-      normalizedApplicationStatus === 'approved');
-  const isSubmittedOrApproved = isApplicationSubmitted;
+  const isApplicationSubmitted = isActiveApplicationCompleteStatus(
+    effectiveApplicationStatus,
+    isApplicationActive,
+  );
+  const isApplicationTerminal =
+    isApplicationSubmitted ||
+    isProcessedApplicationStatus(effectiveApplicationStatus) ||
+    (isApplicationActive && normalizedApplicationStatus === 'submitted');
+  const isSubmittedOrApproved = isApplicationTerminal;
+  const isApplicationStatusReady =
+    !applicationContextLoading &&
+    !applicationStatusLoading &&
+    effectiveApplicationStatus !== 'none' &&
+    effectiveApplicationStatus != null;
+  const isApplicationActionDisabled =
+    !isApplicationStatusReady || isApplicationTerminal;
   const shouldStartFresh =
     isInactiveLikeStatus || normalizedApplicationStatus === 'rejected';
 
-  const navigateToApplication = () =>
+  const navigateToApplication = () => {
+    if (isApplicationActionDisabled) {
+      return;
+    }
+
     navigation.navigate(STACKS.APPLICATION_STACK, {
       screen: STACKS.APPLICATION_FORM,
       params: shouldStartFresh ? { startFresh: true } : undefined,
     });
+  };
 
   // FAB: only when user has an application record in a non-terminal state (e.g. draft / in review / rejected).
   // Hidden when no application exists yet — Application card + status banner already start the flow.
   const hasStartedApplication = !!personalDetail?.applicationId;
   const showApplicationFab =
-    hasStartedApplication && !isSubmittedOrApproved;
+    hasStartedApplication &&
+    !isApplicationTerminal &&
+    isApplicationStatusReady &&
+    !isMember;
 
-  const applicationSubtitle = isInactiveLikeStatus
+  const applicationSubtitle = !isApplicationStatusReady
+    ? 'Loading...'
+    : isInactiveLikeStatus
     ? 'Start Application'
-    : applicationStatus === 'approved' ||
-        normalizedApplicationStatus === 'approved'
+    : isProcessedApplicationStatus(effectiveApplicationStatus)
+      ? 'Processed'
+      : normalizedApplicationStatus === 'approved'
       ? 'Approved'
       : applicationStatus === 'in_review' ||
           normalizedApplicationStatus === 'in review'
@@ -307,13 +379,15 @@ const DashBoard = () => {
         subtitle: applicationSubtitle,
         icon: 'document-text',
         scheme:
-          normalizedApplicationStatus === 'approved' && isApplicationActive
+          (normalizedApplicationStatus === 'processed' ||
+            normalizedApplicationStatus === 'approved') &&
+          isApplicationActive
             ? 'green'
             : normalizedApplicationStatus === 'rejected'
             ? 'red'
             : 'blue',
         onPress: navigateToApplication,
-        disabled: isSubmittedOrApproved,
+        disabled: isApplicationActionDisabled,
       },
       ...(isMember
         ? [
@@ -362,7 +436,10 @@ const DashBoard = () => {
     isApplicationActive,
     isApplicationSubmitted,
     shouldStartFresh,
-    isSubmittedOrApproved,
+    isApplicationTerminal,
+    isApplicationStatusReady,
+    applicationContextLoading,
+    applicationStatusLoading,
     isMember,
     isUndergraduateStudent,
     navigation,
@@ -415,6 +492,7 @@ const DashBoard = () => {
             subscriptionDetail={subscriptionDetail}
             onStartApplication={navigateToApplication}
             onContinueApplication={navigateToApplication}
+            actionsDisabled={isApplicationActionDisabled}
           />
         )}
 
@@ -476,6 +554,7 @@ const DashBoard = () => {
           style={[styles.fab, { bottom: insets.bottom }]}
           onPress={navigateToApplication}
           activeOpacity={0.8}
+          disabled={isApplicationActionDisabled}
         >
           <Ionicons name="add" size={28} color={Colors.white} />
         </TouchableOpacity>

@@ -18,6 +18,7 @@ import { Button } from '../../common/button';
 import { Label } from '../../common/text/label';
 import { InputField } from '../../common/inputField';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
+import { resolvePaymentIntentOutcome } from '../../helpers/paymentIntent.helper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createPaymentIntentRequest } from '../../api/payment.api';
 import { useApplication } from '../../contexts/applicationContext';
@@ -171,13 +172,18 @@ const DashboardPaymentModal = ({ visible, onClose, onSuccess, netAmountInCents }
         throw new Error(error.message);
       }
 
-      if (paymentIntent?.status === 'Succeeded') {
+      const outcome = resolvePaymentIntentOutcome(paymentIntent?.status, {
+        isApplicationPayment: false,
+      });
+
+      if (outcome.success) {
         onSuccess?.();
         onClose?.();
-        Alert.alert('Success', 'Payment completed successfully!');
-      } else {
-        throw new Error(`Payment status: ${paymentIntent?.status || 'unknown'}`);
+        Alert.alert(outcome.title, outcome.message);
+        return;
       }
+
+      throw new Error(outcome.message);
     } catch (err) {
       console.error('Payment Error:', err);
       Alert.alert('Payment Failed', err.message || 'Payment failed. Please try again.');

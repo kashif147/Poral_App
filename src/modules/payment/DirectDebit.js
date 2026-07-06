@@ -9,6 +9,7 @@ import {
   Alert,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApplication } from '../../contexts/applicationContext';
@@ -34,10 +35,12 @@ import {
   extractMyPortalPaymentForms,
   extractPaymentFormPrefill,
   extractPortalPaymentForm,
-  getActivePaymentFormForProfile,
+  getExistingPaymentFormForProfile,
+  getPortalFormSeedKey,
   getUniqueMandateReferenceFromForm,
   hasCreditorOrganizationDetails,
   isPaymentApiSuccess,
+  isPortalPaymentFormViewOnly,
   mapCreditorOrganizationDetails,
   mapDirectDebitFromPortal,
   mergePaymentFormWithPrefill,
@@ -165,7 +168,14 @@ const toIsoDate = value => {
 
 const cleanIban = iban => (iban || '').replace(/\s/g, '').toUpperCase();
 
-const DirectDebit = () => {
+const isDataUrlImage = value =>
+  typeof value === 'string' && value.startsWith('data:image/');
+
+const DirectDebit = ({
+  seedPortalForm: seedPortalFormProp = null,
+  refreshing = false,
+  onRefresh = null,
+}) => {
   const { personalDetail, subscriptionDetail, categoryData, getCategoryData } =
     useApplication();
   const { profileDetail } = useProfile();
@@ -205,7 +215,12 @@ const DirectDebit = () => {
   const [portalForm, setPortalForm] = useState(null);
   const [activePortalForm, setActivePortalForm] = useState(null);
   const [prefillForm, setPrefillForm] = useState(null);
-  const [portalFormLoading, setPortalFormLoading] = useState(true);
+  const [portalFormLoading, setPortalFormLoading] = useState(!seedPortalFormProp);
+
+  const seedPortalFormKey = useMemo(
+    () => getPortalFormSeedKey(seedPortalFormProp),
+    [seedPortalFormProp],
+  );
 
   const handleSignatureDrawingActive = active => {
     if (active) {
@@ -235,12 +250,14 @@ const DirectDebit = () => {
     }
   }, [membershipCategory, categoryLookups, getCategoryData]);
 
-  const seedPortalForm = useMemo(() => {
+  const internalSeedPortalForm = useMemo(() => {
     if (activePortalForm) {
       return mergePaymentFormWithPrefill(activePortalForm, prefillForm);
     }
     return prefillForm;
   }, [activePortalForm, prefillForm]);
+
+  const seedPortalForm = seedPortalFormProp ?? internalSeedPortalForm;
 
   const formSource = useMemo(() => {
     const base = normalizePortalPaymentForm(seedPortalForm ?? portalForm);
@@ -272,7 +289,23 @@ const DirectDebit = () => {
     ].join('|');
   }, [formSource]);
 
+  const hydratedFormKeyRef = useRef('');
+
   useEffect(() => {
+    if (!seedPortalFormProp) {
+      return;
+    }
+
+    setPortalForm(seedPortalFormProp);
+    setActivePortalForm(seedPortalFormProp);
+    setPortalFormLoading(false);
+  }, [seedPortalFormKey, seedPortalFormProp]);
+
+  useEffect(() => {
+    if (seedPortalFormProp) {
+      return;
+    }
+
     let cancelled = false;
 
     const loadPortalForms = async () => {
@@ -292,11 +325,11 @@ const DirectDebit = () => {
 
         if (isPaymentApiSuccess(mineRes)) {
           const paymentForms = extractMyPortalPaymentForms(mineRes);
-          const activeForm = getActivePaymentFormForProfile(
+          const existingForm = getExistingPaymentFormForProfile(
             paymentForms,
             'Direct Debit',
           );
-          setActivePortalForm(activeForm);
+          setActivePortalForm(existingForm);
         } else {
           setActivePortalForm(null);
         }
@@ -318,9 +351,18 @@ const DirectDebit = () => {
     return () => {
       cancelled = true;
     };
-  }, [profileDetail?.profileId]);
+  }, [profileDetail?.profileId, seedPortalFormKey]);
+
+  const isFormViewOnly = useMemo(
+    () => isPortalPaymentFormViewOnly(formSource),
+    [formSource],
+  );
 
   useEffect(() => {
+    if (seedPortalFormProp) {
+      return;
+    }
+
     let cancelled = false;
 
     const loadPrefill = async () => {
@@ -353,12 +395,17 @@ const DirectDebit = () => {
     return () => {
       cancelled = true;
     };
-  }, [profileDetail?.profileId, seedPortalForm, portalForm]);
+  }, [profileDetail?.profileId, seedPortalFormKey, portalForm]);
 
   useEffect(() => {
     if (portalFormLoading || !formSource) {
       return;
     }
+
+    if (hydratedFormKeyRef.current === formSourceKey) {
+      return;
+    }
+    hydratedFormKeyRef.current = formSourceKey;
 
     const mapped = mapDirectDebitFromPortal(formSource);
     const contactInfo = personalDetail?.contactInfo || {};
@@ -377,7 +424,8 @@ const DirectDebit = () => {
       .join(', ');
 
     const isActiveRecord =
-      String(formSource?.status || '').toLowerCase() === 'active';
+      String(formSource?.status || '').toLowerCase() === 'active' ||
+      String(formSource?.status || '').toLowerCase() === 'submitted';
 
     setFormState(prev => ({
       ...prev,
@@ -407,6 +455,8 @@ const DirectDebit = () => {
         mapped.authorization !== undefined
           ? mapped.authorization
           : prev.authorization,
+      signature: mapped.signature ?? prev.signature,
+      secondSignature: mapped.secondSignature ?? prev.secondSignature,
       signatureDate: mapped.signatureDate || prev.signatureDate,
     }));
   }, [
@@ -627,7 +677,7 @@ const DirectDebit = () => {
       const signatures = [
         { slot: 0, imageBase64: formState.signature },
         { slot: 1, imageBase64: formState.secondSignature },
-      ].filter(item => item.imageBase64);
+      ].filter(item => item.imageBase64 && isDataUrlImage(item.imageBase64));
 
       for (const sig of signatures) {
         const uploadRes = await uploadPortalPaymentSignature(formId, {
@@ -708,7 +758,17 @@ const DirectDebit = () => {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        scrollEnabled={scrollEnabled}>
+        scrollEnabled={scrollEnabled}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          ) : undefined
+        }>
         {/* Header */}
         <View style={styles.section}>
           <View style={styles.headerRow}>
@@ -960,6 +1020,7 @@ const DirectDebit = () => {
               value={formState.signature}
               required={true}
               showValidation={showValidation}
+              disabled={isFormViewOnly}
               onDrawingActiveChange={handleSignatureDrawingActive}
             />
           </View>
@@ -972,6 +1033,7 @@ const DirectDebit = () => {
                 handleSignatureChange('secondSignature', sig)
               }
               value={formState.secondSignature}
+              disabled={isFormViewOnly}
               onDrawingActiveChange={handleSignatureDrawingActive}
             />
           </View>
@@ -1002,6 +1064,7 @@ const DirectDebit = () => {
         </View>
 
         {/* Actions */}
+        {!isFormViewOnly && (
         <View style={styles.buttonContainer}>
           <Button
             title={isSubmitting ? 'Submitting...' : 'Confirm and Authorize'}
@@ -1011,6 +1074,7 @@ const DirectDebit = () => {
             style={styles.confirmButton}
           />
         </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );

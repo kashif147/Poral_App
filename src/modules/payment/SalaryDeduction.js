@@ -1,5 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApplication } from '../../contexts/applicationContext';
 import { useProfile } from '../../contexts/profileContext';
@@ -18,6 +27,11 @@ import {
   updatePortalPaymentForm,
   uploadPortalPaymentSignature,
 } from '../../api/paymentForms.api';
+import {
+  getPortalFormSeedKey,
+  isPortalPaymentFormViewOnly,
+  mapSalaryDeductionFromPortal,
+} from '../../helpers/paymentForm.helper';
 
 const MONTHLY_DEDUCTION_AMOUNT = '19.00';
 const PAYMENT_FORM_TYPE = 'SALARY_DEDUCTION';
@@ -81,7 +95,14 @@ const toIsoDate = value => {
   return date.toISOString();
 };
 
-const SalaryDeduction = () => {
+const isDataUrlImage = value =>
+  typeof value === 'string' && value.startsWith('data:image/');
+
+const SalaryDeduction = ({
+  seedPortalForm = null,
+  refreshing = false,
+  onRefresh = null,
+}) => {
   const { personalDetail, professionalDetail, subscriptionDetail } = useApplication();
   const { profileDetail } = useProfile();
   const { workLocationLookups } = useLookup();
@@ -99,6 +120,18 @@ const SalaryDeduction = () => {
   const [showValidation, setShowValidation] = useState(false);
   const [signatureDrawing, setSignatureDrawing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hydratedFromPortal, setHydratedFromPortal] = useState(false);
+  const hydratedSeedKeyRef = useRef('');
+
+  const seedPortalFormKey = useMemo(
+    () => getPortalFormSeedKey(seedPortalForm),
+    [seedPortalForm],
+  );
+
+  const isFormViewOnly = useMemo(
+    () => isPortalPaymentFormViewOnly(seedPortalForm),
+    [seedPortalForm],
+  );
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -114,6 +147,37 @@ const SalaryDeduction = () => {
   }, []);
 
   useEffect(() => {
+    if (!seedPortalForm) {
+      hydratedSeedKeyRef.current = '';
+      setHydratedFromPortal(false);
+      return;
+    }
+
+    if (hydratedSeedKeyRef.current === seedPortalFormKey) {
+      return;
+    }
+    hydratedSeedKeyRef.current = seedPortalFormKey;
+
+    const mapped = mapSalaryDeductionFromPortal(seedPortalForm);
+    setFormState(prev => ({
+      ...prev,
+      ...mapped,
+      name: mapped.name || prev.name,
+      inmoNo: mapped.inmoNo || prev.inmoNo,
+      employedAt: mapped.employedAt || prev.employedAt,
+      payrollStaffNo: mapped.payrollStaffNo || prev.payrollStaffNo,
+      commencing: mapped.commencing || prev.commencing,
+      date: mapped.date || prev.date,
+      signature: mapped.signature ?? prev.signature,
+    }));
+    setHydratedFromPortal(true);
+  }, [seedPortalForm, seedPortalFormKey]);
+
+  useEffect(() => {
+    if (hydratedFromPortal) {
+      return;
+    }
+
     const name =
       personalDetail?.personalInfo?.forename && personalDetail?.personalInfo?.surname
         ? `${personalDetail.personalInfo.forename} ${personalDetail.personalInfo.surname}`
@@ -145,7 +209,7 @@ const SalaryDeduction = () => {
       employedAt: employedAt ? String(employedAt) : '',
       payrollStaffNo: payrollStaffNo ? String(payrollStaffNo) : '',
     }));
-  }, [personalDetail, professionalDetail, profileDetail, subscriptionDetail, user]);
+  }, [personalDetail, professionalDetail, profileDetail, subscriptionDetail, user, hydratedFromPortal]);
 
   const workLocationOptions = useMemo(() => {
     const mappedWorkLocations = (workLocationLookups || [])
@@ -259,15 +323,17 @@ const SalaryDeduction = () => {
         throw new Error('Payment form was saved but no form id was returned. Please refresh and try again.');
       }
 
-      const uploadRes = await uploadPortalPaymentSignature(formId, {
-        imageBase64: formState.signature,
-        slot: 0,
-        signedDate: toIsoDate(formState.date),
-      });
-      if (!isPaymentApiSuccess(uploadRes)) {
-        throw new Error(
-          getPaymentApiErrorMessage(uploadRes, 'Failed to upload signature. Please try again.'),
-        );
+      if (formState.signature && isDataUrlImage(formState.signature)) {
+        const uploadRes = await uploadPortalPaymentSignature(formId, {
+          imageBase64: formState.signature,
+          slot: 0,
+          signedDate: toIsoDate(formState.date),
+        });
+        if (!isPaymentApiSuccess(uploadRes)) {
+          throw new Error(
+            getPaymentApiErrorMessage(uploadRes, 'Failed to upload signature. Please try again.'),
+          );
+        }
       }
 
       const submitRes = await submitPortalPaymentForm(formId);
@@ -297,7 +363,17 @@ const SalaryDeduction = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         scrollEnabled={!signatureDrawing}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          ) : undefined
+        }>
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIcon}>
@@ -392,6 +468,7 @@ const SalaryDeduction = () => {
               value={formState.signature}
               required={true}
               showValidation={showValidation}
+              disabled={isFormViewOnly}
               onDrawingActiveChange={setSignatureDrawing}
             />
           </View>
@@ -407,6 +484,7 @@ const SalaryDeduction = () => {
           />
         </View>
 
+        {!isFormViewOnly && (
         <View style={styles.buttonContainer}>
           <Button
             title={isSubmitting ? 'Submitting...' : 'Save Authorization'}
@@ -415,6 +493,7 @@ const SalaryDeduction = () => {
             disabled={isSubmitting || (!isFormValid && showValidation)}
           />
         </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );

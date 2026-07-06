@@ -12,6 +12,7 @@ import { Colors } from '../../utils/Styles';
 import { useProfile } from '../../contexts/profileContext';
 import { getAccountStatementRequest } from '../../api/account.api';
 import { formatToDDMMYYYY } from '../../helpers/date.helper';
+import { getSettlementStatusMemberLabel } from '../../helpers/paymentIntent.helper';
 import ScreenHeader from '../../common/screenHeader';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -105,12 +106,14 @@ const Payment = () => {
     const amountInEuros = amountInCents / 100;
 
     const handlePress = () => {
+      const rawStatus = txn.settlement?.status || txn.status || 'PENDING';
       const receiptPayload = {
         memberName: profileDetail?.fullName || profileDetail?.userFullName,
         membershipNumber: profileDetail?.membershipNumber,
         date: dateStr,
         description,
         amountInEuros,
+        statusLabel: getSettlementStatusMemberLabel(rawStatus),
         rawTxn: txn,
       };
       navigation.navigate('PaymentReceipt', { receipt: receiptPayload });

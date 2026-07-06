@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApplication } from '../../contexts/applicationContext';
@@ -29,6 +30,11 @@ import {
   updatePortalPaymentForm,
   uploadPortalPaymentSignature,
 } from '../../api/paymentForms.api';
+import {
+  getPortalFormSeedKey,
+  isPortalPaymentFormViewOnly,
+  mapStandingOrderFromPortal,
+} from '../../helpers/paymentForm.helper';
 
 const PAYMENT_FORM_TYPE = 'STANDING_ORDER';
 const isPaymentApiSuccess = response => response?.status >= 200 && response?.status < 300;
@@ -119,7 +125,14 @@ const mergeStandingOrderData = (activeForm, prefillForm) => {
   };
 };
 
-const StandingBankersOrder = () => {
+const isDataUrlImage = value =>
+  typeof value === 'string' && value.startsWith('data:image/');
+
+const StandingBankersOrder = ({
+  seedPortalForm: seedPortalFormProp = null,
+  refreshing = false,
+  onRefresh = null,
+}) => {
   const { subscriptionDetail, categoryData, getCategoryData } = useApplication();
   const { categoryLookups } = useLookup();
   const { profileDetail } = useProfile();
@@ -165,6 +178,12 @@ const StandingBankersOrder = () => {
   const [activePortalForm, setActivePortalForm] = useState(null);
   const [prefillPortalForm, setPrefillPortalForm] = useState(null);
   const [hasPortalDataApplied, setHasPortalDataApplied] = useState(false);
+  const hydratedSeedKeyRef = useRef('');
+
+  const seedPortalFormKey = useMemo(
+    () => getPortalFormSeedKey(seedPortalFormProp),
+    [seedPortalFormProp],
+  );
 
   const handleSignatureDrawingActive = active => {
     if (active) {
@@ -258,6 +277,17 @@ const StandingBankersOrder = () => {
   }, [formState.bankName, hasPortalDataApplied]);
 
   useEffect(() => {
+    if (!seedPortalFormProp) {
+      return;
+    }
+    setActivePortalForm(seedPortalFormProp);
+  }, [seedPortalFormKey, seedPortalFormProp]);
+
+  useEffect(() => {
+    if (seedPortalFormKey) {
+      return;
+    }
+
     const loadPortalPrefillAndActive = async () => {
       try {
         const [activeRes, prefillRes] = await Promise.all([
@@ -280,32 +310,64 @@ const StandingBankersOrder = () => {
       }
     };
     loadPortalPrefillAndActive();
-  }, [profileDetail?.profileId]);
+  }, [profileDetail?.profileId, seedPortalFormKey]);
+
+  const formSource = seedPortalFormProp ?? activePortalForm;
+
+  const isFormViewOnly = useMemo(
+    () => isPortalPaymentFormViewOnly(formSource),
+    [formSource],
+  );
 
   useEffect(() => {
-    const merged = mergeStandingOrderData(activePortalForm, prefillPortalForm);
-    if (!Object.values(merged).some(Boolean)) return;
+    if (!formSource && !prefillPortalForm) return;
+
+    const hydrationKey =
+      getPortalFormSeedKey(formSource) ||
+      `${seedPortalFormKey}|${getPortalFormSeedKey(prefillPortalForm)}`;
+    if (hydratedSeedKeyRef.current === hydrationKey) {
+      return;
+    }
+    hydratedSeedKeyRef.current = hydrationKey;
+
+    const mapped = mapStandingOrderFromPortal(formSource || { standingOrder: {} });
+    const merged = mergeStandingOrderData(
+      formSource,
+      !seedPortalFormProp ? prefillPortalForm : null,
+    );
+    if (!Object.values(mapped).some(Boolean) && !Object.values(merged).some(Boolean)) {
+      return;
+    }
 
     setFormState(prev => ({
       ...prev,
-      bankName: pickNonEmpty(merged.debtorBankName, prev.bankName),
-      branchAddress: pickNonEmpty(merged.debtorBankAddress, prev.branchAddress),
-      accountName: pickNonEmpty(merged.debtorAccountName, prev.accountName),
-      iban: pickNonEmpty(formatIbanForDisplay(merged.debtorIban), prev.iban),
-      bic: pickNonEmpty(merged.debtorBic, prev.bic),
-      startDate: pickNonEmpty(merged.startDate, prev.startDate),
+      bankName: pickNonEmpty(mapped.bankName, merged.debtorBankName, prev.bankName),
+      branchAddress: pickNonEmpty(mapped.branchAddress, merged.debtorBankAddress, prev.branchAddress),
+      accountName: pickNonEmpty(mapped.accountName, merged.debtorAccountName, prev.accountName),
+      accountNumber: mapped.accountNumber || prev.accountNumber,
+      iban: pickNonEmpty(mapped.iban, formatIbanForDisplay(merged.debtorIban), prev.iban),
+      bic: pickNonEmpty(mapped.bic, merged.debtorBic, prev.bic),
+      frequency: mapped.frequency || prev.frequency,
+      amount: mapped.amount || prev.amount,
+      startDate: pickNonEmpty(mapped.startDate, merged.startDate, prev.startDate),
+      accountHolderSignature:
+        mapped.accountHolderSignature ?? prev.accountHolderSignature,
+      secondSignature: mapped.secondSignature ?? prev.secondSignature,
       accountHolderSignatureDate: pickNonEmpty(
+        mapped.accountHolderSignatureDate,
         merged.signatureDatePrimary,
         prev.accountHolderSignatureDate,
       ),
       secondSignatureDate: pickNonEmpty(
+        mapped.secondSignatureDate,
         merged.signatureDateSecondary,
         prev.secondSignatureDate,
       ),
-      authorization: true,
+      authorization:
+        mapped.authorization !== undefined ? mapped.authorization : prev.authorization,
     }));
     setHasPortalDataApplied(true);
-  }, [activePortalForm, prefillPortalForm]);
+  }, [formSource, prefillPortalForm, seedPortalFormKey]);
 
   // IBAN formatting function - adds spaces every 4 characters
   const formatIBAN = (value, cursorPosition = null) => {
@@ -524,7 +586,7 @@ const StandingBankersOrder = () => {
           imageBase64: formState.secondSignature,
           signedDate: toIsoDate(formState.secondSignatureDate),
         },
-      ].filter(item => item.imageBase64);
+      ].filter(item => item.imageBase64 && isDataUrlImage(item.imageBase64));
 
       for (const sig of signatures) {
         const uploadRes = await uploadPortalPaymentSignature(formId, {
@@ -566,7 +628,17 @@ const StandingBankersOrder = () => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         scrollEnabled={scrollEnabled}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[Colors.primary]}
+              tintColor={Colors.primary}
+            />
+          ) : undefined
+        }>
         {/* Your Account Details Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -870,6 +942,7 @@ const StandingBankersOrder = () => {
               value={formState.accountHolderSignature}
               required={true}
               showValidation={showValidation}
+              disabled={isFormViewOnly}
               onDrawingActiveChange={handleSignatureDrawingActive}
             />
             <DatePicker
@@ -893,6 +966,7 @@ const StandingBankersOrder = () => {
               value={formState.secondSignature}
               required={false}
               showValidation={showValidation}
+              disabled={isFormViewOnly}
               onDrawingActiveChange={handleSignatureDrawingActive}
             />
             <DatePicker
@@ -906,6 +980,7 @@ const StandingBankersOrder = () => {
         </View>
 
         {/* Action Buttons */}
+        {!isFormViewOnly && (
         <View style={styles.buttonContainer}>
           <Button
             title={isSubmitting ? 'Submitting...' : 'Save Order'}
@@ -915,6 +990,7 @@ const StandingBankersOrder = () => {
             style={styles.saveButton}
           />
         </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -23,6 +23,8 @@ const PaymentReceipt = () => {
   const membershipNumber = receipt?.membershipNumber || 'N/A';
   const date = receipt?.date || new Date().toLocaleDateString();
   const description = receipt?.description || 'Subscription Payment';
+  const statusLabel = receipt?.statusLabel || 'Payment record';
+  const isCompletedPayment = statusLabel === 'Payment completed';
   const amount = typeof receipt?.amountInEuros === 'number'
     ? receipt.amountInEuros
     : 0;
@@ -78,9 +80,11 @@ const PaymentReceipt = () => {
           <View style={styles.successIcon}>
             <Ionicons name="checkmark" size={40} color="#22C55E" />
           </View>
-          <Text style={styles.successTitle}>Payment Successful</Text>
+          <Text style={styles.successTitle}>{statusLabel}</Text>
           <Text style={styles.successSubtitle}>
-            Your membership payment has been recorded.
+            {isCompletedPayment
+              ? 'Your membership payment has been completed.'
+              : 'This payment has been recorded on your account.'}
           </Text>
         </View>
 
@@ -88,7 +92,9 @@ const PaymentReceipt = () => {
           <Text style={styles.sectionLabel}>Payment Summary</Text>
           <View style={styles.summaryRow}>
             <View>
-              <Text style={styles.summaryLabel}>Amount Paid</Text>
+              <Text style={styles.summaryLabel}>
+                {isCompletedPayment ? 'Amount Paid' : 'Amount'}
+              </Text>
               <Text style={styles.summaryAmount}>
                 €{amount.toFixed(2)}
               </Text>

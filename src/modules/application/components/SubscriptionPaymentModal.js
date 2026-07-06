@@ -8,6 +8,7 @@ import { useApplication } from '../../../contexts/applicationContext';
 import { useLookup } from '../../../contexts/lookupContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSelector } from 'react-redux';
+import { resolvePaymentIntentOutcome } from '../../../helpers/paymentIntent.helper';
 
 const SubscriptionPaymentModal = ({
   visible,
@@ -261,7 +262,8 @@ const SubscriptionPaymentModal = ({
         // Provide more specific error messages
         let errorMessage = error.message;
         if (error.code === 'payment_intent_unexpected_state') {
-          errorMessage = 'This payment has already been processed. Please close and reopen the payment form.';
+          errorMessage =
+            'This payment session is no longer valid. Please close the form and start a new application payment.';
         } else if (error.message?.includes('No such payment_intent')) {
           errorMessage = 'Payment session expired. Please close and reopen the payment form.';
         }
@@ -271,9 +273,11 @@ const SubscriptionPaymentModal = ({
 
       console.log('✅ Payment Confirmation Response:', JSON.stringify(paymentIntent, null, 2));
 
-      // Check if payment was successful
-      if (paymentIntent?.status === 'Succeeded') {
-        console.log('🎉 Payment succeeded!');
+      const outcome = resolvePaymentIntentOutcome(paymentIntent?.status, {
+        isApplicationPayment: true,
+      });
+
+      if (outcome.success) {
         onSuccess?.({
           paymentMethod: 'card',
           total: getDisplayPrice(),
@@ -281,13 +285,13 @@ const SubscriptionPaymentModal = ({
             name: cardholderName,
             email: email,
           },
-          paymentIntent: paymentIntent,
+          paymentIntent,
+          paymentOutcome: outcome,
         });
-      } else {
-        console.log('⚠️ Payment status:', paymentIntent?.status);
-        console.log('⚠️ Full payment intent:', JSON.stringify(paymentIntent, null, 2));
-        throw new Error(`Payment status: ${paymentIntent?.status || 'unknown'}. Please try again.`);
+        return;
       }
+
+      throw new Error(outcome.message);
     } catch (err) {
       console.error('❌ Payment Error:', err);
       console.error('❌ Error name:', err.name);

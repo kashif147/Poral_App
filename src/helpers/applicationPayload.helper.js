@@ -218,6 +218,10 @@ export const isResumablePortalApplication = (
     return true;
   }
 
+  if (status === 'processed') {
+    return false;
+  }
+
   if (status === 'approved' || status === 'submitted') {
     return isActiveApplicationPersonalDetail(personalDetail);
   }
@@ -302,9 +306,50 @@ export const isTerminalApplicationReviewStatus = status => {
   const normalized = normalizeApplicationStatus(status);
   return (
     normalized === 'submitted' ||
+    normalized === 'processed' ||
     normalized === 'approved' ||
     normalized === 'in review'
   );
+};
+
+export const isProcessedApplicationStatus = status =>
+  normalizeApplicationStatus(status) === 'processed';
+
+export const isActiveApplicationCompleteStatus = (
+  applicationStatus,
+  isApplicationActive = true,
+) => {
+  const normalized = normalizeApplicationStatus(applicationStatus);
+  const isComplete =
+    normalized === 'submitted' ||
+    normalized === 'processed' ||
+    normalized === 'approved';
+
+  if (!isApplicationActive) {
+    return isComplete;
+  }
+
+  return normalized === 'submitted' || normalized === 'processed';
+};
+
+export const resolveEffectiveApplicationStatus = ({
+  localStatus,
+  contextStatus,
+  personalDetail,
+} = {}) => {
+  const candidates = [
+    localStatus,
+    contextStatus,
+    personalDetail?.applicationStatus,
+  ];
+
+  for (const status of candidates) {
+    if (status == null || status === '') continue;
+    if (status === 'none') continue;
+    return status;
+  }
+
+  return localStatus ?? contextStatus ?? personalDetail?.applicationStatus ?? 'none';
 };
 
 export const getApplicationFormProgress = ({
@@ -365,7 +410,7 @@ export const shouldShowApplicationReviewStatus = ({
 
 export const getApplicationReviewStatusKey = applicationStatus => {
   const normalized = normalizeApplicationStatus(applicationStatus);
-  if (normalized === 'approved') return 'approved';
+  if (normalized === 'approved' || normalized === 'processed') return 'approved';
   if (normalized === 'in review') return 'in_review';
   return 'submitted';
 };

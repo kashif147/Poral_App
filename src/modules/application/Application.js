@@ -28,6 +28,7 @@ import {
   normalizeApplicationStatus,
   resolveApplicationFormStep,
 } from '../../helpers/applicationPayload.helper';
+import { APPLICATION_PAYMENT_AUTHORISED_MESSAGE } from '../../helpers/paymentIntent.helper';
 import { calculateAgeFromDateOfBirth } from '../../helpers/date.helper';
 import {
   getPaymentFrequencyCategory,
@@ -592,7 +593,12 @@ const Application = () => {
 
     setIsModalVisible(false);
 
-    Alert.alert('Success', 'Payment completed successfully!', [
+    const outcome = paymentData?.paymentOutcome;
+    const title = outcome?.title || 'Payment authorised';
+    const message =
+      outcome?.message || APPLICATION_PAYMENT_AUTHORISED_MESSAGE;
+
+    Alert.alert(title, message, [
       {
         text: 'OK',
         onPress: async () => {
@@ -1107,7 +1113,10 @@ const Application = () => {
             professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
           console.log('🎓 Undergraduate student - skipping payment');
           setIsSubmitted(true);
-          Alert.alert('Success', 'Application submitted successfully!', [
+          Alert.alert(
+            'Application submitted',
+            'Your application has been submitted successfully and is now pending review.',
+            [
             {
               text: 'OK',
               onPress: () => navigateToDashboardAfterSubmit(),
@@ -1175,7 +1184,10 @@ const Application = () => {
             professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
           console.log('🎓 Undergraduate student - skipping payment');
           setIsSubmitted(true);
-          Alert.alert('Success', 'Application updated successfully!', [
+          Alert.alert(
+            'Application updated',
+            'Your application has been updated successfully and is now pending review.',
+            [
             {
               text: 'OK',
               onPress: () => navigateToDashboardAfterSubmit(),

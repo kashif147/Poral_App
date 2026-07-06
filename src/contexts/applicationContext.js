@@ -29,6 +29,7 @@ export const ApplicationProvider = ({ children }) => {
   const personalDetailRef = useRef(personalDetail);
   const applicationStatusRef = useRef(applicationStatus);
   const refreshInFlightRef = useRef(false);
+  const refreshPromiseRef = useRef(null);
   const personalDetailInFlightRef = useRef(false);
 
   useEffect(() => {
@@ -269,14 +270,15 @@ export const ApplicationProvider = ({ children }) => {
   };
 
   const refreshApplicationState = useCallback(async () => {
-    if (refreshInFlightRef.current) {
-      return null;
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
     }
 
     refreshInFlightRef.current = true;
 
-    try {
-      const finalizePortalPersonal = async portalPersonal => {
+    const refreshPromise = (async () => {
+      try {
+        const finalizePortalPersonal = async portalPersonal => {
         const enriched = portalPersonal?.applicationId
           ? await enrichPortalPersonalDetail(portalPersonal)
           : portalPersonal;
@@ -345,10 +347,15 @@ export const ApplicationProvider = ({ children }) => {
         };
       }
 
-      return finalizePortalPersonal(currentPersonalDetail);
-    } finally {
-      refreshInFlightRef.current = false;
-    }
+        return finalizePortalPersonal(currentPersonalDetail);
+      } finally {
+        refreshInFlightRef.current = false;
+        refreshPromiseRef.current = null;
+      }
+    })();
+
+    refreshPromiseRef.current = refreshPromise;
+    return refreshPromise;
   }, [loadResumableApplicationDetails]);
 
   const getCategoryData = useCallback((categoryNameOrId, categoryLookups = []) => {
