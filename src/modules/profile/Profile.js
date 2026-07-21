@@ -5,9 +5,14 @@ import PersonalInformation from '../application/PersonalInformation';
 import { Button } from '../../common/button';
 import { useApplication } from '../../contexts/applicationContext';
 import { useProfile } from '../../contexts/profileContext';
-import { updatePersonalDetailRequest } from '../../api/application.api';
+import {
+  createPersonalDetailRequest,
+  updatePersonalDetailRequest,
+} from '../../api/application.api';
 import { updateProfileRequest } from '../../api/profile.api';
 import { isDataFormat } from '../../helpers/date.helper';
+import { isActiveApplicationPersonalDetail } from '../../helpers/applicationPayload.helper';
+import { canAccessProfile, isProfileReadOnly } from '../../helpers/role.helper';
 
 import moment from 'moment';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -20,6 +25,9 @@ import { signOut } from '../../services/auth.services';
 import { useMemberRole } from '../../hooks/useMemberRole';
 import ScreenHeader from '../../common/screenHeader';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+
+const pickField = (primary, fallback, empty = '') =>
+  primary ?? fallback ?? empty;
 
 /** Backend allows only "home" | "work" for contactInfo.preferredAddress (Joi / AppError). */
 function mapPreferredAddressForApi(value) {
@@ -38,10 +46,14 @@ function mapPreferredAddressForApi(value) {
 
 const Profile = () => {
   const user = useSelector(state => state.auth.user);
-  const { personalDetail, getPersonalDetail, subscriptionDetail } = useApplication();
+  const {
+    personalDetail,
+    getPersonalDetail,
+    subscriptionDetail,
+    applicationStatus,
+  } = useApplication();
   const { profileByIdDetail, getProfileByIdDetail, profileDetail } = useProfile();
   const { isMember } = useMemberRole();
-  const applicationId = personalDetail?.applicationId;
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const navigation = useNavigation();
@@ -57,10 +69,42 @@ const Profile = () => {
   const [promotionalOffers, setPromotionalOffers] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
 
-  // Hydrate local form state from context
-  useEffect(() => {
-    if (!personalDetail && !profileByIdDetail) return;
+  const profileAccessArgs = useMemo(
+    () => ({
+      isMember,
+      applicationStatus:
+        applicationStatus ?? personalDetail?.applicationStatus,
+      isActive: personalDetail
+        ? isActiveApplicationPersonalDetail(personalDetail)
+        : undefined,
+    }),
+    [isMember, applicationStatus, personalDetail],
+  );
 
+  const showProfile = useMemo(
+    () => canAccessProfile(profileAccessArgs),
+    [profileAccessArgs],
+  );
+
+  const isReadOnly = useMemo(
+    () => isProfileReadOnly(profileAccessArgs),
+    [profileAccessArgs],
+  );
+
+  const canEditProfile = showProfile && !isReadOnly;
+
+  useEffect(() => {
+    getPersonalDetail?.();
+  }, [getPersonalDetail]);
+
+  useEffect(() => {
+    if (isMember && profileDetail?.profileId) {
+      getProfileByIdDetail(profileDetail.profileId);
+    }
+  }, [isMember, profileDetail?.profileId, getProfileByIdDetail]);
+
+  // Hydrate local form state from context (match web preference order)
+  useEffect(() => {
     const profilePersonalInfo = profileByIdDetail?.personalInfo || {};
     const profileContactInfo = profileByIdDetail?.contactInfo || {};
     const profilePreferences = profileByIdDetail?.preferences || {};
@@ -68,35 +112,98 @@ const Profile = () => {
     const appPersonalInfo = personalDetail?.personalInfo || {};
     const appContactInfo = personalDetail?.contactInfo || {};
 
+    const userDefaults = {
+      forename: user?.userFirstName || user?.firstName || '',
+      surname: user?.userLastName || user?.lastName || '',
+      personalEmail: user?.userEmail || user?.email || '',
+      mobileNo: user?.userMobilePhone || user?.mobilePhone || '',
+    };
+
+    const personal = (profileValue, appValue, userValue = '') =>
+      isMember
+        ? pickField(profileValue, pickField(appValue, userValue))
+        : pickField(appValue, pickField(profileValue, userValue));
+
+    const contact = (profileValue, appValue, userValue = '') =>
+      isMember
+        ? pickField(profileValue, pickField(appValue, userValue))
+        : pickField(appValue, pickField(profileValue, userValue));
+
     setPersonalInfo({
-      // Personal info - prefer profile, fallback to application
-      title: profilePersonalInfo.title ?? appPersonalInfo.title ?? '',
-      surname: profilePersonalInfo.surname ?? appPersonalInfo.surname ?? '',
-      forename: profilePersonalInfo.forename ?? appPersonalInfo.forename ?? '',
-      gender: profilePersonalInfo.gender ?? appPersonalInfo.gender ?? '',
-      dob: profilePersonalInfo.dateOfBirth ?? appPersonalInfo.dateOfBirth ?? '',
-      primaryCountry: profilePersonalInfo.countryPrimaryQualification ?? appPersonalInfo.countryPrimaryQualification ?? '',
-      
-      // Consent - prefer profile preferences, fallback to application contactInfo
-      consent: profilePreferences.consent ?? appContactInfo.consent ?? true,
-      
-      // Address Information - prefer profile, fallback to application
-      addressLine1: profileContactInfo.buildingOrHouse ?? appContactInfo.buildingOrHouse ?? '',
-      addressLine2: profileContactInfo.streetOrRoad ?? appContactInfo.streetOrRoad ?? '',
-      addressLine3: profileContactInfo.areaOrTown ?? appContactInfo.areaOrTown ?? '',
-      addressLine4: profileContactInfo.countyCityOrPostCode ?? appContactInfo.countyCityOrPostCode ?? '',
-      eircode: profileContactInfo.eircode ?? appContactInfo.eircode ?? '',
-      preferredAddress: profileContactInfo.preferredAddress ?? appContactInfo.preferredAddress ?? '',
-      country: profileContactInfo.country ?? appContactInfo.country ?? '',
-      
-      // Contact Information - prefer profile, fallback to application
-      mobileNo: profileContactInfo.mobileNumber ?? appContactInfo.mobileNumber ?? '',
-      workTel: profileContactInfo.telephoneNumber ?? appContactInfo.telephoneNumber ?? '',
-      preferredEmail: profileContactInfo.preferredEmail ?? appContactInfo.preferredEmail ?? '',
-      personalEmail: profileContactInfo.personalEmail ?? appContactInfo.personalEmail ?? '',
-      workEmail: profileContactInfo.workEmail ?? appContactInfo.workEmail ?? '',
+      title: personal(profilePersonalInfo.title, appPersonalInfo.title),
+      surname: personal(
+        profilePersonalInfo.surname,
+        appPersonalInfo.surname,
+        userDefaults.surname,
+      ),
+      forename: personal(
+        profilePersonalInfo.forename,
+        appPersonalInfo.forename,
+        userDefaults.forename,
+      ),
+      gender: personal(profilePersonalInfo.gender, appPersonalInfo.gender),
+      dob: personal(
+        profilePersonalInfo.dateOfBirth,
+        appPersonalInfo.dateOfBirth,
+      ),
+      countryPrimaryQualification: personal(
+        profilePersonalInfo.countryPrimaryQualification,
+        appPersonalInfo.countryPrimaryQualification,
+      ),
+      // Keep legacy alias in sync for any older callers
+      primaryCountry: personal(
+        profilePersonalInfo.countryPrimaryQualification,
+        appPersonalInfo.countryPrimaryQualification,
+      ),
+      consent: isMember
+        ? pickField(profilePreferences.consent, appContactInfo.consent, true)
+        : pickField(appContactInfo.consent, profilePreferences.consent, true),
+      addressLine1: contact(
+        profileContactInfo.buildingOrHouse,
+        appContactInfo.buildingOrHouse,
+      ),
+      addressLine2: contact(
+        profileContactInfo.streetOrRoad,
+        appContactInfo.streetOrRoad,
+      ),
+      addressLine3: contact(
+        profileContactInfo.areaOrTown,
+        appContactInfo.areaOrTown,
+      ),
+      addressLine4: contact(
+        profileContactInfo.countyCityOrPostCode,
+        appContactInfo.countyCityOrPostCode,
+      ),
+      eircode: contact(profileContactInfo.eircode, appContactInfo.eircode),
+      preferredAddress: contact(
+        profileContactInfo.preferredAddress,
+        appContactInfo.preferredAddress,
+      ),
+      country: contact(profileContactInfo.country, appContactInfo.country),
+      mobileNo: contact(
+        profileContactInfo.mobileNumber,
+        appContactInfo.mobileNumber,
+        userDefaults.mobileNo,
+      ),
+      workTel: contact(
+        profileContactInfo.telephoneNumber,
+        appContactInfo.telephoneNumber,
+      ),
+      preferredEmail: contact(
+        profileContactInfo.preferredEmail,
+        appContactInfo.preferredEmail,
+      ),
+      personalEmail: contact(
+        profileContactInfo.personalEmail,
+        appContactInfo.personalEmail,
+        userDefaults.personalEmail,
+      ),
+      workEmail: contact(
+        profileContactInfo.workEmail,
+        appContactInfo.workEmail,
+      ),
     });
-  }, [personalDetail, profileByIdDetail]);
+  }, [isMember, personalDetail, profileByIdDetail, user]);
 
   const handleImagePick = () => {
     Alert.alert(
@@ -139,134 +246,179 @@ const Profile = () => {
     );
   };
 
+  const buildPortalPayload = () => {
+    const personalInfoData = { personalInfo: {}, contactInfo: {} };
+
+    const personalFields = {
+      title: personalInfo.title,
+      surname: personalInfo.surname,
+      forename: personalInfo.forename,
+      gender: personalInfo.gender,
+      dateOfBirth: personalInfo.dob && isDataFormat(personalInfo.dob),
+      countryPrimaryQualification:
+        personalInfo.countryPrimaryQualification ||
+        personalInfo.primaryCountry ||
+        '',
+    };
+
+    Object.entries(personalFields).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        personalInfoData.personalInfo[key] = value;
+      }
+    });
+
+    const apiPreferredAddress = mapPreferredAddressForApi(
+      personalInfo.preferredAddress,
+    );
+
+    const contactFields = {
+      preferredAddress: apiPreferredAddress,
+      eircode: personalInfo.eircode ?? '',
+      buildingOrHouse: personalInfo.addressLine1,
+      streetOrRoad: personalInfo.addressLine2 ?? '',
+      areaOrTown: personalInfo.addressLine3 ?? '',
+      countyCityOrPostCode: personalInfo.addressLine4,
+      country: personalInfo.country ?? '',
+      mobileNumber: personalInfo.mobileNo,
+      telephoneNumber: personalInfo.workTel ?? '',
+      preferredEmail: personalInfo.preferredEmail,
+      personalEmail: personalInfo.personalEmail ?? '',
+      workEmail: personalInfo.workEmail ?? '',
+      consent: personalInfo.consent,
+    };
+
+    Object.entries(contactFields).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        personalInfoData.contactInfo[key] = value;
+      }
+    });
+
+    return personalInfoData;
+  };
+
+  const buildProfilePayload = () => {
+    const apiPreferredAddress = mapPreferredAddressForApi(
+      personalInfo.preferredAddress,
+    );
+
+    const profilePayload = {
+      personalInfo: {},
+      contactInfo: {},
+      preferences: {
+        consent: !!personalInfo.consent,
+      },
+    };
+
+    const personalFields = {
+      title: personalInfo.title,
+      surname: personalInfo.surname,
+      forename: personalInfo.forename,
+      gender: personalInfo.gender,
+      dateOfBirth: personalInfo.dob && isDataFormat(personalInfo.dob),
+      countryPrimaryQualification:
+        personalInfo.countryPrimaryQualification ||
+        personalInfo.primaryCountry ||
+        '',
+    };
+
+    Object.entries(personalFields).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        profilePayload.personalInfo[key] = value;
+      }
+    });
+
+    if (localProfileImage?.base64) {
+      profilePayload.personalInfo.profileImage = `data:${localProfileImage.type};base64,${localProfileImage.base64}`;
+    }
+
+    const profileContactFields = {
+      preferredAddress: apiPreferredAddress,
+      buildingOrHouse: personalInfo.addressLine1,
+      streetOrRoad: personalInfo.addressLine2 ?? '',
+      areaOrTown: personalInfo.addressLine3 ?? '',
+      eircode: personalInfo.eircode ?? '',
+      countyCityOrPostCode: personalInfo.addressLine4,
+      country: personalInfo.country ?? '',
+      mobileNumber: personalInfo.mobileNo,
+      telephoneNumber: personalInfo.workTel ?? '',
+      preferredEmail: personalInfo.preferredEmail,
+      personalEmail: personalInfo.personalEmail ?? '',
+      workEmail: personalInfo.workEmail ?? '',
+    };
+
+    Object.entries(profileContactFields).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        profilePayload.contactInfo[key] = value;
+      }
+    });
+
+    return profilePayload;
+  };
+
   const handleSave = async () => {
+    if (isReadOnly) {
+      return;
+    }
+
     setShowValidation(true);
     setLoading(true);
+
     try {
-      // Build payload for application API
-      const personalInfoData = {};
-      const personalFields = {
-        title: personalInfo.title,
-        surname: personalInfo.surname,
-        forename: personalInfo.forename,
-        gender: personalInfo.gender,
-        dateOfBirth: personalInfo.dob && isDataFormat(personalInfo.dob),
-        countryPrimaryQualification: personalInfo.primaryCountry ?? '',
-      };
-
-      personalInfoData.personalInfo = {};
-      Object.entries(personalFields).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          personalInfoData.personalInfo[key] = value;
+      // Members (incl. processed applications) → profile-service
+      if (isMember) {
+        if (!profileByIdDetail && !profileDetail?.profileId) {
+          Alert.alert('Error', 'No profile found to update');
+          setLoading(false);
+          return;
         }
-      });
 
-      const apiPreferredAddress = mapPreferredAddressForApi(
-        personalInfo.preferredAddress,
-      );
-
-      const contactFields = {
-        preferredAddress: apiPreferredAddress,
-        eircode: personalInfo.eircode ?? '',
-        buildingOrHouse: personalInfo.addressLine1,
-        streetOrRoad: personalInfo.addressLine2 ?? '',
-        areaOrTown: personalInfo.addressLine3 ?? '',
-        countyCityOrPostCode: personalInfo.addressLine4,
-        country: personalInfo.country ?? '',
-        mobileNumber: personalInfo.mobileNo,
-        telephoneNumber: personalInfo.workTel ?? '',
-        preferredEmail: personalInfo.preferredEmail,
-        personalEmail: personalInfo.personalEmail ?? '',
-        workEmail: personalInfo.workEmail ?? '',
-        consent: personalInfo.consent,
-      };
-
-      personalInfoData.contactInfo = {};
-      Object.entries(contactFields).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          personalInfoData.contactInfo[key] = value;
+        const res = await updateProfileRequest(buildProfilePayload());
+        if (res?.status === 200) {
+          if (profileDetail?.profileId) {
+            getProfileByIdDetail(profileDetail.profileId);
+          }
+          Alert.alert('Success', 'Personal detail updated successfully');
+          setShowValidation(false);
+          setShowPersonalInfoForm(false);
+        } else {
+          const errBody = res?.data;
+          Alert.alert(
+            'Error',
+            errBody?.error?.message ||
+              errBody?.message ||
+              'Unable to update personal detail',
+          );
         }
-      });
-
-      // Build payload for profile API (preferences.consent)
-      const profileContactFields = {
-        preferredAddress: apiPreferredAddress,
-        buildingOrHouse: personalInfo.addressLine1,
-        streetOrRoad: personalInfo.addressLine2 ?? '',
-        areaOrTown: personalInfo.addressLine3 ?? '',
-        eircode: personalInfo.eircode ?? '',
-        countyCityOrPostCode: personalInfo.addressLine4,
-        country: personalInfo.country ?? '',
-        mobileNumber: personalInfo.mobileNo,
-        telephoneNumber: personalInfo.workTel ?? '',
-        preferredEmail: personalInfo.preferredEmail,
-        personalEmail: personalInfo.personalEmail ?? '',
-        workEmail: personalInfo.workEmail ?? '',
-      };
-
-      const profilePayload = {
-        personalInfo: personalInfoData.personalInfo,
-        contactInfo: {},
-        preferences: {
-          consent: !!personalInfo.consent,
-        },
-      };
-
-      if (localProfileImage?.base64) {
-         // Assuming API might accept base64 image in a field like 'profilePhoto' or 'avatar'
-         // If not supported by backend, this might be ignored or error out.
-         // We are sending it as 'profileImage' for now based on common patterns.
-         profilePayload.personalInfo.profileImage = `data:${localProfileImage.type};base64,${localProfileImage.base64}`;
-      }
-
-      Object.entries(profileContactFields).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          profilePayload.contactInfo[key] = value;
-        }
-      });
-
-      // Update both APIs if they exist (matching web version)
-      const requests = [];
-
-      const resolvedApplicationId =
-        personalDetail?.ApplicationId || personalDetail?.applicationId;
-
-      if (resolvedApplicationId) {
-        requests.push(updatePersonalDetailRequest(resolvedApplicationId, personalInfoData));
-      }
-
-      if (profileByIdDetail) {
-        requests.push(updateProfileRequest(profilePayload));
-      }
-
-      if (!requests.length) {
-        Alert.alert('Error', 'No application or profile found to update');
-        setLoading(false);
         return;
       }
 
-      const responses = await Promise.all(requests);
-      console.log('responses===============>', responses);
-      const allOk = responses.every(res => res?.status === 200);
+      // Non-members (application not submitted) → portal-service create/update
+      const portalPayload = buildPortalPayload();
+      const applicationId =
+        personalDetail?.ApplicationId || personalDetail?.applicationId;
 
-      if (allOk) {
-        Alert.alert('Success', 'Personal detail updated successfully');
-        if (resolvedApplicationId) {
-          getPersonalDetail?.();
-        }
-        if (profileDetail?.profileId) {
-          getProfileByIdDetail(profileDetail.profileId);
-        }
+      const res = applicationId
+        ? await updatePersonalDetailRequest(applicationId, portalPayload)
+        : await createPersonalDetailRequest(portalPayload);
+
+      if (res?.status === 200) {
+        getPersonalDetail?.();
+        Alert.alert(
+          'Success',
+          applicationId
+            ? 'Personal detail updated successfully'
+            : 'Personal detail created successfully',
+        );
         setShowValidation(false);
         setShowPersonalInfoForm(false);
       } else {
-        const firstError = responses.find(r => r?.status !== 200);
-        const errBody = firstError?.data;
-        const errMsg =
+        const errBody = res?.data;
+        Alert.alert(
+          'Error',
           errBody?.error?.message ||
-          errBody?.message ||
-          'Unable to update personal detail';
-        Alert.alert('Error', errMsg);
+            errBody?.message ||
+            'Unable to save personal detail',
+        );
       }
     } catch (e) {
       Alert.alert('Error', 'Something went wrong');
@@ -330,7 +482,7 @@ const Profile = () => {
           {/* Profile Header Card */}
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
-              {isMember ? (
+              {canEditProfile && isMember ? (
                 <TouchableOpacity onPress={handleImagePick}>
                   <Image 
                     source={profileImageSource} 
@@ -351,9 +503,13 @@ const Profile = () => {
               {`${personalInfo?.forename || ''} ${personalInfo?.surname || ''}`.trim() || user?.fullName || user?.userFullName}
             </Text>
             <Text style={styles.profileId}>
-              {profileDetail?.membershipNumber ? `Member ID: ${profileDetail.membershipNumber}` : profileDetail?.profileId ? 'Member' : 'Non Member'}
+              {isMember
+                ? profileDetail?.membershipNumber
+                  ? `Member ID: ${profileDetail.membershipNumber}`
+                  : 'Member'
+                : 'Non Member'}
             </Text>
-            {isMember && (
+            {canEditProfile && (
               <TouchableOpacity
                 style={styles.editProfileButton}
                 onPress={() => {
@@ -365,13 +521,18 @@ const Profile = () => {
                 <Text style={styles.editProfileButtonText}>Edit Profile</Text>
               </TouchableOpacity>
             )}
+            {isReadOnly && (
+              <Text style={styles.readOnlyHint}>
+                Profile edits are locked while your application is under review.
+              </Text>
+            )}
           </View>
 
           {/* Personal Information Section */}
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Personal Information</Text>
             
-            {isMember ? (
+            {canEditProfile ? (
               <TouchableOpacity 
                 style={styles.listItem} 
                 onPress={() => {
@@ -570,7 +731,7 @@ const Profile = () => {
                 onPress={handleSave}
                 primary
                 style={{ flex: 1 }}
-                disabled={loading}
+                disabled={loading || isReadOnly}
               />
               <Button
                 title="Cancel"
@@ -685,6 +846,13 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: 14,
     fontWeight: '600',
+  },
+  readOnlyHint: {
+    marginTop: 10,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
 
   // Section Container

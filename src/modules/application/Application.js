@@ -29,11 +29,15 @@ import {
   resolveApplicationFormStep,
 } from '../../helpers/applicationPayload.helper';
 import { APPLICATION_PAYMENT_AUTHORISED_MESSAGE } from '../../helpers/paymentIntent.helper';
-import { calculateAgeFromDateOfBirth } from '../../helpers/date.helper';
+import { calculateAgeFromDateOfBirth, isDataFormat } from '../../helpers/date.helper';
 import {
   getPaymentFrequencyCategory,
   isSalaryDeductionPaymentType,
 } from '../../helpers/subscriptionPricing.helper';
+import {
+  isUndergraduateStudentCategory,
+  isUndergraduateStudentFromCategoryData,
+} from '../../helpers/applicationCategory.helper';
 
 const steps = [
   { number: 1, title: 'Personal' },
@@ -65,6 +69,10 @@ const initialFormData = {
     retired: false,
     retiredDate: '',
     pensionNo: '',
+    discipline: '',
+    studyLocation: '',
+    startDate: '',
+    graduationDate: '',
   },
   subscriptionDetails: {},
 };
@@ -285,17 +293,20 @@ const Application = () => {
           nmbiNo,
           discipline,
           studyLocation,
+          startDate,
           graduationDate,
           pensionNo,
         } = formData.professionalDetails || {};
         if (!membershipCategory) missing.push('Membership category');
-        const isUndergraduateStudent = membershipCategory === 'undergraduate_student' ||
-          membershipCategory === 'Undergraduate Student';
+        const isUndergraduateStudent = isUndergraduateStudentCategory(
+          membershipCategory,
+        );
         if (!isUndergraduateStudent && !workLocation) missing.push('Work location');
         if (!grade) missing.push('Grade');
         if (isUndergraduateStudent) {
           if (!discipline) missing.push('Discipline');
           if (!studyLocation) missing.push('Study location');
+          if (!startDate) missing.push('Start date');
           if (!graduationDate) missing.push('Graduation date');
         }
         const isRetiredAssociate =
@@ -307,7 +318,11 @@ const Application = () => {
         const isNursingAdaptationYes = nursingAdaptationProgramme === 'yes';
         const isNursingAdaptationNo = nursingAdaptationProgramme === 'no';
         if (isNursingAdaptationYes && !nurseType) missing.push('Nurse type');
-        if (isNursingAdaptationNo && !String(nmbiNo || '').trim()) {
+        if (
+          isNursingAdaptationNo &&
+          !isUndergraduateStudent &&
+          !String(nmbiNo || '').trim()
+        ) {
           missing.push('NMBI number');
         }
         break;
@@ -419,6 +434,7 @@ const Application = () => {
           nmbiNo,
           discipline,
           studyLocation,
+          startDate,
           graduationDate,
           pensionNo,
         } = formData.professionalDetails || {};
@@ -428,10 +444,9 @@ const Application = () => {
           return false;
         }
         
-        // Work location is only required for non-undergraduate students
-        const isUndergraduateStudent =
-          membershipCategory === 'undergraduate_student' ||
-          membershipCategory === 'Undergraduate Student';
+        const isUndergraduateStudent = isUndergraduateStudentCategory(
+          membershipCategory,
+        );
         if (!isUndergraduateStudent && !workLocation) {
           return false;
         }
@@ -449,6 +464,7 @@ const Application = () => {
         if (nursingAdaptationProgramme === 'yes' && !nurseType) return false;
         if (
           nursingAdaptationProgramme === 'no' &&
+          !isUndergraduateStudent &&
           !String(nmbiNo || '').trim()
         ) {
           return false;
@@ -710,6 +726,10 @@ const Application = () => {
 
       // Map nurseType from API format to display format
       const mappedNurseType = apiData.nurseType ? mapNurseTypeFromAPI(apiData.nurseType) : '';
+      const normalizeProfessionalDate = value => {
+        if (!value || typeof value === 'object') return '';
+        return isDataFormat(String(value)) || '';
+      };
 
       setFormData(prev => ({
         ...prev,
@@ -729,11 +749,15 @@ const Application = () => {
           branch: apiData.branch ?? '',
           pensionNo: apiData.pensionNo ?? '',
           isRetired: apiData.isRetired ?? false,
-          retiredDate: apiData.retiredDate ?? apiData.retirementDate ?? '',
-          retirementDate: apiData.retirementDate ?? apiData.retiredDate ?? '',
+          retiredDate: normalizeProfessionalDate(
+            apiData.retiredDate ?? apiData.retirementDate,
+          ),
+          retirementDate: normalizeProfessionalDate(
+            apiData.retirementDate ?? apiData.retiredDate,
+          ),
           studyLocation: apiData.studyLocation ?? '',
-          startDate: apiData.startDate ?? '',
-          graduationDate: apiData.graduationDate ?? '',
+          startDate: normalizeProfessionalDate(apiData.startDate),
+          graduationDate: normalizeProfessionalDate(apiData.graduationDate),
           discipline: apiData.discipline ?? '',
         },
       }));
@@ -1002,7 +1026,8 @@ const Application = () => {
       retiredDate: data.retirementDate || data.retiredDate,
       retirementDate: data.retirementDate || data.retiredDate,
       studyLocation: data.studyLocation,
-      graduationDate: data.graduationDate,
+      startDate: data.startDate && isDataFormat(data.startDate),
+      graduationDate: data.graduationDate && isDataFormat(data.graduationDate),
       discipline: data.discipline,
     };
     const professionalInfo = { professionalDetails: {} };
@@ -1048,7 +1073,8 @@ const Application = () => {
       retiredDate: data.retirementDate || data.retiredDate,
       retirementDate: data.retirementDate || data.retiredDate,
       studyLocation: data.studyLocation,
-      graduationDate: data.graduationDate,
+      startDate: data.startDate && isDataFormat(data.startDate),
+      graduationDate: data.graduationDate && isDataFormat(data.graduationDate),
       discipline: data.discipline,
     };
     const professionalInfo = { professionalDetails: {} };
@@ -1108,9 +1134,15 @@ const Application = () => {
         getSubscriptionDetail();
         
         // Check if undergraduate student - they don't need payment (matching web version)
-        if (categoryData?.name === 'Undergraduate Student' ||
-            professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
-            professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
+        if (
+          isUndergraduateStudentFromCategoryData(categoryData) ||
+          isUndergraduateStudentCategory(
+            professionalDetail?.professionalDetails?.membershipCategory,
+          ) ||
+          isUndergraduateStudentCategory(
+            formData?.professionalDetails?.membershipCategory,
+          )
+        ) {
           console.log('🎓 Undergraduate student - skipping payment');
           setIsSubmitted(true);
           Alert.alert(
@@ -1179,9 +1211,15 @@ const Application = () => {
         getSubscriptionDetail();
         
         // Check if undergraduate student - they don't need payment (matching web version)
-        if (categoryData?.name === 'Undergraduate Student' ||
-            professionalDetail?.professionalDetails?.membershipCategory === 'Undergraduate Student' ||
-            professionalDetail?.professionalDetails?.membershipCategory === 'undergraduate_student') {
+        if (
+          isUndergraduateStudentFromCategoryData(categoryData) ||
+          isUndergraduateStudentCategory(
+            professionalDetail?.professionalDetails?.membershipCategory,
+          ) ||
+          isUndergraduateStudentCategory(
+            formData?.professionalDetails?.membershipCategory,
+          )
+        ) {
           console.log('🎓 Undergraduate student - skipping payment');
           setIsSubmitted(true);
           Alert.alert(

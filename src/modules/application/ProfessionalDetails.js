@@ -14,6 +14,12 @@ import CustomSwitch from '../../common/switch';
 import { Colors, wp } from '../../utils/Styles';
 import { useLookup } from '../../contexts/lookupContext';
 import { DatePicker } from '../../common/DatePicker';
+import { findWorkLocationLookupItem } from '../../helpers/subscriptionPricing.helper';
+import { resolveBranchRegionFromStudyLocation } from '../../helpers/lookupHierarchy.helper';
+import {
+  CATEGORY_DISPLAY_NAME_BY_TYPE,
+  isUndergraduateStudentCategory,
+} from '../../helpers/applicationCategory.helper';
 
 const nurseTypes = [
   'General Nurse',
@@ -86,18 +92,6 @@ const mapNurseTypeToAPI = displayValue => {
   return displayValue; // Return original if no match found
 };
 
-const CATEGORY_DISPLAY_NAME_BY_TYPE = {
-  undergraduate_student: 'Undergraduate Student',
-  retired_associate: 'Retired Associate',
-  postgraduate_student: 'Postgraduate Student',
-  general: 'General (all grades)',
-  private_nursing_home: 'Private nursing home',
-  short_term_relief: 'Short-term/Relief (under 12 hrs/wk average)',
-  associate: 'Associate (not currently employed as a nurse/midwife)',
-  affiliate: 'Affiliate members (non-practicing)',
-  lecturing: 'Lecturing (employed in universities and IT institutes)',
-};
-
 const REDUCED_RATE_CATEGORY_TYPES = [
   'affiliate',
   'associate',
@@ -138,7 +132,28 @@ const isReducedRateMembershipCategory = categoryLabel => {
   return false;
 };
 
-// studyLocations will be populated from lookup context
+const getCategoryLookupLabel = item =>
+  String(
+    item?.name ||
+      item?.DisplayName ||
+      item?.label ||
+      item?.productType?.name ||
+      item?.code ||
+      '',
+  );
+
+const getBranchRegionFromLookupItem = item => ({
+  branch:
+    item?.branch?.DisplayName ||
+    item?.branch?.lookupname ||
+    item?.branch?.name ||
+    '',
+  region:
+    item?.region?.DisplayName ||
+    item?.region?.lookupname ||
+    item?.region?.name ||
+    '',
+});
 
 const ProfessionalDetails = ({
   formData,
@@ -152,6 +167,7 @@ const ProfessionalDetails = ({
     gradeLookups,
     studyLocationLookups,
     disciplineLookups,
+    lookups,
   } = useLookup() || {};
 
   const safeDisciplineLookups = Array.isArray(disciplineLookups)
@@ -169,8 +185,14 @@ const ProfessionalDetails = ({
     ? studyLocationLookups
     : [];
   // Map study location lookups to picker options (matching web version)
+  const rawLookups = useMemo(() => {
+    if (lookups?.length) {
+      return lookups;
+    }
+    return safeStudyLocationLookups;
+  }, [lookups, safeStudyLocationLookups]);
+
   const studyLocationOptions = useMemo(() => {
-    console.log('Study location lookups:', safeStudyLocationLookups?.length);
     const mapped = (safeStudyLocationLookups || [])
       .map(item => {
         const name =
@@ -179,29 +201,72 @@ const ProfessionalDetails = ({
           item?.name ||
           item?.label ||
           '';
-        return { value: name, label: name };
+        return {
+          value: name,
+          label: name,
+          key: item?._id || item?.id,
+        };
       })
-      .filter(option => option.value); // Filter out empty values
+      .filter(option => option.value);
     return mapped;
   }, [safeStudyLocationLookups]);
 
   const disciplineOptions = useMemo(
-    () =>
-      (safeDisciplineLookups || [])
+    () => [
+      ...(safeDisciplineLookups || [])
         .map(item => {
           const name =
             item?.DisplayName || item?.lookupname || item?.name || '';
           return { value: name, label: name };
         })
         .filter(option => option.value),
+      { value: 'other', label: 'Other' },
+    ],
     [safeDisciplineLookups],
   );
 
+  const getUndergraduateBranchRegion = draft => {
+    if (draft.workLocation === 'other') {
+      return { branch: '', region: '' };
+    }
+
+    if (draft.workLocation) {
+      const selected = findWorkLocationLookupItem(
+        draft.workLocation,
+        safeWorkLocationLookups,
+      );
+      return getBranchRegionFromLookupItem(selected);
+    }
+
+    if (draft.studyLocation) {
+      return resolveBranchRegionFromStudyLocation(
+        draft.studyLocation,
+        studyLocationOptions,
+        rawLookups,
+        safeWorkLocationLookups,
+      );
+    }
+
+    return { branch: '', region: '' };
+  };
+
+  const applyUndergraduateBranchRegion = draft => {
+    if (!isUndergraduateStudentCategory(draft.membershipCategory)) {
+      return draft;
+    }
+
+    return {
+      ...draft,
+      ...getUndergraduateBranchRegion(draft),
+    };
+  };
+
   const applyMembershipCategory = categoryValue => {
-    onFormDataChange({
+    const nextFormData = applyUndergraduateBranchRegion({
       ...formData,
       membershipCategory: categoryValue,
     });
+    onFormDataChange(nextFormData);
   };
 
   const handleMembershipCategoryChange = value => {
@@ -300,77 +365,67 @@ const ProfessionalDetails = ({
   }, [safeGradeLookups]);
 
   const handleWorkLocationChange = val => {
-    console.log('Work location changed to:', val);
-    const selected = safeWorkLocationLookups.find(i => {
-      const itemName =
-        i?.lookup?.DisplayName ||
-        i?.lookup?.lookupname ||
-        i?.DisplayName ||
-        i?.lookupname ||
-        i?.name ||
-        i?.label;
-      return itemName === val;
-    });
-
-    console.log('Selected work location item:', selected);
-
-    onFormDataChange({
+    let newFormData = {
       ...formData,
       workLocation: val,
-      branch: selected
-        ? selected?.branch?.DisplayName ||
-          selected?.branch?.lookupname ||
-          selected?.branch?.name ||
-          ''
-        : '',
-      region: selected
-        ? selected?.region?.DisplayName ||
-          selected?.region?.lookupname ||
-          selected?.region?.name ||
-          ''
-        : '',
-      ...(val !== 'other' ? { otherWorkLocation: '' } : {}),
-    });
+    };
+
+    if (val === 'other') {
+      newFormData.branch = '';
+      newFormData.region = '';
+    } else if (val) {
+      const selected = findWorkLocationLookupItem(val, safeWorkLocationLookups);
+      Object.assign(newFormData, getBranchRegionFromLookupItem(selected));
+      newFormData.otherWorkLocation = '';
+    } else if (isUndergraduateStudentCategory(newFormData.membershipCategory)) {
+      Object.assign(newFormData, getUndergraduateBranchRegion(newFormData));
+    } else {
+      newFormData.branch = '';
+      newFormData.region = '';
+    }
+
+    onFormDataChange(newFormData);
+  };
+
+  const handleStudyLocationChange = val => {
+    let newFormData = {
+      ...formData,
+      studyLocation: val,
+    };
+
+    const hasWorkLocation =
+      newFormData.workLocation && newFormData.workLocation !== 'other';
+
+    if (
+      isUndergraduateStudentCategory(newFormData.membershipCategory) &&
+      !hasWorkLocation
+    ) {
+      Object.assign(newFormData, getUndergraduateBranchRegion(newFormData));
+    }
+
+    onFormDataChange(newFormData);
   };
 
   // Only consider "yes" as selected, everything else (including undefined/null/'no') is not selected
   const adaptationYes = formData?.nursingAdaptationProgramme === 'yes';
   const adaptationNo = formData?.nursingAdaptationProgramme === 'no';
 
-  // Helper function to check category type based on name (matching web version)
   const isCategoryType = categoryType => {
     if (!formData?.membershipCategory) return false;
 
-    // Find the selected category by name
-    const selectedCategory = safeCategoryLookups.find(item => {
-      const itemName =
-        item?.name ||
-        item?.DisplayName ||
-        item?.label ||
-        item?.productType?.name ||
-        item?.code;
-      return String(itemName || '') === String(formData.membershipCategory);
-    });
+    const selectedCategory = safeCategoryLookups.find(
+      item =>
+        getCategoryLookupLabel(item) === String(formData.membershipCategory),
+    );
 
-    if (!selectedCategory) return false;
+    const targetName = CATEGORY_DISPLAY_NAME_BY_TYPE[categoryType];
+    if (!targetName) return false;
 
-    const selectedCode = String(selectedCategory?.code || '').toUpperCase();
+    if (!selectedCategory) {
+      return String(formData.membershipCategory) === targetName;
+    }
 
-    // Map category types to their actual codes
-    const categoryCodeMap = {
-      undergraduate_student: 'MEM-UG',
-      retired_associate: 'MEM-RET',
-      postgraduate_student: 'MEM-PG',
-      general: 'MEM-GEN',
-      private_nursing_home: 'MEM-PNH',
-      short_term_relief: 'MEM-STR',
-      associate: 'MEM-ASS',
-      affiliate: 'MEM-AFF',
-      lecturing: 'MEM-LEC',
-    };
-
-    const targetCode = categoryCodeMap[categoryType];
-    return targetCode ? selectedCode === targetCode : false;
+    return getCategoryLookupLabel(selectedCategory) === targetName;
   };
 
   // Use isCategoryType helper for category detection
@@ -470,6 +525,39 @@ const ProfessionalDetails = ({
     }
   }, [formData?.nursingAdaptationProgramme]);
 
+  useEffect(() => {
+    if (!isUndergraduateStudentCategory(formData?.membershipCategory)) {
+      return;
+    }
+
+    const hasWorkLocation =
+      formData?.workLocation && formData.workLocation !== 'other';
+    if (hasWorkLocation || !formData?.studyLocation) {
+      return;
+    }
+
+    const { branch, region } = getUndergraduateBranchRegion(formData);
+
+    if (branch === formData.branch && region === formData.region) {
+      return;
+    }
+
+    onFormDataChange({
+      ...formData,
+      branch,
+      region,
+    });
+  }, [
+    formData?.membershipCategory,
+    formData?.studyLocation,
+    formData?.workLocation,
+    formData?.branch,
+    formData?.region,
+    rawLookups,
+    studyLocationOptions,
+    safeWorkLocationLookups,
+  ]);
+
   return (
     <View
       style={{
@@ -521,7 +609,9 @@ const ProfessionalDetails = ({
 
         {/* Conditional fields for Undergraduate Students */}
         {isUndergraduateStudent && (
-          <>
+          <View style={styles.studentInfoCard}>
+            <Text style={styles.studentInfoTitle}>Student Information</Text>
+
             <Text style={styles.label}>Discipline *</Text>
             <View
               style={[
@@ -561,14 +651,24 @@ const ProfessionalDetails = ({
               </Picker>
             </View>
 
-            <Text style={styles.label}>Study Location</Text>
-            <View style={styles.pickerField}>
+            <Text style={styles.label}>Study Location *</Text>
+            <View
+              style={[
+                styles.pickerField,
+                showValidation &&
+                  !formData.studyLocation && {
+                    borderColor: Colors.red,
+                    borderWidth: 1,
+                    borderRadius: 12,
+                  },
+              ]}
+            >
               <SearchablePicker
                 items={studyLocationOptions}
                 selectedValue={formData.studyLocation || ''}
                 onValueChange={val => {
                   if (val) {
-                    onFormDataChange({ ...formData, studyLocation: val });
+                    handleStudyLocationChange(val);
                   }
                 }}
                 placeholder={
@@ -582,20 +682,37 @@ const ProfessionalDetails = ({
 
             <Text style={styles.label}>Start Date</Text>
             <DatePicker
+              name="startDate"
               value={formData.startDate}
-              onChange={date =>
-                onFormDataChange({ ...formData, startDate: date })
+              onChange={({ target }) =>
+                onFormDataChange({ ...formData, startDate: target.value })
               }
+              disableAgeValidation
             />
 
-            <Text style={styles.label}>Graduation Date</Text>
-            <DatePicker
-              value={formData.graduationDate}
-              onChange={date =>
-                onFormDataChange({ ...formData, graduationDate: date })
+            <Text style={styles.label}>Graduation Date *</Text>
+            <View
+              style={
+                showValidation && !formData.graduationDate
+                  ? styles.dateFieldError
+                  : undefined
               }
-            />
-          </>
+            >
+              <DatePicker
+                name="graduationDate"
+                required
+                showValidation={showValidation}
+                value={formData.graduationDate}
+                onChange={({ target }) =>
+                  onFormDataChange({
+                    ...formData,
+                    graduationDate: target.value,
+                  })
+                }
+                disableAgeValidation
+              />
+            </View>
+          </View>
         )}
 
         {/* Conditional fields for Retired Associate */}
@@ -603,14 +720,16 @@ const ProfessionalDetails = ({
           <>
             <Text style={styles.label}>Retired Date</Text>
             <DatePicker
+              name="retirementDate"
               value={formData.retirementDate || formData.retiredDate}
-              onChange={date =>
+              onChange={({ target }) =>
                 onFormDataChange({
                   ...formData,
-                  retirementDate: date,
-                  retiredDate: date,
+                  retirementDate: target.value,
+                  retiredDate: target.value,
                 })
               }
+              disableAgeValidation
             />
 
             <Text style={styles.label}>Pension No</Text>
@@ -631,10 +750,16 @@ const ProfessionalDetails = ({
 
       {/* Employment Details Card */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Employment Details</Text>
+        <Text style={styles.cardTitle}>
+          {isUndergraduateStudent
+            ? 'Work Location / Placement Details'
+            : 'Employment Details'}
+        </Text>
 
         {/* Work Location */}
-        <Text style={styles.label}>Work Location</Text>
+        <Text style={styles.label}>
+          Work Location{isUndergraduateStudent ? '' : ' *'}
+        </Text>
         <View
           style={[
             styles.pickerField,
@@ -675,18 +800,10 @@ const ProfessionalDetails = ({
 
         {/* Branch */}
         <Text style={styles.label}>Branch</Text>
-        <View style={styles.pickerField}>
-          <Picker
-            selectedValue={formData.branch || ''}
-            onValueChange={val => {
-              if (val) {
-                onFormDataChange({ ...formData, branch: val });
-              }
-            }}
-          >
-            <Picker.Item label="Select Branch..." value="" />
+        <View style={[styles.pickerField, styles.readOnlyPickerField]}>
+          <Picker selectedValue={formData.branch || ''} enabled={false}>
             <Picker.Item
-              label={formData.branch || 'Auto-filled'}
+              label={formData.branch || 'Auto-filled from location'}
               value={formData.branch || ''}
             />
           </Picker>
@@ -694,18 +811,10 @@ const ProfessionalDetails = ({
 
         {/* Region */}
         <Text style={styles.label}>Region</Text>
-        <View style={styles.pickerField}>
-          <Picker
-            selectedValue={formData.region || ''}
-            onValueChange={val => {
-              if (val) {
-                onFormDataChange({ ...formData, region: val });
-              }
-            }}
-          >
-            <Picker.Item label="Select Region..." value="" />
+        <View style={[styles.pickerField, styles.readOnlyPickerField]}>
+          <Picker selectedValue={formData.region || ''} enabled={false}>
             <Picker.Item
-              label={formData.region || 'Auto-filled'}
+              label={formData.region || 'Auto-filled from location'}
               value={formData.region || ''}
             />
           </Picker>
@@ -820,6 +929,7 @@ const ProfessionalDetails = ({
             checkValue={
               showValidation &&
               adaptationNo &&
+              !isUndergraduateStudent &&
               !(formData.nmbiNo || formData.nmbiNumber)
             }
             holderTextColor={'#94A3B8'}
@@ -987,6 +1097,33 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pickerField: {
+    marginBottom: 8,
+  },
+  readOnlyPickerField: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  studentInfoCard: {
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  studentInfoTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.textPrimary,
+    marginBottom: 12,
+  },
+  dateFieldError: {
+    borderWidth: 1,
+    borderColor: Colors.red,
+    borderRadius: 12,
     marginBottom: 8,
   },
   switchRow: {

@@ -483,11 +483,12 @@ const PersonalInformation = ({
       if (irelandCountry) {
         onFormDataChange({
           ...formData,
-          countryPrimaryQualification: irelandCountry.displayname,
+          countryPrimaryQualification:
+            irelandCountry.displayname || irelandCountry.name || 'Ireland',
         });
       }
     }
-  }, [countryLookups]);
+  }, [countryLookups, formData?.countryPrimaryQualification]);
 
   // Set default value to Ireland for address country field if empty (matching web version)
   useEffect(() => {
@@ -501,11 +502,11 @@ const PersonalInformation = ({
       if (irelandCountry) {
         onFormDataChange({
           ...formData,
-          country: irelandCountry.displayname,
+          country: irelandCountry.displayname || irelandCountry.name || 'Ireland',
         });
       }
     }
-  }, [countryLookups]);
+  }, [countryLookups, formData?.country]);
 
   const titleOptions = Array.isArray(titleLookups)
     ? titleLookups.map(i => i?.lookupname).filter(Boolean)
@@ -566,11 +567,14 @@ const PersonalInformation = ({
                 },
             ]}>
           <Picker
-            selectedValue={formData.title}
+            selectedValue={formData.title || ''}
             onValueChange={val => {
-              onFormDataChange({ ...formData, title: val });
+              if (val !== undefined) {
+                onFormDataChange({ ...formData, title: val });
+              }
             }}
           >
+            <Picker.Item label="Select title" value="" />
             {(titleOptions.length
               ? titleOptions
               : ['Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.']
@@ -673,9 +677,7 @@ const PersonalInformation = ({
                   ]
             }
             selectedValue={
-              getCountryDisplayName(formData?.countryPrimaryQualification) ||
-              countryOptions[0]?.value ||
-              'Ireland'
+              getCountryDisplayName(formData?.countryPrimaryQualification) || ''
             }
             onValueChange={val =>
               onFormDataChange({

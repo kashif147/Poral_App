@@ -1,12 +1,21 @@
 import { useSelector } from 'react-redux';
-import { hasMemberRole } from '../helpers/role.helper';
+import { useProfile } from '../contexts/profileContext';
+import { resolveIsPortalMember } from '../helpers/role.helper';
 
 /**
- * Hook to get member status from JWT token roles
+ * Member status from JWT roles, /api/me roles, and portal profile membership.
  * @returns {{ isMember: boolean, userDetail: object }}
  */
 export const useMemberRole = () => {
   const userDetail = useSelector(state => state.auth.userDetail);
-  const isMember = hasMemberRole(userDetail);
+  const user = useSelector(state => state.auth.user);
+  const { profileDetail } = useProfile();
+
+  const isMember = resolveIsPortalMember({
+    userDetail,
+    user,
+    profileDetail,
+  });
+
   return { isMember, userDetail };
 };

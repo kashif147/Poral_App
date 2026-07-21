@@ -29,10 +29,12 @@ import {
 } from '../../constants/dashboard';
 import {
   isActiveApplicationCompleteStatus,
+  isActiveApplicationPersonalDetail,
   isProcessedApplicationStatus,
   normalizeApplicationStatus,
   resolveEffectiveApplicationStatus,
 } from '../../helpers/applicationPayload.helper';
+import { canAccessProfile } from '../../helpers/role.helper';
 import { useMemberRole } from '../../hooks/useMemberRole';
 import { validation } from '../../services/auth.services';
 import DashboardPaymentModal from './DashboardPaymentModal';
@@ -321,11 +323,10 @@ const DashBoard = () => {
     isProcessedApplicationStatus(effectiveApplicationStatus) ||
     (isApplicationActive && normalizedApplicationStatus === 'submitted');
   const isSubmittedOrApproved = isApplicationTerminal;
-  const isApplicationStatusReady =
-    !applicationContextLoading &&
-    !applicationStatusLoading &&
-    effectiveApplicationStatus !== 'none' &&
-    effectiveApplicationStatus != null;
+  // Ready once the dashboard status fetch finishes — including "none" (no application).
+  // Do not gate on shared applicationContextLoading (other API calls flip that flag)
+  // or exclude "none"; both left Quick Actions stuck on "Loading...".
+  const isApplicationStatusReady = !applicationStatusLoading;
   const isApplicationActionDisabled =
     !isApplicationStatusReady || isApplicationTerminal;
   const shouldStartFresh =
@@ -389,7 +390,13 @@ const DashBoard = () => {
         onPress: navigateToApplication,
         disabled: isApplicationActionDisabled,
       },
-      ...(isMember
+      ...(canAccessProfile({
+        isMember,
+        applicationStatus: normalizedApplicationStatus,
+        isActive: personalDetail
+          ? isActiveApplicationPersonalDetail(personalDetail)
+          : isApplicationActive,
+      })
         ? [
             {
               key: 'profile',
@@ -445,6 +452,7 @@ const DashBoard = () => {
     navigation,
     canPay,
     navigateToApplication,
+    personalDetail,
   ]);
 
   return (
