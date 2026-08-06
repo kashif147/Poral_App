@@ -1,164 +1,238 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   TextInput,
-  Platform,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, wp, hp } from '../../utils/Styles';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { Colors } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../../common/screenHeader';
 import DetailModal from '../../common/detailModal';
-import { getEventWithRegistrationData } from '../../constants/eventData';
+import { EventCourseCardHeader } from '../../common/EventCourseCardHeader';
+import FilterPillBar from '../../common/FilterPillBar';
+import {
+  fetchMyRegistrations,
+  fetchPublishedCourses,
+  fetchPublishedEvents,
+} from '../../api/events.api';
+import {
+  applyRegistrationStatus,
+  filterEventsBySearch,
+  filterRegisteredItems,
+  formatRegistrationPrice,
+  isRegistrationLocked,
+  parseEventsResponse,
+  parseRegistrationsResponse,
+  resolveDisplayPrice,
+} from '../../helpers/events.helper';
+import { useMemberRole } from '../../hooks/useMemberRole';
+import { useApplication } from '../../contexts/applicationContext';
+import { useProfile } from '../../contexts/profileContext';
 import { STACKS } from '../../enums/ScreenEnums';
+import { toast } from '../../utils/toast.utils';
 
-const Event = () => {
+const FILTER_IDS = {
+  ALL: 'all',
+  EVENT: 'event',
+  COURSE: 'course',
+  MY_EVENT: 'my-event',
+  MY_COURSE: 'my-course',
+};
+
+const tagItems = (items, kind) =>
+  (items || []).map(item => ({
+    ...item,
+    kind,
+    category: item.category || (kind === 'course' ? 'Course' : 'Event'),
+  }));
+
+const excludePast = items =>
+  (items || []).filter(item => item?.type !== 'past');
+
+const resolveInitialFilter = (route, initialCategoryType) => {
+  const type = route.params?.categoryType || route.params?.type || initialCategoryType;
+  const scope = route.params?.scope;
+  if (scope === 'my' && type === 'course') return FILTER_IDS.MY_COURSE;
+  if (scope === 'my' && type === 'event') return FILTER_IDS.MY_EVENT;
+  if (type === 'course') return FILTER_IDS.COURSE;
+  if (type === 'event') return FILTER_IDS.EVENT;
+  return FILTER_IDS.ALL;
+};
+
+const Event = ({ initialCategoryType } = {}) => {
   const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
+  const route = useRoute();
+  const { isMember } = useMemberRole();
+  const {
+    professionalDetail,
+    subscriptionDetail,
+    categoryData,
+  } = useApplication();
+  const { profileDetail, getProfileDetail } = useProfile();
+  const membershipCategory =
+    professionalDetail?.professionalDetails?.membershipCategory ||
+    subscriptionDetail?.subscriptionDetails?.membershipCategory ||
+    '';
+
+  const [selectedFilter, setSelectedFilter] = useState(() =>
+    resolveInitialFilter(route, initialCategoryType),
+  );
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [items, setItems] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const filters = [
-    { id: 'all', label: 'All Events' },
-    { id: 'upcoming', label: 'Upcoming' },
-    { id: 'past', label: 'Past' },
-    { id: 'webinar', label: 'Webinars' },
-    { id: 'workshop', label: 'Workshops' },
-  ];
+  useEffect(() => {
+    setSelectedFilter(resolveInitialFilter(route, initialCategoryType));
+    setSearchQuery('');
+  }, [
+    route.params?.categoryType,
+    route.params?.type,
+    route.params?.scope,
+    initialCategoryType,
+  ]);
 
-  const events = [
-    {
-      id: 1,
-      title: 'Annual General Meeting 2024',
-      date: '22th May, 2026',
-      time: '10:00 AM - 2:00 PM',
-      location: 'Convention Center, Downtown',
-      category: 'Meeting',
-      type: 'upcoming',
-      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=400&fit=crop',
-      attendees: 250,
-      status: 'registered',
-      description: 'Join us for our most important meeting of the year. Discuss annual reports, elections, and future plans.',
-    },
-    {
-      id: 2,
-      title: 'Networking Mixer',
-      date: '23th May, 2026',
-      time: '7:00 PM - 10:00 PM',
-      location: 'Grand Hotel Ballroom',
-      category: 'Networking',
-      type: 'upcoming',
-      image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&h=400&fit=crop',
-      attendees: 180,
-      status: 'available',
-      description: 'Connect with industry professionals and expand your network in a relaxed atmosphere.',
-    },
-    {
-      id: 3,
-      title: 'Leadership Webinar Series',
-      date: '27th May, 2026',
-      time: '10:00 AM - 12:00 PM',
-      location: 'Online',
-      category: 'Webinar',
-      type: 'upcoming',
-      image: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?w=800&h=400&fit=crop',
-      attendees: 320,
-      status: 'available',
-      description: 'Learn from industry leaders about effective leadership strategies and team management.',
-    },
-    {
-      id: 4,
-      title: 'Tech Skills Workshop',
-      date: '27th May, 2026',
-      time: '2:00 PM - 5:00 PM',
-      location: 'Tech Hub, Innovation Center',
-      category: 'Workshop',
-      type: 'upcoming',
-      image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&h=400&fit=crop',
-      attendees: 45,
-      status: 'waitlist',
-      description: 'Hands-on workshop covering the latest technologies and development practices.',
-    },
-    {
-      id: 5,
-      title: 'Industry Conference 2024',
-      date: '28th May, 2026',
-      time: '9:00 AM - 6:00 PM',
-      location: 'International Convention Center',
-      category: 'Conference',
-      type: 'past',
-      image: 'https://images.unsplash.com/photo-1505373877841-8d25f7d46678?w=800&h=400&fit=crop',
-      attendees: 500,
-      status: 'completed',
-      description: 'Annual industry conference featuring keynote speakers and breakout sessions.',
-    },
-    {
-      id: 6,
-      title: 'Digital Marketing',
-      date: '29th May, 2026',
-      time: '1:00 PM - 4:00 PM',
-      location: 'Online',
-      category: 'Webinar',
-      type: 'upcoming',
-      image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop',
-      attendees: 210,
-      status: 'available',
-      description: 'Master the art of digital marketing with expert insights and practical strategies.',
-    },
-    {
-      id: 7,
-      title: 'Member Appreciation Gala',
-      date: '1st May, 2026',
-      time: '6:00 PM - 11:00 PM',
-      location: 'Grand Ballroom, Luxury Hotel',
-      category: 'Social',
-      type: 'upcoming',
-      image: 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=800&h=400&fit=crop',
-      attendees: 300,
-      status: 'available',
-      description: 'Celebrate our members and enjoy an evening of fine dining and entertainment.',
-    },
-    {
-      id: 8,
-      title: 'Professional Development Summit',
-      date: 'Aug 15, 2026',
-      time: '8:00 AM - 5:00 PM',
-      location: 'Business Center',
-      category: 'Conference',
-      type: 'past',
-      image: 'https://images.unsplash.com/photo-1543269664-7eef42226a21?w=800&h=400&fit=crop',
-      attendees: 400,
-      status: 'completed',
-      description: 'Comprehensive summit covering various aspects of professional growth and development.',
-    },
-  ];
+  const loadData = useCallback(async () => {
+    try {
+      const profileId = profileDetail?.profileId;
+      const [eventsRes, coursesRes, registrationsRes] = await Promise.all([
+        fetchPublishedEvents(),
+        fetchPublishedCourses(),
+        fetchMyRegistrations(profileId),
+      ]);
 
-  const filteredEvents = events.filter(event => {
-    if (selectedFilter === 'all') return true;
-    if (selectedFilter === 'upcoming') return event.type === 'upcoming';
-    if (selectedFilter === 'past') return event.type === 'past';
-    if (selectedFilter === 'webinar') return event.category === 'Webinar';
-    if (selectedFilter === 'workshop') return event.category === 'Workshop';
-    return true;
-  }).filter(event => 
-    event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    event.category.toLowerCase().includes(searchQuery.toLowerCase())
+      const eventsOk = eventsRes?.status >= 200 && eventsRes?.status < 300;
+      const coursesOk = coursesRes?.status >= 200 && coursesRes?.status < 300;
+
+      if (!eventsOk && !coursesOk) {
+        setItems([]);
+        setRegistrations([]);
+        toast.error('Error', 'Unable to load events and courses.');
+        return;
+      }
+
+      const regs = registrationsRes
+        ? parseRegistrationsResponse(registrationsRes)
+        : [];
+      const events = eventsOk
+        ? tagItems(parseEventsResponse(eventsRes), 'event')
+        : [];
+      const courses = coursesOk
+        ? tagItems(parseEventsResponse(coursesRes), 'course')
+        : [];
+
+      setRegistrations(regs);
+      setItems(applyRegistrationStatus([...events, ...courses], regs));
+    } catch (error) {
+      console.error('Failed to fetch events and courses:', error);
+      setItems([]);
+      setRegistrations([]);
+      toast.error('Error', 'Unable to load events and courses.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [profileDetail?.profileId]);
+
+  useEffect(() => {
+    getProfileDetail?.();
+  }, [getProfileDetail]);
+
+  useEffect(() => {
+    setLoading(true);
+    loadData();
+  }, [loadData]);
+
+  const activeItems = useMemo(() => excludePast(items), [items]);
+
+  const myEvents = useMemo(
+    () =>
+      excludePast(filterRegisteredItems(activeItems, registrations, 'event')),
+    [activeItems, registrations],
   );
 
-  const getStatusColor = (status) => {
+  const myCourses = useMemo(
+    () =>
+      excludePast(filterRegisteredItems(activeItems, registrations, 'course')),
+    [activeItems, registrations],
+  );
+
+  const filters = useMemo(
+    () => [
+      { id: FILTER_IDS.ALL, label: 'All', count: activeItems.length },
+      {
+        id: FILTER_IDS.EVENT,
+        label: 'Events',
+        count: activeItems.filter(item => item.kind === 'event').length,
+      },
+      {
+        id: FILTER_IDS.COURSE,
+        label: 'Courses',
+        count: activeItems.filter(item => item.kind === 'course').length,
+      },
+      {
+        id: FILTER_IDS.MY_EVENT,
+        label: 'My Events',
+        count: myEvents.length,
+      },
+      {
+        id: FILTER_IDS.MY_COURSE,
+        label: 'My Courses',
+        count: myCourses.length,
+      },
+    ],
+    [activeItems, myEvents, myCourses],
+  );
+
+  const filteredItems = useMemo(() => {
+    let source = activeItems;
+    if (selectedFilter === FILTER_IDS.EVENT) {
+      source = activeItems.filter(item => item.kind === 'event');
+    } else if (selectedFilter === FILTER_IDS.COURSE) {
+      source = activeItems.filter(item => item.kind === 'course');
+    } else if (selectedFilter === FILTER_IDS.MY_EVENT) {
+      source = myEvents;
+    } else if (selectedFilter === FILTER_IDS.MY_COURSE) {
+      source = myCourses;
+    }
+    return filterEventsBySearch(source, searchQuery);
+  }, [selectedFilter, activeItems, myEvents, myCourses, searchQuery]);
+
+  const navigateToRegistration = item => {
+    if (!item?.id) return;
+    if (isRegistrationLocked(item)) {
+      toast.info(
+        'Already applied',
+        item.status === 'submitted'
+          ? 'This registration is pending review.'
+          : 'You are already registered for this item.',
+      );
+      return;
+    }
+    if (item.kind === 'course') {
+      navigation.navigate(STACKS.COURSE_REGISTRATION, {
+        courseId: item.courseId || item.id,
+      });
+    } else {
+      navigation.navigate(STACKS.EVENT_REGISTRATION, { eventId: item.id });
+    }
+  };
+
+  const getStatusColor = status => {
     switch (status) {
       case 'registered':
         return { bg: '#D1FAE5', text: '#059669' };
+      case 'submitted':
+        return { bg: '#FEF3C7', text: '#B45309' };
       case 'available':
         return { bg: '#DBEAFE', text: '#2563EB' };
       case 'waitlist':
@@ -170,10 +244,12 @@ const Event = () => {
     }
   };
 
-  const getStatusLabel = (status) => {
+  const getStatusLabel = status => {
     switch (status) {
       case 'registered':
         return 'Registered';
+      case 'submitted':
+        return 'Submitted';
       case 'available':
         return 'Register Now';
       case 'waitlist':
@@ -187,63 +263,89 @@ const Event = () => {
 
   const handleRefresh = () => {
     setRefreshing(true);
-    setRefreshing(false);
+    loadData();
   };
+
+  const handleFilterChange = nextFilter => {
+    setSelectedFilter(nextFilter);
+    setSearchQuery('');
+    navigation.setParams?.({
+      categoryType:
+        nextFilter === FILTER_IDS.COURSE || nextFilter === FILTER_IDS.MY_COURSE
+          ? 'course'
+          : nextFilter === FILTER_IDS.EVENT || nextFilter === FILTER_IDS.MY_EVENT
+            ? 'event'
+            : undefined,
+      scope:
+        nextFilter === FILTER_IDS.MY_EVENT || nextFilter === FILTER_IDS.MY_COURSE
+          ? 'my'
+          : undefined,
+    });
+  };
+
+  const getDisplayPrice = item =>
+    formatRegistrationPrice(
+      resolveDisplayPrice(item, {
+        isMember,
+        membershipCategory,
+        categoryCode: categoryData?.code,
+        categoryName: categoryData?.name,
+      }),
+    );
+
+  const canRegister = item =>
+    item?.type === 'upcoming' &&
+    item?.status === 'available' &&
+    !isRegistrationLocked(item);
+
+  const emptyTitle =
+    selectedFilter === FILTER_IDS.MY_EVENT
+      ? 'No My Events yet'
+      : selectedFilter === FILTER_IDS.MY_COURSE
+        ? 'No My Courses yet'
+        : selectedFilter === FILTER_IDS.EVENT
+          ? 'No events found'
+          : selectedFilter === FILTER_IDS.COURSE
+            ? 'No courses found'
+            : 'No events or courses found';
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <ScreenHeader  title="Events" />
+      <ScreenHeader title="Events & Courses" />
 
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
+          <Ionicons
+            name="search-outline"
+            size={20}
+            color={Colors.textSecondary}
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search events..."
+            placeholder="Search events & courses..."
             placeholderTextColor={Colors.textSecondary}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color={Colors.textSecondary} />
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color={Colors.textSecondary}
+              />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* Filter Tabs */}
+      <FilterPillBar
+        filters={filters}
+        selectedId={selectedFilter}
+        onSelect={handleFilterChange}
+      />
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterContainer}
-      >
-        {filters.map((filter) => (
-          <TouchableOpacity
-            key={filter.id}
-            style={[
-              styles.filterButton,
-              selectedFilter === filter.id && styles.filterButtonActive,
-            ]}
-            onPress={() => setSelectedFilter(filter.id)}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                selectedFilter === filter.id && styles.filterButtonTextActive,
-              ]}
-            >
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Events List */}
-      <ScrollView
-        // style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -253,75 +355,115 @@ const Event = () => {
             tintColor={Colors.primary}
             colors={[Colors.primary]}
           />
-        }
-      >
-        {filteredEvents.length > 0 ? (
-          filteredEvents.map((event) => {
-            const statusColors = getStatusColor(event.status);
+        }>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+          </View>
+        ) : filteredItems.length > 0 ? (
+          filteredItems.map(item => {
+            const statusColors = getStatusColor(item.status);
             return (
               <TouchableOpacity
-                key={event.id}
+                key={`${item.kind}-${item.id}`}
                 style={styles.eventCard}
                 activeOpacity={0.8}
-                onPress={() => setSelectedEvent(event)}
-              >
-                <Image
-                  source={{ uri: event.image }}
-                  style={styles.eventImage}
-                  resizeMode="cover"
-                />
+                onPress={() => setSelectedItem(item)}>
+                <EventCourseCardHeader item={item} />
                 <View style={styles.eventContent}>
                   <View style={styles.eventHeader}>
-                    <View style={styles.eventCategory}>
-                      <Text style={styles.eventCategoryText}>{event.category}</Text>
-                    </View>
-                    <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
-                      <Text style={[styles.statusBadgeText, { color: statusColors.text }]}>
-                        {getStatusLabel(event.status)}
+                    {item.category ? (
+                      <View style={styles.eventCategory}>
+                        <Text style={styles.eventCategoryText}>
+                          {item.category}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        { backgroundColor: statusColors.bg },
+                      ]}>
+                      <Text
+                        style={[
+                          styles.statusBadgeText,
+                          { color: statusColors.text },
+                        ]}>
+                        {getStatusLabel(item.status)}
                       </Text>
                     </View>
                   </View>
-                  
-                  <Text style={styles.eventTitle}>{event.title}</Text>
-                  <Text style={styles.eventDescription} numberOfLines={2}>
-                    {event.description}
-                  </Text>
 
+                  <Text style={styles.eventTitle}>{item.title}</Text>
                   <View style={styles.eventDetails}>
                     <View style={styles.eventDetailRow}>
-                      <Ionicons name="calendar-outline" size={16} color={Colors.textSecondary} />
-                      <Text style={styles.eventDetailText}>{event.date}</Text>
-                    </View>
-                    <View style={styles.eventDetailRow}>
-                      <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
-                      <Text style={styles.eventDetailText}>{event.time}</Text>
-                    </View>
-                    <View style={styles.eventDetailRow}>
                       <Ionicons
-                        name={event.location === 'Online' ? 'videocam-outline' : 'location-outline'}
+                        name="calendar-outline"
                         size={16}
                         color={Colors.textSecondary}
                       />
-                      <Text style={styles.eventDetailText} numberOfLines={1}>
-                        {event.location}
-                      </Text>
+                      <Text style={styles.eventDetailText}>{item.date}</Text>
                     </View>
                     <View style={styles.eventDetailRow}>
-                      <MaterialCommunityIcons name="account-group" size={16} color={Colors.textSecondary} />
-                      <Text style={styles.eventDetailText}>{event.attendees} attendees</Text>
+                      <Ionicons
+                        name="time-outline"
+                        size={16}
+                        color={Colors.textSecondary}
+                      />
+                      <Text style={styles.eventDetailText}>{item.time}</Text>
+                    </View>
+                    <View style={styles.eventDetailRow}>
+                      <Ionicons
+                        name={
+                          item.location === 'Online'
+                            ? 'videocam-outline'
+                            : 'location-outline'
+                        }
+                        size={16}
+                        color={Colors.textSecondary}
+                      />
+                      <Text style={styles.eventDetailText}>
+                        {item.location}
+                      </Text>
                     </View>
                   </View>
 
-                  {event.status === 'available' && (
+                  <Text style={styles.eventDescription} numberOfLines={2}>
+                    {item.description}
+                  </Text>
+
+                  <View style={styles.eventDetails}>
+                    {item.attendees != null && (
+                      <View style={styles.eventDetailRow}>
+                        <MaterialCommunityIcons
+                          name="account-group"
+                          size={16}
+                          color={Colors.textSecondary}
+                        />
+                        <Text style={styles.eventDetailText}>
+                          {item.attendees} capacity
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.eventDetailRow}>
+                      <MaterialCommunityIcons
+                        name="cash"
+                        size={16}
+                        color={Colors.textSecondary}
+                      />
+                      <Text style={styles.eventDetailText}>
+                        {getDisplayPrice(item)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {canRegister(item) && (
                     <TouchableOpacity
                       style={styles.registerButton}
                       onPress={() => {
-                        setSelectedEvent(null);
-                        navigation.navigate(STACKS.EVENT_REGISTRATION, {
-                          event: getEventWithRegistrationData(event),
-                        });
-                      }}
-                    >
+                        setSelectedItem(null);
+                        navigateToRegistration(item);
+                      }}>
                       <Text style={styles.registerButtonText}>Register Now</Text>
                     </TouchableOpacity>
                   )}
@@ -331,20 +473,25 @@ const Event = () => {
           })
         ) : (
           <View style={styles.emptyContainer}>
-            <Ionicons name="calendar-outline" size={64} color={Colors.textSecondary} />
-            <Text style={styles.emptyTitle}>No events found</Text>
+            <Ionicons
+              name="calendar-outline"
+              size={64}
+              color={Colors.textSecondary}
+            />
+            <Text style={styles.emptyTitle}>{emptyTitle}</Text>
             <Text style={styles.emptySubtitle}>
-              Try adjusting your search or filter criteria
+              {selectedFilter.startsWith('my-')
+                ? 'Register for an item to see it here.'
+                : 'Try adjusting your search or filter criteria'}
             </Text>
           </View>
         )}
       </ScrollView>
 
       <DetailModal
-        visible={!!selectedEvent}
-        onClose={() => setSelectedEvent(null)}
-        item={selectedEvent}
-      >
+        visible={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        item={selectedItem}>
         <View style={styles.modalDetails}>
           <View style={styles.detailRow}>
             <View style={styles.detailIconContainer}>
@@ -352,60 +499,75 @@ const Event = () => {
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>Date & Time</Text>
-              <Text style={styles.detailValue}>{selectedEvent?.date}</Text>
-              <Text style={styles.detailSubValue}>{selectedEvent?.time}</Text>
+              <Text style={styles.detailValue}>{selectedItem?.date}</Text>
+              <Text style={styles.detailSubValue}>{selectedItem?.time}</Text>
             </View>
           </View>
 
           <View style={styles.detailRow}>
             <View style={styles.detailIconContainer}>
-              <Ionicons 
-                name={selectedEvent?.location === 'Online' ? 'videocam' : 'location'} 
-                size={20} 
-                color={Colors.primary} 
+              <Ionicons
+                name={
+                  selectedItem?.location === 'Online' ? 'videocam' : 'location'
+                }
+                size={20}
+                color={Colors.primary}
               />
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>Location</Text>
-              <Text style={styles.detailValue}>{selectedEvent?.location}</Text>
+              <Text style={styles.detailValue}>{selectedItem?.location}</Text>
             </View>
           </View>
 
           <View style={styles.detailRow}>
             <View style={styles.detailIconContainer}>
-              <MaterialCommunityIcons name="account-group" size={20} color={Colors.primary} />
+              <MaterialCommunityIcons
+                name="account-group"
+                size={20}
+                color={Colors.primary}
+              />
             </View>
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>Attendance</Text>
-              <Text style={styles.detailValue}>{selectedEvent?.attendees} registered</Text>
-              <View style={[
-                  styles.statusBadge, 
-                  { 
-                    backgroundColor: selectedEvent ? getStatusColor(selectedEvent.status).bg : 'transparent',
+              <Text style={styles.detailValue}>
+                {selectedItem?.attendees != null
+                  ? `${selectedItem.attendees} capacity`
+                  : 'Open registration'}
+              </Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: selectedItem
+                      ? getStatusColor(selectedItem.status).bg
+                      : 'transparent',
                     alignSelf: 'flex-start',
                     marginTop: 4,
-                  }
+                  },
                 ]}>
-                <Text style={[
-                  styles.statusBadgeText, 
-                  { color: selectedEvent ? getStatusColor(selectedEvent.status).text : 'black' }
-                ]}>
-                  {selectedEvent ? getStatusLabel(selectedEvent.status) : ''}
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    {
+                      color: selectedItem
+                        ? getStatusColor(selectedItem.status).text
+                        : 'black',
+                    },
+                  ]}>
+                  {selectedItem ? getStatusLabel(selectedItem.status) : ''}
                 </Text>
               </View>
             </View>
           </View>
 
-          {selectedEvent?.status === 'available' && (
+          {selectedItem && canRegister(selectedItem) && (
             <TouchableOpacity
               style={[styles.registerButton, { marginTop: 24 }]}
               onPress={() => {
-                setSelectedEvent(null);
-                navigation.navigate(STACKS.EVENT_REGISTRATION, {
-                  event: getEventWithRegistrationData(selectedEvent),
-                });
-              }}
-            >
+                setSelectedItem(null);
+                navigateToRegistration(selectedItem);
+              }}>
               <Text style={styles.registerButtonText}>Register Now</Text>
             </TouchableOpacity>
           )}
@@ -423,9 +585,8 @@ const styles = StyleSheet.create({
   searchContainer: {
     backgroundColor: Colors.surface,
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   searchBar: {
     flexDirection: 'row',
@@ -436,49 +597,23 @@ const styles = StyleSheet.create({
     height: 48,
   },
   searchIcon: {
-    marginRight: 12,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
     color: Colors.textPrimary,
-  },
-  filterContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: Colors.surface,
-    paddingBottom: 32,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  filterButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginRight: 8,
-    backgroundColor: '#F3F4F6',
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  filterButtonActive: {
-    backgroundColor: Colors.primary,
-  },
-  filterButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  filterButtonTextActive: {
-    color: Colors.white,
-  },
-  scrollView: {
-    flex: 1,
+    paddingVertical: 0,
   },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 100,
+  },
+  loadingContainer: {
+    paddingVertical: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   eventCard: {
     backgroundColor: Colors.surface,
@@ -490,19 +625,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
-  },
-  eventImage: {
-    width: '100%',
-    height: 200,
+    minHeight: 380,
   },
   eventContent: {
     padding: 16,
+    flex: 1,
   },
   eventHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  eventHeaderWithImage: {
+    justifyContent: 'flex-end',
   },
   eventCategory: {
     backgroundColor: Colors.primaryLight,
@@ -514,7 +650,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: Colors.primary,
-    textTransform: 'uppercase',
   },
   statusBadge: {
     paddingHorizontal: 10,

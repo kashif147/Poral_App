@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ApplicationStack from './ApplicationStack';
 import EventStack from './EventStack';
 import Categories from '../modules/categories/Categories';
-import Courses from '../modules/courses/Courses';
+import CourseStack from './CourseStack';
 import Membership from '../modules/membership/Membership';
 import Payment from '../modules/payment/Payment';
 import PaymentMethod from '../modules/payment/PaymentMethod';
@@ -29,8 +29,7 @@ const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = [
   { name: STACKS.DASHBOARD_STACK, label: 'Home', icon: IMAGES.HOME },
-  { name: STACKS.EVENTS_STACK, label: 'Event', icon: IMAGES.EVENT },
-  { name: STACKS.COURSES_STACK, label: 'Courses', icon: IMAGES.COURSES },
+  { name: STACKS.EVENTS_STACK, label: 'Events', icon: IMAGES.EVENT },
   { name: STACKS.PAYMENT_STACK, label: 'Payment', icon: IMAGES.PAYMENT },
   { name: 'menu', label: 'More', icon: null },
 ];
@@ -43,14 +42,14 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const { isMember } = useMemberRole();
 
   // Member-only: hide Payment tab when not member (match web)
-  const mainRouteCount = 5; // Dashboard, Events, Courses, Payment, Menu
+  const mainRouteCount = 4; // Dashboard, Events, Payment, Menu
   const routes = state.routes.slice(0, mainRouteCount);
   const visibleRoutes = isMember
     ? routes
-    : [routes[0], routes[1], routes[2], routes[4]];
+    : [routes[0], routes[1], routes[3]];
   const visibleTabIcons = isMember
     ? TAB_ICONS
-    : [TAB_ICONS[0], TAB_ICONS[1], TAB_ICONS[2], TAB_ICONS[4]];
+    : [TAB_ICONS[0], TAB_ICONS[1], TAB_ICONS[3]];
 
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
@@ -82,7 +81,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     const routeMap = {
       'Event': STACKS.EVENTS_STACK,
       'Category': STACKS.CATEGORIES_STACK,
-      'Courses': STACKS.COURSES_STACK,
+      'Courses': STACKS.EVENTS_STACK,
       'Membership': STACKS.MEMBERSHIP_STACK,
       'Profile': 'Profile',
       'Resources': 'Resources',
@@ -94,6 +93,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     
     const targetRoute = routeMap[route];
     if (targetRoute) {
+      if (route === 'Courses') {
+        navigation.navigate(STACKS.EVENTS_STACK, {
+          screen: 'EventList',
+          params: { categoryType: 'course' },
+        });
+        return;
+      }
       navigation.navigate(targetRoute);
     }
   };
@@ -227,10 +233,10 @@ const TabNavigator = () => {
       >
         <Tab.Screen name={STACKS.DASHBOARD_STACK} component={DashBoard} />
         <Tab.Screen name={STACKS.EVENTS_STACK} component={EventStack} />
-        <Tab.Screen name={STACKS.COURSES_STACK} component={Courses} />
         <Tab.Screen name={STACKS.PAYMENT_STACK} component={Payment} />
         <Tab.Screen name="Menu" component={DashBoard} />
         {/* Hidden screens for popup navigation */}
+        <Tab.Screen name={STACKS.COURSES_STACK} component={CourseStack} />
         <Tab.Screen name={STACKS.APPLICATION_STACK} component={ApplicationStack} />
         <Tab.Screen name={STACKS.CATEGORIES_STACK} component={Categories} />
         <Tab.Screen name={STACKS.MEMBERSHIP_STACK} component={Membership} />

@@ -1,3 +1,89 @@
+const registrationIntentCache = new Map();
+
+export const buildRegistrationIntentCacheKey = ({
+  purpose,
+  eventId,
+  amountInCents,
+}) => `${purpose}:${eventId}:${amountInCents}`;
+
+export const clearRegistrationPaymentIntentCache = cacheKey => {
+  if (cacheKey) {
+    registrationIntentCache.delete(cacheKey);
+    return;
+  }
+  registrationIntentCache.clear();
+};
+
+export const extractClientSecretFromResponse = response => {
+  const payload = response?.data?.data ?? response?.data ?? response;
+  return (
+    payload?.clientSecret ||
+    payload?.client_secret ||
+    payload?.paymentIntent?.clientSecret ||
+    payload?.paymentIntent?.client_secret ||
+    payload?.data?.clientSecret ||
+    payload?.data?.client_secret ||
+    null
+  );
+};
+
+export const extractStripePaymentIntentId = (response, clientSecret) => {
+  const payload = response?.data?.data ?? response?.data ?? response;
+  const fromResponse =
+    payload?.stripePaymentIntentId ||
+    payload?.paymentIntentId ||
+    payload?.paymentIntent?.id ||
+    payload?.id ||
+    null;
+
+  if (typeof fromResponse === 'string' && fromResponse.startsWith('pi_')) {
+    return fromResponse;
+  }
+
+  if (typeof clientSecret === 'string' && clientSecret.includes('_secret_')) {
+    return clientSecret.split('_secret_')[0];
+  }
+
+  return null;
+};
+
+export const getOrCreateRegistrationPaymentIntent = async ({
+  cacheKey,
+  paymentData,
+  createIntentRequest,
+}) => {
+  const cached = registrationIntentCache.get(cacheKey);
+  if (cached?.clientSecret) {
+    return cached;
+  }
+  if (cached?.promise) {
+    return cached.promise;
+  }
+
+  const promise = createIntentRequest(paymentData)
+    .then(response => {
+      const clientSecret = extractClientSecretFromResponse(response);
+      if (!clientSecret) {
+        throw new Error('Missing client secret from payment service.');
+      }
+
+      const stripePaymentIntentId = extractStripePaymentIntentId(
+        response,
+        clientSecret,
+      );
+      const result = { clientSecret, stripePaymentIntentId, response };
+      registrationIntentCache.set(cacheKey, result);
+      return result;
+    })
+    .catch(error => {
+      registrationIntentCache.delete(cacheKey);
+      throw error;
+    });
+
+  registrationIntentCache.set(cacheKey, { promise });
+  return promise;
+};
+
 export const REJECTED_APPLICATION_REAPPLY_MESSAGE =
   'Your previous application was not approved and the payment authorisation was cancelled. If you wish to apply again, please submit a new application and authorise a new payment.';
 

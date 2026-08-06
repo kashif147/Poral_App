@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from 'react';
 import {
   View,
   ScrollView,
@@ -21,12 +27,12 @@ import { useProfile } from '../../contexts/profileContext';
 import ScreenHeader from '../../common/screenHeader';
 import { useSelector, useDispatch } from 'react-redux';
 import DetailModal from '../../common/detailModal';
-import { getEventWithRegistrationData } from '../../constants/eventData';
+import { fetchMyRegistrations } from '../../api/events.api';
 import {
-  QUICK_ACTION_COLORS,
-  FEATURED_EVENT,
-  UPCOMING_EVENTS,
-} from '../../constants/dashboard';
+  getRegisteredCatalogItems,
+  parseRegistrationsResponse,
+} from '../../helpers/events.helper';
+import { QUICK_ACTION_COLORS } from '../../constants/dashboard';
 import {
   isActiveApplicationCompleteStatus,
   isActiveApplicationPersonalDetail,
@@ -41,7 +47,6 @@ import DashboardPaymentModal from './DashboardPaymentModal';
 import { QuickActionCard } from '../../common/QuickActionCard';
 import {
   FeaturedEventCard,
-  UpcomingEventCard,
   EventDetailModalContent,
   DashboardPaymentCard,
   ApplicationStatusCard,
@@ -66,8 +71,11 @@ const DashBoard = () => {
   const [applicationStatus, setApplicationStatus] = useState(null);
   const [isApplicationActive, setIsApplicationActive] = useState(true);
   const [isResignedMember, setIsResignedMember] = useState(false);
-  const [applicationStatusLoading, setApplicationStatusLoading] = useState(true);
+  const [applicationStatusLoading, setApplicationStatusLoading] =
+    useState(true);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [registrations, setRegistrations] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [accountNetBalance, setAccountNetBalance] = useState(null);
   const [accountNetBalanceLoading, setAccountNetBalanceLoading] =
     useState(false);
@@ -114,6 +122,29 @@ const DashBoard = () => {
       // Silently handle errors
     }
   };
+
+  const loadDashboardEvents = useCallback(async () => {
+    try {
+      setEventsLoading(true);
+      const profileId = profileDetail?.profileId;
+      const registrationsRes = await fetchMyRegistrations(profileId);
+      const regs = registrationsRes
+        ? parseRegistrationsResponse(registrationsRes)
+        : [];
+      setRegistrations(regs);
+    } catch (error) {
+      console.error('Failed to fetch dashboard registrations:', error);
+      setRegistrations([]);
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [profileDetail?.profileId]);
+
+  // Upcoming Events section: registered events/courses from profile API.
+  const registeredEvents = useMemo(
+    () => getRegisteredCatalogItems(registrations),
+    [registrations],
+  );
 
   const loadApplicationStatus = useCallback(async () => {
     if (applicationStatusLoadingRef.current) {
@@ -207,6 +238,7 @@ const DashBoard = () => {
         loadApplicationStatus(),
         loadAccountNetBalance(),
         loadCategoryData(),
+        loadDashboardEvents(),
       ]);
     } finally {
       setRefreshing(false);
@@ -221,7 +253,8 @@ const DashBoard = () => {
   useEffect(() => {
     loadProfile();
     loadLookups();
-  }, []);
+    loadDashboardEvents();
+  }, [loadDashboardEvents]);
 
   useFocusEffect(
     useCallback(() => {
@@ -357,20 +390,20 @@ const DashBoard = () => {
     : isInactiveLikeStatus
     ? 'Start Application'
     : isProcessedApplicationStatus(effectiveApplicationStatus)
-      ? 'Processed'
-      : normalizedApplicationStatus === 'approved'
-      ? 'Approved'
-      : applicationStatus === 'in_review' ||
-          normalizedApplicationStatus === 'in review'
-      ? 'In Review'
-      : isApplicationSubmitted
-      ? 'In Review'
-      : personalDetail?.applicationId
-      ? 'Resume Application'
-      : applicationStatus === 'rejected' ||
-          normalizedApplicationStatus === 'rejected'
-      ? 'Start Application'
-      : 'Start Application';
+    ? 'Processed'
+    : normalizedApplicationStatus === 'approved'
+    ? 'Approved'
+    : applicationStatus === 'in_review' ||
+      normalizedApplicationStatus === 'in review'
+    ? 'In Review'
+    : isApplicationSubmitted
+    ? 'In Review'
+    : personalDetail?.applicationId
+    ? 'Resume Application'
+    : applicationStatus === 'rejected' ||
+      normalizedApplicationStatus === 'rejected'
+    ? 'Start Application'
+    : 'Start Application';
 
   const quickActions = useMemo(() => {
     const base = [
@@ -504,15 +537,9 @@ const DashBoard = () => {
           />
         )}
 
-        {/* Featured Card - full detail */}
-        <FeaturedEventCard
-          event={FEATURED_EVENT}
-          onPress={() => setSelectedEvent(FEATURED_EVENT)}
-        />
-
         {/* Quick Actions Section */}
         <View style={styles.section}>
-          <Label style={[styles.sectionTitle, { marginBottom: 16 }]}>
+          <Label style={[styles.sectionTitle, { marginVertical: 16 }]}>
             Quick Actions
           </Label>
           <View style={styles.quickActionsGrid}>
@@ -535,7 +562,7 @@ const DashBoard = () => {
           </View>
         </View>
 
-        {/* Upcoming Events Section */}
+        {/* Upcoming Events: registered events/courses (vertical list) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Label style={styles.sectionTitle}>Upcoming Events</Label>
@@ -545,14 +572,22 @@ const DashBoard = () => {
               <Text style={styles.viewAllText}>View All</Text>
             </TouchableOpacity>
           </View>
-          {UPCOMING_EVENTS.map(event => (
-            <UpcomingEventCard
-              key={event.id}
-              event={event}
-              onPress={setSelectedEvent}
-              onViewPress={setSelectedEvent}
-            />
-          ))}
+          {eventsLoading ? (
+            <StatusCardSkeleton />
+          ) : registeredEvents.length > 0 ? (
+            registeredEvents.map(event => (
+              <FeaturedEventCard
+                key={`registered-${event.registrationId || event.id}`}
+                event={event}
+                embedded
+                onPress={setSelectedEvent}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyEventsText}>
+              No registered events right now.
+            </Text>
+          )}
         </View>
       </ScrollView>
 
@@ -581,7 +616,7 @@ const DashBoard = () => {
             setSelectedEvent(null);
             navigation.navigate(STACKS.EVENTS_STACK, {
               screen: STACKS.EVENT_REGISTRATION,
-              params: { event: getEventWithRegistrationData(ev) },
+              params: { eventId: ev.id },
             });
           }}
         />
@@ -705,6 +740,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.primary,
     fontWeight: '600',
+  },
+  emptyEventsText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    paddingHorizontal: 20,
   },
   quickActionsGrid: {
     // paddingTop: 16,

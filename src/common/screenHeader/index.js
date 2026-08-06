@@ -16,7 +16,7 @@ import { Label } from '../text/label';
 import { useNotification } from '../../contexts/notificationContext';
 import { fetchNotificationRequest } from '../../api/notification.api';
 
-const ScreenHeader = ({ title, showBack }) => {
+const ScreenHeader = ({ title, showBack, onBackPress }) => {
   const { profileDetail } = useProfile();
   const { unreadCount, setUnreadCountValue } = useNotification();
   const navigation = useNavigation();
@@ -43,6 +43,10 @@ const ScreenHeader = ({ title, showBack }) => {
   );
 
   const handleBack = () => {
+    if (typeof onBackPress === 'function') {
+      onBackPress();
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     }

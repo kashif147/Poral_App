@@ -64,6 +64,7 @@ export const UPCOMING_EVENTS = [
 
 export const EVENT_STATUS_COLORS = {
   registered: { bg: '#D1FAE5', text: '#059669' },
+  submitted: { bg: '#FEF3C7', text: '#B45309' },
   available: { bg: '#DBEAFE', text: '#2563EB' },
   waitlist: { bg: '#FEF3C7', text: '#D97706' },
   completed: { bg: '#F3F4F6', text: '#6B7280' },
@@ -72,6 +73,7 @@ export const EVENT_STATUS_DEFAULT = { bg: '#F3F4F6', text: '#6B7280' };
 
 export const EVENT_STATUS_LABELS = {
   registered: 'Registered',
+  submitted: 'Submitted',
   available: 'Register Now',
   waitlist: 'Waitlist',
   completed: 'Completed',

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -269,6 +269,7 @@ const PersonalInformation = ({
   onFormDataChange,
   showValidation,
   personalDetail,
+  showProfessionalFields = false,
 }) => {
   const ref = useRef();
   const textInputRef = useRef(null);
@@ -277,9 +278,41 @@ const PersonalInformation = ({
     genderLookups = [],
     titleLookups = [],
     countryLookups = [],
+    workLocationLookups = [],
+    gradeLookups = [],
   } = useLookup() || {};
   const { profileDetail } = useProfile();
   const [organizationName, setOrganizationName] = useState('');
+
+  const workLocationOptions = useMemo(() => {
+    const names = (workLocationLookups || [])
+      .map(
+        item =>
+          item?.lookup?.DisplayName ||
+          item?.lookup?.lookupname ||
+          item?.DisplayName ||
+          item?.lookupname ||
+          item?.name ||
+          item?.label,
+      )
+      .filter(Boolean);
+    return [...names, 'other'].map(name => ({ label: name, value: name }));
+  }, [workLocationLookups]);
+
+  const gradeOptions = useMemo(() => {
+    const mapped = (gradeLookups || [])
+      .map(item => {
+        const name =
+          item?.DisplayName ||
+          item?.lookupname ||
+          item?.name ||
+          item?.label ||
+          '';
+        return name ? { label: name, value: name } : null;
+      })
+      .filter(Boolean);
+    return [...mapped, { label: 'Other', value: 'other' }];
+  }, [gradeLookups]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1217,6 +1250,117 @@ const PersonalInformation = ({
           </View>
         </View>
       </View>
+
+      {showProfessionalFields ? (
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Professional Details</Text>
+
+        <Text style={styles.label}>Work Location *</Text>
+        <View
+          style={[
+            styles.pickerField,
+            showValidation &&
+              !formData.workLocation && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+              },
+          ]}
+        >
+          <SearchablePicker
+            items={workLocationOptions}
+            selectedValue={formData.workLocation || ''}
+            onValueChange={val =>
+              onFormDataChange({
+                ...formData,
+                workLocation: val,
+                otherWorkLocation:
+                  val === 'other' ? formData.otherWorkLocation || '' : '',
+              })
+            }
+            placeholder="Select Location..."
+          />
+        </View>
+
+        {formData.workLocation === 'other' ? (
+          <>
+            <Text style={styles.label}>Other Work Location *</Text>
+            <View style={styles.inputField}>
+              <InputField
+                value={formData.otherWorkLocation || ''}
+                checkValue={
+                  showValidation && !String(formData.otherWorkLocation || '').trim()
+                }
+                onChange={text =>
+                  onFormDataChange({ ...formData, otherWorkLocation: text })
+                }
+                placeholder="Specify work location"
+              />
+            </View>
+          </>
+        ) : null}
+
+        <Text style={styles.label}>Grade *</Text>
+        <View
+          style={[
+            styles.pickerField,
+            showValidation &&
+              !formData.grade && {
+                borderColor: Colors.red,
+                borderWidth: 1,
+                borderRadius: 12,
+              },
+          ]}
+        >
+          <SearchablePicker
+            items={gradeOptions}
+            selectedValue={formData.grade || ''}
+            onValueChange={val =>
+              onFormDataChange({
+                ...formData,
+                grade: val,
+                otherGrade: val === 'other' ? formData.otherGrade || '' : '',
+              })
+            }
+            placeholder="Select grade..."
+          />
+        </View>
+
+        {formData.grade === 'other' ? (
+          <>
+            <Text style={styles.label}>Other Grade *</Text>
+            <View style={styles.inputField}>
+              <InputField
+                value={formData.otherGrade || ''}
+                checkValue={
+                  showValidation && !String(formData.otherGrade || '').trim()
+                }
+                onChange={text =>
+                  onFormDataChange({ ...formData, otherGrade: text })
+                }
+                placeholder="Specify grade"
+              />
+            </View>
+          </>
+        ) : null}
+
+        <Text style={styles.label}>NMBI No / An Board Altranais Number (Optional)</Text>
+        <View style={styles.inputField}>
+          <InputField
+            value={formData.nmbiNumber || formData.nmbiNo || ''}
+            onChange={text =>
+              onFormDataChange({
+                ...formData,
+                nmbiNumber: text,
+                nmbiNo: text,
+              })
+            }
+            placeholder="Enter your NMBI number"
+            autoCapitalize="characters"
+          />
+        </View>
+      </View>
+      ) : null}
     </View>
   );
 };

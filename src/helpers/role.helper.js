@@ -79,9 +79,9 @@ export const resolveIsPortalMember = ({
 
 /**
  * Whether the Profile screen/nav should be available.
- * Members and non-members can always view Profile (including after submit).
+ * Members only — non-members manage details during event/course registration.
  */
-export const canAccessProfile = () => true;
+export const canAccessProfile = ({ isMember } = {}) => Boolean(isMember);
 
 /**
  * Whether Profile edits are locked.

@@ -22,7 +22,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Button } from '../../common/button';
 import { createPaymentIntentRequest } from '../../api/payment.api';
 
-const MOCK_REGISTRATION_PAYMENTS = true;
+const MOCK_REGISTRATION_PAYMENTS = false;
 
 const formatCurrency = (value) => {
   try {
@@ -143,7 +143,7 @@ const RegistrationPaymentModal = ({
           itemId: item?.id,
           itemTitle: item?.title,
           description:
-            purpose === 'courseEnrollment' || context === 'course'
+            purpose === 'courseRegistration' || context === 'course'
               ? `Course: ${item?.title}`
               : `Event: ${item?.title}`,
           tenantId: user?.tenantId || user?.userTenantId,
@@ -152,7 +152,7 @@ const RegistrationPaymentModal = ({
         const payload = {
           purpose,
           amount: amountInCents,
-          currency: 'usd',
+          currency: 'eur',
           metadata: baseMetadata,
         };
         const res = await createPaymentIntentRequest(payload);
@@ -192,7 +192,7 @@ const RegistrationPaymentModal = ({
         id: fakePaymentIntentId,
         status: 'Succeeded',
         amount: amountInCents,
-        currency: 'usd',
+        currency: 'eur',
       };
 
       onSuccess({

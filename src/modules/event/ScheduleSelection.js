@@ -5,17 +5,17 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, wp, hp } from '../../utils/Styles';
+import { Colors } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { STACKS } from '../../enums/ScreenEnums';
 import ScreenHeader from '../../common/screenHeader';
 import EventPaymentModal from './EventPaymentModal';
+import FullWidthContainImage from '../../common/FullWidthContainImage';
 
 const DAY_ICONS = {
   calendar: 'calendar-outline',
@@ -89,22 +89,23 @@ const ScheduleSelection = () => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.banner}>
-          <Image
-            source={{ uri: eventData.image }}
-            style={styles.bannerImage}
-            resizeMode="cover"
-          />
-          <View style={styles.bannerOverlay} />
-          <View style={styles.bannerContent}>
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryTagText}>
-                {(eventData.category || 'CONFERENCE').toUpperCase()}
-              </Text>
-            </View>
+          {eventData.image ? (
+            <FullWidthContainImage uri={eventData.image} />
+          ) : null}
+          <View style={styles.bannerHeader}>
+            {eventData.category ? (
+              <View style={styles.categoryTag}>
+                <Text style={styles.categoryTagText}>
+                  {String(eventData.category).toUpperCase()}
+                </Text>
+              </View>
+            ) : null}
             <Text style={styles.bannerTitle}>{eventData.title}</Text>
             <View style={styles.locationRow}>
-              <Ionicons name="location" size={18} color={Colors.white} />
-              <Text style={styles.locationText}>{eventData.location || eventData.venue}</Text>
+              <Ionicons name="location" size={18} color={Colors.textSecondary} />
+              <Text style={styles.locationText}>
+                {eventData.location || eventData.venue}
+              </Text>
             </View>
           </View>
         </View>
@@ -232,23 +233,13 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   banner: {
-    height: hp(28),
-    position: 'relative',
+    marginBottom: 8,
+    backgroundColor: Colors.cardBackground,
   },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#1A1A1A',
-  },
-  bannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  bannerContent: {
-    ...StyleSheet.absoluteFillObject,
-    padding: 20,
-    justifyContent: 'flex-end',
-    paddingBottom: 24,
+  bannerHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
   categoryTag: {
     alignSelf: 'flex-start',
@@ -267,25 +258,24 @@ const styles = StyleSheet.create({
   bannerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.white,
+    color: Colors.textPrimary,
     marginBottom: 8,
   },
   locationRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   locationText: {
+    flex: 1,
     fontSize: 14,
-    color: Colors.white,
+    color: Colors.textSecondary,
     marginLeft: 8,
+    lineHeight: 20,
   },
   content: {
     paddingHorizontal: 20,
-    paddingTop: 24,
-    marginTop: -24,
+    paddingTop: 16,
     backgroundColor: Colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingBottom: 24,
   },
   sectionTitle: {

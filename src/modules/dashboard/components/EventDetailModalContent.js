@@ -10,6 +10,7 @@ import {
   EVENT_STATUS_LABELS,
   EVENT_STATUS_LABEL_DEFAULT,
 } from '../../../constants/dashboard';
+import { isRegistrationLocked } from '../../../helpers/events.helper';
 
 export const EventDetailModalContent = ({
   event,
@@ -21,6 +22,10 @@ export const EventDetailModalContent = ({
   const statusColors = EVENT_STATUS_COLORS[event.status] || EVENT_STATUS_DEFAULT;
   const statusLabel =
     EVENT_STATUS_LABELS[event.status] || EVENT_STATUS_LABEL_DEFAULT;
+  const canRegister =
+    event.type !== 'past' &&
+    !isRegistrationLocked(event) &&
+    (event.status === 'available' || !event.status);
 
   return (
     <View style={styles.modalDetails}>
@@ -82,7 +87,7 @@ export const EventDetailModalContent = ({
         </View>
       )}
 
-      {event.status === 'available' && (
+      {canRegister && (
         <TouchableOpacity
           style={styles.modalRegisterButton}
           onPress={() => onRegisterPress(event)}

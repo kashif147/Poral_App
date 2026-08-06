@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -20,18 +20,25 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import ScreenHeader from '../../common/screenHeader';
 import { Button } from '../../common/button';
 import { createPaymentIntentRequest } from '../../api/payment.api';
+import { createRegistrationRequest } from '../../api/events.api';
+import { buildEventsRegistrationPayload } from '../../helpers/events.helper';
+import {
+  buildRegistrationIntentCacheKey,
+  clearRegistrationPaymentIntentCache,
+  getOrCreateRegistrationPaymentIntent,
+} from '../../helpers/paymentIntent.helper';
 import { STACKS } from '../../enums/ScreenEnums';
 
-const MOCK_EVENT_PAYMENTS = true;
+const MOCK_EVENT_PAYMENTS = false;
 
 const formatCurrency = (value) => {
   try {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IE', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'EUR',
     }).format(value || 0);
   } catch {
-    return `$${(value || 0).toFixed(2)}`;
+    return `€${(value || 0).toFixed(2)}`;
   }
 };
 
@@ -41,7 +48,27 @@ const EventPayment = () => {
   const insets = useSafeAreaInsets();
   const { confirmPayment } = useStripe();
 
-  const { event, selectedDays } = route.params || {};
+  const {
+    event: routeEvent,
+    course: routeCourse,
+    selectedDays = [],
+    source = 'event-registration',
+    eventId,
+    courseId,
+    eventTitle,
+    courseTitle,
+    totalCost: routeTotalCost,
+    lineItems = [],
+    registrationProfile,
+  } = route.params || {};
+
+  const event = routeEvent || routeCourse || {
+    id: eventId || courseId,
+    title: eventTitle || courseTitle || 'Registration',
+  };
+
+  const registrationLabel =
+    source === 'course-registration' ? 'Course Enrollment' : 'Event Registration';
   const [cardholderName, setCardholderName] = useState('');
   const [email, setEmail] = useState('');
   const [cardComplete, setCardComplete] = useState(false);
@@ -50,8 +77,12 @@ const EventPayment = () => {
   const [initLoading, setInitLoading] = useState(true);
   const [error, setError] = useState(null);
   const [retryKey, setRetryKey] = useState(0);
+  const stripePaymentIntentIdRef = useRef(null);
+  const intentCacheKeyRef = useRef(null);
 
-  const totalAmount = (selectedDays || []).reduce((sum, d) => sum + (d.price || 0), 0);
+  const totalAmount =
+    routeTotalCost ??
+    (selectedDays || []).reduce((sum, d) => sum + (d.price || 0), 0);
   const amountInCents = Math.round(totalAmount * 100);
 
   useEffect(() => {
@@ -75,9 +106,20 @@ const EventPayment = () => {
 
   useEffect(() => {
     const initPayment = async () => {
-      if (!event || !selectedDays?.length || amountInCents <= 0) {
+      const hasSelection =
+        (selectedDays && selectedDays.length > 0) ||
+        (lineItems && lineItems.length > 0);
+
+      if (!event || !hasSelection) {
         setInitLoading(false);
         setError('Invalid event or selection');
+        return;
+      }
+
+      if (amountInCents <= 0) {
+        setInitLoading(false);
+        setError(null);
+        setClientSecret(null);
         return;
       }
 
@@ -93,31 +135,49 @@ const EventPayment = () => {
       try {
         const userStr = await AsyncStorage.getItem('user');
         const user = userStr ? JSON.parse(userStr) : null;
+        const isCourse = source === 'course-registration';
+        const purpose = isCourse ? 'courseRegistration' : 'eventRegistration';
+        const registrationEntityId =
+          courseId || event?.courseId || event?.id;
+        const cacheKey = buildRegistrationIntentCacheKey({
+          purpose,
+          eventId: registrationEntityId,
+          amountInCents,
+        });
+        intentCacheKeyRef.current = cacheKey;
+
         const payload = {
-          purpose: 'eventRegistration',
+          purpose,
           amount: amountInCents,
-          currency: 'usd',
+          currency: 'eur',
           metadata: {
-            eventId: event?.id,
+            ...(isCourse
+              ? { courseId: registrationEntityId }
+              : { eventId: registrationEntityId }),
             eventTitle: event?.title,
+            registrationType: isCourse ? 'course' : 'event',
             selectedDayIds: (selectedDays || []).map((d) => d.id).join(','),
-            description: `Event: ${event?.title}`,
+            description: isCourse
+              ? `Course: ${event?.title}`
+              : `Event: ${event?.title}`,
             tenantId: user?.tenantId || user?.userTenantId,
             userId: user?.id || user?._id,
+            lineItems: JSON.stringify(lineItems || []),
           },
         };
-        const res = await createPaymentIntentRequest(payload);
-        const secret =
-          res?.data?.data?.clientSecret ||
-          res?.data?.client_secret ||
-          res?.data?.clientSecret;
-        if (secret) {
-          setClientSecret(secret);
-        } else {
-          throw new Error('No client secret in response');
-        }
+
+        const { clientSecret: secret, stripePaymentIntentId } =
+          await getOrCreateRegistrationPaymentIntent({
+            cacheKey,
+            paymentData: payload,
+            createIntentRequest: createPaymentIntentRequest,
+          });
+
+        stripePaymentIntentIdRef.current = stripePaymentIntentId;
+        setClientSecret(secret);
       } catch (err) {
         console.warn('Event payment init failed:', err?.message);
+        stripePaymentIntentIdRef.current = null;
         setError(err?.message || 'Payment initialization failed');
         setClientSecret(null);
       } finally {
@@ -125,68 +185,141 @@ const EventPayment = () => {
       }
     };
     initPayment();
-  }, [event?.id, event?.title, selectedDays?.length, amountInCents, retryKey]);
+  }, [
+    event?.id,
+    event?.title,
+    selectedDays?.length,
+    lineItems?.length,
+    amountInCents,
+    retryKey,
+    source,
+  ]);
+
+  const submitEventsRegistration = async (stripePaymentIntentId) => {
+    const registrationPayload = buildEventsRegistrationPayload({
+      source,
+      eventId: eventId || event?.id,
+      courseId,
+      event,
+      lineItems,
+      selectedDays,
+      profile: registrationProfile,
+      paymentMethod: 'stripe',
+      registeredVia: 'portal',
+      stripePaymentIntentId,
+    });
+
+    if (!registrationPayload.profile?.email) {
+      throw new Error('Missing registration profile details.');
+    }
+
+    if (registrationPayload.registrationType === 'course') {
+      if (!registrationPayload.courseId) {
+        throw new Error('Missing course id for registration.');
+      }
+    } else if (!registrationPayload.lineItems?.length) {
+      throw new Error('Missing registration line items.');
+    }
+
+    const res = await createRegistrationRequest(registrationPayload);
+    if (res?.status !== 200 && res?.status !== 201) {
+      throw new Error(
+        res?.data?.message ||
+          res?.data?.error?.message ||
+          'Unable to create registration.',
+      );
+    }
+    return res;
+  };
 
   const handlePay = async () => {
     if (!cardholderName || !email) {
       Alert.alert('Error', 'Name and email are required');
       return;
     }
-    if (!cardComplete) {
+
+    const isFree = amountInCents <= 0;
+
+    if (!isFree && !cardComplete) {
       Alert.alert('Error', 'Please complete all card details');
-      return;
-    }
-
-    if (MOCK_EVENT_PAYMENTS) {
-      const fakePaymentIntentId = `pi_mock_${Date.now()}`;
-      const fakePaymentIntent = {
-        id: fakePaymentIntentId,
-        status: 'Succeeded',
-        amount: amountInCents,
-        currency: 'usd',
-      };
-
-      navigation.replace(STACKS.EVENT_CONFIRMATION, {
-        event,
-        selectedDays,
-        paymentIntent: fakePaymentIntent,
-        transactionId: fakePaymentIntentId.replace('pi_', '') || 'GTS-99201-B',
-        totalPaid: totalAmount,
-      });
-      return;
-    }
-
-    if (!clientSecret) {
-      Alert.alert('Error', 'Payment not ready. Please wait or try again.');
       return;
     }
 
     setIsLoading(true);
     try {
-      const { error: stripeError, paymentIntent } = await confirmPayment(
-        clientSecret,
-        {
-          paymentMethodType: 'Card',
-          paymentMethodData: {
-            billingDetails: { name: cardholderName, email },
-          },
-        }
-      );
+      let paymentIntent = null;
 
-      if (stripeError) {
-        throw new Error(stripeError.message);
-      }
-      if (paymentIntent?.status === 'Succeeded') {
+      if (MOCK_EVENT_PAYMENTS) {
+        await submitEventsRegistration();
+        const fakePaymentIntentId = `pi_mock_${Date.now()}`;
+        paymentIntent = {
+          id: fakePaymentIntentId,
+          status: 'Succeeded',
+          amount: amountInCents,
+          currency: 'eur',
+        };
+
         navigation.replace(STACKS.EVENT_CONFIRMATION, {
           event,
           selectedDays,
           paymentIntent,
-          transactionId: paymentIntent?.id?.replace('pi_', '') || 'GTS-99201-B',
+          transactionId: fakePaymentIntentId.replace('pi_', '') || 'GTS-99201-B',
           totalPaid: totalAmount,
         });
-      } else {
-        throw new Error(`Payment status: ${paymentIntent?.status || 'unknown'}`);
+        return;
       }
+
+      if (!isFree) {
+        if (!clientSecret) {
+          Alert.alert('Error', 'Payment not ready. Please wait or try again.');
+          return;
+        }
+
+        const { error: stripeError, paymentIntent: confirmedIntent } =
+          await confirmPayment(clientSecret, {
+            paymentMethodType: 'Card',
+            paymentMethodData: {
+              billingDetails: { name: cardholderName, email },
+            },
+          });
+
+        if (stripeError) {
+          throw new Error(stripeError.message);
+        }
+
+        const status = String(confirmedIntent?.status || '');
+        const succeeded =
+          status === 'Succeeded' ||
+          status === 'succeeded' ||
+          status === 'RequiresCapture' ||
+          status === 'requires_capture';
+
+        if (!succeeded) {
+          throw new Error(`Payment status: ${status || 'unknown'}`);
+        }
+
+        paymentIntent = confirmedIntent;
+      } else {
+        paymentIntent = {
+          id: `pi_free_${Date.now()}`,
+          status: 'Succeeded',
+          amount: 0,
+          currency: 'eur',
+        };
+      }
+
+      const stripePaymentIntentId =
+        paymentIntent?.id || stripePaymentIntentIdRef.current;
+
+      await submitEventsRegistration(stripePaymentIntentId);
+      navigation.replace(STACKS.EVENT_CONFIRMATION, {
+        event,
+        selectedDays,
+        paymentIntent,
+        transactionId:
+          paymentIntent?.id?.replace('pi_', '') || 'GTS-99201-B',
+        totalPaid: totalAmount,
+      });
     } catch (err) {
       Alert.alert('Payment Failed', err?.message || 'Please try again.');
     } finally {
@@ -197,7 +330,14 @@ const EventPayment = () => {
   const daySummary =
     selectedDays?.length > 1
       ? `Day ${selectedDays.map((d, i) => i + 1).join(' & Day ')} Access`
-      : selectedDays?.[0]?.title || 'Event Access';
+      : selectedDays?.[0]?.title || registrationLabel;
+
+  const isFree = amountInCents <= 0;
+  const canSubmit =
+    Boolean(cardholderName) &&
+    Boolean(email) &&
+    !isLoading &&
+    (isFree || Boolean(cardComplete));
 
   if (initLoading) {
     return (
@@ -208,7 +348,7 @@ const EventPayment = () => {
     );
   }
 
-  if (error && !clientSecret) {
+  if (error && !clientSecret && !isFree) {
     return (
       <View style={styles.container}>
         <ScreenHeader title="Payment" showBack />
@@ -218,6 +358,11 @@ const EventPayment = () => {
           <View style={styles.errorActions}>
             <TouchableOpacity
               onPress={() => {
+                if (intentCacheKeyRef.current) {
+                  clearRegistrationPaymentIntentCache(intentCacheKeyRef.current);
+                }
+                stripePaymentIntentIdRef.current = null;
+                setClientSecret(null);
                 setError(null);
                 setRetryKey((k) => k + 1);
               }}
@@ -252,7 +397,9 @@ const EventPayment = () => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>EVENT</Text>
+            <Text style={styles.summaryLabel}>
+              {source === 'course-registration' ? 'COURSE' : 'EVENT'}
+            </Text>
             <Text style={styles.summaryTitle}>{event?.title}</Text>
             <Text style={styles.summaryDays}>{daySummary}</Text>
             <View style={styles.summaryTotal}>
@@ -283,34 +430,48 @@ const EventPayment = () => {
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Card Details *</Text>
-            <View style={styles.cardFieldWrapper}>
-              <CardField
-                postalCodeEnabled={false}
-                placeholders={{
-                  number: '4242 4242 4242 4242',
-                  cvc: 'CVC',
-                  expiration: 'MM/YY',
-                }}
-                cardStyle={{
-                  backgroundColor: Colors.surface,
-                  textColor: Colors.textPrimary,
-                  placeholderColor: Colors.textSecondary,
-                  borderWidth: 0,
-                }}
-                style={styles.cardField}
-                onCardChange={(details) => setCardComplete(details?.complete)}
-              />
+          {isFree ? (
+            <View style={styles.inputGroup}>
+              <Text style={styles.freeNote}>
+                No payment required for this registration.
+              </Text>
             </View>
-          </View>
+          ) : (
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Card Details *</Text>
+              <View style={styles.cardFieldWrapper}>
+                <CardField
+                  postalCodeEnabled={false}
+                  placeholders={{
+                    number: '4242 4242 4242 4242',
+                    cvc: 'CVC',
+                    expiration: 'MM/YY',
+                  }}
+                  cardStyle={{
+                    backgroundColor: Colors.surface,
+                    textColor: Colors.textPrimary,
+                    placeholderColor: Colors.textSecondary,
+                    borderWidth: 0,
+                  }}
+                  style={styles.cardField}
+                  onCardChange={(details) => setCardComplete(details?.complete)}
+                />
+              </View>
+            </View>
+          )}
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom || 16 }]}>
           <Button
-            title={isLoading ? 'Processing…' : 'Register & Pay'}
+            title={
+              isLoading
+                ? 'Processing…'
+                : isFree
+                  ? 'Complete Registration'
+                  : 'Register & Pay'
+            }
             onPress={handlePay}
-            disabled={!cardComplete || isLoading}
+            disabled={!canSubmit}
             primary
             style={styles.payButton}
             textStyle={styles.payButtonText}
@@ -395,6 +556,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.textPrimary,
     marginBottom: 8,
+  },
+  freeNote: {
+    fontSize: 14,
+    color: '#059669',
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
   input: {
     height: 52,

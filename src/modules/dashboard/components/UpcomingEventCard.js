@@ -15,11 +15,17 @@ export const UpcomingEventCard = ({ event, onPress, onViewPress }) => (
     onPress={() => onPress(event)}
     activeOpacity={0.7}
   >
-    <Image
-      source={{ uri: event.image }}
-      style={styles.eventImage}
-      resizeMode="cover"
-    />
+    {event.image ? (
+      <Image
+        source={{ uri: event.image }}
+        style={styles.eventImage}
+        resizeMode="contain"
+      />
+    ) : (
+      <View style={styles.eventImagePlaceholder}>
+        <Ionicons name="calendar-outline" size={24} color={Colors.primary} />
+      </View>
+    )}
     <View style={styles.eventContent}>
       <Text style={styles.eventTitle}>{event.title}</Text>
       <View style={styles.eventDetailRow}>
@@ -85,6 +91,16 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 8,
     marginRight: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  eventImagePlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: Colors.primaryLight || '#E8F0FE',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   eventContent: {
     flex: 1,

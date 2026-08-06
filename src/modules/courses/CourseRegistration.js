@@ -16,7 +16,7 @@ import ScreenHeader from '../../common/screenHeader';
 import PersonalInformation from '../application/PersonalInformation';
 import RegistrationPricingOptions from '../../common/RegistrationPricingOptions';
 import FullWidthContainImage from '../../common/FullWidthContainImage';
-import { fetchPublishedEvents } from '../../api/events.api';
+import { fetchPublishedCourses } from '../../api/events.api';
 import {
   buildEventRegistrationData,
   buildRegistrationLineItems,
@@ -32,7 +32,7 @@ import { useRegistrationPersonalInfoGate } from '../../hooks/useRegistrationPers
 import { toast } from '../../utils/toast.utils';
 import { Button } from '../../common/button';
 
-const EventRegistration = () => {
+const CourseRegistration = () => {
   const { isMember } = useMemberRole();
   const {
     professionalDetail,
@@ -42,12 +42,12 @@ const EventRegistration = () => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
-  const eventId = route.params?.eventId || route.params?.event?.id;
+  const courseId = route.params?.courseId || route.params?.course?.id;
 
   const [quantities, setQuantities] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [event, setEvent] = useState(null);
+  const [course, setCourse] = useState(null);
 
   const membershipCategory =
     professionalDetail?.professionalDetails?.membershipCategory ||
@@ -65,44 +65,44 @@ const EventRegistration = () => {
     handlePersonalInfoBack,
   } = useRegistrationPersonalInfoGate();
 
-  const loadEvent = useCallback(async () => {
-    if (!eventId) {
-      setEvent(null);
+  const loadCourse = useCallback(async () => {
+    if (!courseId) {
+      setCourse(null);
       setLoading(false);
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetchPublishedEvents();
+      const response = await fetchPublishedCourses();
       if (response?.status >= 200 && response?.status < 300) {
-        const apiEvent = (response?.data?.data || []).find(
-          item => String(item._id) === String(eventId),
+        const apiCourse = (response?.data?.data || []).find(
+          item => String(item._id || item.id) === String(courseId),
         );
-        const mappedEvent = mapApiEventToCard(apiEvent);
-        const registrationData = buildEventRegistrationData(mappedEvent, {
+        const mappedCourse = mapApiEventToCard(apiCourse);
+        const registrationData = buildEventRegistrationData(mappedCourse, {
           isMember,
           membershipCategory,
           categoryCode: categoryData?.code,
           categoryName: categoryData?.name,
         });
-        setEvent(registrationData);
+        setCourse(registrationData);
         setQuantities(
           createInitialQuantities(registrationData?.pricingOptions || []),
         );
       } else {
-        setEvent(null);
-        toast.error('Error', 'Unable to load event details.');
+        setCourse(null);
+        toast.error('Error', 'Unable to load course details.');
       }
     } catch (error) {
-      console.error('Failed to fetch event:', error);
-      setEvent(null);
-      toast.error('Error', 'Unable to load event details.');
+      console.error('Failed to fetch course:', error);
+      setCourse(null);
+      toast.error('Error', 'Unable to load course details.');
     } finally {
       setLoading(false);
     }
   }, [
-    eventId,
+    courseId,
     isMember,
     membershipCategory,
     categoryData?.code,
@@ -110,13 +110,13 @@ const EventRegistration = () => {
   ]);
 
   useEffect(() => {
-    loadEvent();
-  }, [loadEvent]);
+    loadCourse();
+  }, [loadCourse]);
 
-  const venue = event?.venue || event?.location || 'TBD';
-  const credits = event?.credits || '—';
-  const eventLocation = event?.location || venue;
-  const pricingOptions = event?.pricingOptions || [];
+  const venue = course?.venue || course?.location || 'TBD';
+  const credits = course?.credits || '—';
+  const courseLocation = course?.location || venue;
+  const pricingOptions = course?.pricingOptions || [];
 
   const totalCost = useMemo(
     () => calculateQuantitiesTotal(pricingOptions, quantities),
@@ -128,8 +128,8 @@ const EventRegistration = () => {
     [pricingOptions, quantities],
   );
 
-  const getEventYear = () => {
-    const d = event?.date;
+  const getCourseYear = () => {
+    const d = course?.date;
     if (typeof d === 'string' && /\d{4}/.test(d)) {
       const match = d.match(/\d{4}/);
       return match ? match[0] : new Date().getFullYear().toString();
@@ -145,7 +145,7 @@ const EventRegistration = () => {
   };
 
   const handleRegisterAndPay = () => {
-    if (!event || !selectedLineItems.length) {
+    if (!course || !selectedLineItems.length) {
       toast.warning('Validation', 'Please select at least one ticket quantity.');
       return;
     }
@@ -153,7 +153,7 @@ const EventRegistration = () => {
     const selectedDays = selectedLineItems.map(item => ({
       id: item.id,
       title: item.title,
-      date: event.date,
+      date: course.date,
       price: item.price,
       unitPrice: item.unitPrice,
       quantity: item.quantity,
@@ -164,10 +164,11 @@ const EventRegistration = () => {
     setTimeout(() => {
       setIsSubmitting(false);
       handleRegisterClick({
-        source: 'event-registration',
-        eventId: event.id,
-        eventTitle: event.title,
-        event,
+        source: 'course-registration',
+        courseId: course.courseId || course.id,
+        courseTitle: course.title,
+        course,
+        event: course,
         selectedDays,
         lineItems: buildRegistrationLineItems(pricingOptions, quantities),
         quantities,
@@ -181,7 +182,7 @@ const EventRegistration = () => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ScreenHeader title="Event Registration" showBack />
+        <ScreenHeader title="Course Registration" showBack />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
@@ -189,16 +190,16 @@ const EventRegistration = () => {
     );
   }
 
-  if (!event) {
+  if (!course) {
     return (
       <View style={styles.container}>
-        <ScreenHeader title="Event Registration" showBack />
+        <ScreenHeader title="Course Registration" showBack />
         <View style={styles.notFoundContainer}>
-          <Text style={styles.notFoundTitle}>Event Not Found</Text>
+          <Text style={styles.notFoundTitle}>Course Not Found</Text>
           <Text style={styles.notFoundText}>
-            This event is unavailable or has been removed.
+            This course is unavailable or has been removed.
           </Text>
-          <Button title="Back to Events" onPress={() => navigation.goBack()} />
+          <Button title="Back to Courses" onPress={() => navigation.goBack()} />
         </View>
       </View>
     );
@@ -222,7 +223,7 @@ const EventRegistration = () => {
         >
           <Text style={styles.personalInfoIntro}>
             Please provide your details before completing registration for{' '}
-            <Text style={styles.personalInfoHighlight}>{event.title}</Text>.
+            <Text style={styles.personalInfoHighlight}>{course.title}</Text>.
           </Text>
           <PersonalInformation
             formData={personalInfo}
@@ -244,7 +245,7 @@ const EventRegistration = () => {
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Event Registration" showBack />
+      <ScreenHeader title="Course Registration" showBack />
 
       <ScrollView
         style={styles.scrollView}
@@ -256,10 +257,10 @@ const EventRegistration = () => {
       >
         <View style={styles.bannerContainer}>
           <View style={styles.bannerHeroRow}>
-            {event?.image ? (
+            {course?.image ? (
               <View style={styles.bannerImageCol}>
                 <FullWidthContainImage
-                  uri={event.image}
+                  uri={course.image}
                   height={160}
                   resizeMode="contain"
                   style={styles.bannerSideImage}
@@ -269,32 +270,32 @@ const EventRegistration = () => {
             <View
               style={[
                 styles.headerNoImage,
-                event?.image ? styles.headerBesideImage : null,
+                course?.image ? styles.headerBesideImage : null,
               ]}
             >
-              {event?.category ? (
+              {course?.category ? (
                 <View style={styles.bannerTag}>
-                  <Text style={styles.bannerTagText}>{event.category}</Text>
+                  <Text style={styles.bannerTagText}>{course.category}</Text>
                 </View>
               ) : null}
               <Text style={styles.headerNoImageTitle}>
-                {event?.title || 'Event'}
+                {course?.title || 'Course'}
               </Text>
-              <Text style={styles.headerNoImageYear}>{getEventYear()}</Text>
+              <Text style={styles.headerNoImageYear}>{getCourseYear()}</Text>
               <View style={styles.bannerLocationRow}>
                 <Ionicons
                   name="location"
                   size={16}
                   color={Colors.textSecondary}
                 />
-                <Text style={styles.headerNoImageLocation}>{eventLocation}</Text>
+                <Text style={styles.headerNoImageLocation}>{courseLocation}</Text>
               </View>
             </View>
           </View>
         </View>
 
-        {event?.description ? (
-          <Text style={styles.description}>{event.description}</Text>
+        {course?.description ? (
+          <Text style={styles.description}>{course.description}</Text>
         ) : null}
 
         <View style={styles.infoRow}>
@@ -490,4 +491,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default EventRegistration;
+export default CourseRegistration;

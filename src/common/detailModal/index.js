@@ -1,23 +1,27 @@
-
 import React from 'react';
 import {
   Modal,
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   Platform,
 } from 'react-native';
-import { Colors, wp, hp } from '../../utils/Styles';
+import { Colors } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import FullWidthContainImage from '../FullWidthContainImage';
 
-const DetailModal = ({ visible, onClose, item, children, imageProperty = 'image' }) => {
-  const insets = useSafeAreaInsets();
-  
+const DetailModal = ({
+  visible,
+  onClose,
+  item,
+  children,
+  imageProperty = 'image',
+}) => {
   if (!item) return null;
+
+  const imageUri = item[imageProperty];
 
   return (
     <Modal
@@ -27,52 +31,40 @@ const DetailModal = ({ visible, onClose, item, children, imageProperty = 'image'
       onRequestClose={onClose}
     >
       <View style={[styles.container, { backgroundColor: Colors.background }]}>
-        {/* Close Button */}
-        <TouchableOpacity 
-          style={[styles.closeButton, { top: Platform.OS === 'ios' ? 20 : 20 }]} 
+        <TouchableOpacity
+          style={[styles.closeButton, { top: Platform.OS === 'ios' ? 20 : 20 }]}
           onPress={onClose}
           activeOpacity={0.8}
         >
           <Ionicons name="close" size={24} color={Colors.textPrimary} />
         </TouchableOpacity>
 
-        <ScrollView 
+        <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/* Hero Image */}
-          <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: item[imageProperty] }}
-              style={styles.image}
-              resizeMode="cover"
-            />
-            <View style={styles.imageOverlay} />
-          </View>
+          {imageUri ? <FullWidthContainImage uri={imageUri} /> : null}
 
-          {/* Content */}
-          <View style={styles.contentContainer}>
-             {/* Category/Badge if available - generic handling */}
-             {item.category && (
-               <View style={styles.categoryBadge}>
-                 <Text style={styles.categoryText}>{item.category}</Text>
-               </View>
-             )}
-
-            <Text style={styles.title}>{item.title}</Text>
-            
-            {/* Description */}
-            {item.description && (
-              <Text style={styles.description}>
-                {item.description}
-              </Text>
+          <View
+            style={[
+              styles.contentContainer,
+              !imageUri && styles.contentContainerNoImage,
+            ]}
+          >
+            {item.category && (
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{item.category}</Text>
+              </View>
             )}
 
-            {/* Custom Content (Children) */}
-            <View style={styles.customContent}>
-              {children}
-            </View>
+            <Text style={styles.title}>{item.title}</Text>
+
+            {item.description && (
+              <Text style={styles.description}>{item.description}</Text>
+            )}
+
+            <View style={styles.customContent}>{children}</View>
           </View>
         </ScrollView>
       </View>
@@ -104,27 +96,14 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  imageContainer: {
-    width: '100%',
-    height: hp(35),
-    backgroundColor: '#E5E7EB',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
   contentContainer: {
     flex: 1,
     backgroundColor: Colors.background,
-    marginTop: -24,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingTop: 24,
+  },
+  contentContainerNoImage: {
+    paddingTop: 64,
   },
   categoryBadge: {
     alignSelf: 'flex-start',

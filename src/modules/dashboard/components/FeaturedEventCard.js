@@ -2,55 +2,109 @@ import React from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
-  ImageBackground,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../../utils/Styles';
+import {
+  getRegistrationStatusLabel,
+  isRegistrationLocked,
+} from '../../../helpers/events.helper';
 
-export const FeaturedEventCard = ({ event, onPress }) => (
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const COMPACT_CARD_WIDTH = SCREEN_WIDTH * 0.9;
+const IMAGE_HEIGHT = 120;
+
+const resolveImageUri = event => {
+  const raw =
+    event?.image ||
+    event?.imageUrl ||
+    event?.raw?.imageUrl ||
+    event?.rawRegistration?.imageUrl ||
+    '';
+  return typeof raw === 'string' ? raw.trim() : '';
+};
+
+export const FeaturedEventCard = ({
+  event,
+  onPress,
+  compact = false,
+  embedded = false,
+}) => {
+  const imageUri = resolveImageUri(event);
+  const isLocked = isRegistrationLocked(event);
+  const statusLabel = getRegistrationStatusLabel(event?.status);
+  const statusKey = String(event?.status || '').toLowerCase();
+  const statusColor =
+    statusKey === 'submitted' ? '#B45309' : Colors.primary;
+
+  return (
   <TouchableOpacity
-    style={styles.featuredCard}
+    style={[
+      styles.featuredCard,
+      compact && styles.featuredCardCompact,
+      embedded && styles.featuredCardEmbedded,
+    ]}
     activeOpacity={1}
-    onPress={() => onPress(event)}
+    onPress={() => onPress?.(event)}
   >
-    <ImageBackground
-      source={{ uri: event.image }}
-      style={styles.featuredImageBackground}
-      imageStyle={styles.featuredImage}
-    >
-      <View style={styles.featuredOverlay} />
-      <View style={styles.bottomMeta}>
-        <View style={styles.dateTimePill}>
-          <Ionicons name="calendar-outline" size={12} color={Colors.white} />
-          <Text style={styles.dateTimeText}>{event.date}</Text>
-          <View style={styles.dateTimeDot} />
-          <Ionicons name="time-outline" size={12} color={Colors.white} />
-          <Text style={styles.dateTimeText}>{event.time}</Text>
-        </View>
-        <View style={styles.locationPill}>
-          <Ionicons
-            name={event.location === 'Online' ? 'videocam-outline' : 'location-outline'}
-            size={12}
-            color={Colors.white}
-          />
-          <Text style={styles.dateTimeText} numberOfLines={1}>
-            {event.location}
-          </Text>
-        </View>
+    {imageUri ? (
+      <View style={styles.imageWrap}>
+        <Image
+          source={{ uri: imageUri }}
+          style={styles.featuredImage}
+          resizeMode="cover"
+        />
       </View>
-    </ImageBackground>
+    ) : null}
+
     <View style={styles.featuredContent}>
-      {event.category && (
+      {event.category ? (
         <View style={styles.featuredCategory}>
           <Text style={styles.featuredCategoryText}>{event.category}</Text>
         </View>
-      )}
-      <Text style={styles.featuredTitle}>{event.title}</Text>
+      ) : null}
+      <Text style={styles.featuredTitle} numberOfLines={2}>
+        {event.title}
+      </Text>
+
+      {(event.date || event.time) ? (
+        <View style={styles.metaRow}>
+          <Ionicons name="calendar-outline" size={14} color={Colors.primary} />
+          <Text style={styles.metaText} numberOfLines={1}>
+            {event.date || 'Date TBD'}
+            {event.time ? ` · ${event.time}` : ''}
+          </Text>
+        </View>
+      ) : null}
+
+      {event.location ? (
+        <View style={styles.metaRow}>
+          <Ionicons
+            name={
+              event.location === 'Online' ? 'videocam-outline' : 'location-outline'
+            }
+            size={14}
+            color={Colors.primary}
+          />
+          <Text style={styles.metaText} numberOfLines={1}>
+            {event.location}
+          </Text>
+        </View>
+      ) : null}
+
+      {isLocked ? (
+        <Text style={[styles.statusText, { color: statusColor }]}>
+          {statusLabel}
+        </Text>
+      ) : null}
     </View>
   </TouchableOpacity>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   featuredCard: {
@@ -65,72 +119,35 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  featuredImageBackground: {
+  featuredCardCompact: {
+    width: COMPACT_CARD_WIDTH,
+    marginHorizontal: 0,
+    marginRight: 12,
+  },
+  featuredCardEmbedded: {
+    marginHorizontal: 0,
+  },
+  imageWrap: {
     width: '100%',
-    height: 118,
+    height: IMAGE_HEIGHT,
+    backgroundColor: '#F1F5F9',
   },
   featuredImage: {
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-  },
-  featuredOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-  },
-  bottomMeta: {
-    position: 'absolute',
-    left: 10,
-    bottom: 10,
-  },
-  dateTimePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(11, 24, 72, 0.74)',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  locationPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(11, 24, 72, 0.74)',
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginTop: 6,
-    maxWidth: 230,
-  },
-  dateTimeText: {
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  dateTimeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    marginHorizontal: 8,
+    width: '100%',
+    height: '100%',
   },
   featuredContent: {
     padding: 12,
   },
   featuredTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: Colors.textPrimary,
-    marginBottom: 6,
-  },
-  featuredDescription: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 12,
-    lineHeight: 18,
+    marginBottom: 8,
   },
   featuredCategory: {
     alignSelf: 'flex-start',
-    backgroundColor: Colors.primary,
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
@@ -139,7 +156,24 @@ const styles = StyleSheet.create({
   featuredCategoryText: {
     fontSize: 10,
     fontWeight: '600',
-    color: Colors.white,
+    color: Colors.primary,
     textTransform: 'uppercase',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    marginBottom: 6,
+  },
+  metaText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  statusText: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

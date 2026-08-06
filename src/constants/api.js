@@ -12,6 +12,7 @@ const ACCOUNT_URL = `https://${DOMAIN}/account-service`;
 const PROFILE_URL = `https://${DOMAIN}/profile-service`;
 const NOTIFICATION_URL = `https://${DOMAIN}/notification-service`;
 const SUBSCRIPTION_URL = `https://${DOMAIN}/subscription-service`;
+const EVENTS_URL = `https://${DOMAIN}/events-service`;
 
 export {
   BASE_URL,
@@ -20,4 +21,5 @@ export {
   PROFILE_URL,
   NOTIFICATION_URL,
   SUBSCRIPTION_URL,
+  EVENTS_URL,
 };
