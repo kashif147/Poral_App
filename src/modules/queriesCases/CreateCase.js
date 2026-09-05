@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,56 +8,117 @@ import {
   Platform,
   KeyboardAvoidingView,
   Pressable,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import {
   pick as pickDocument,
   errorCodes as documentPickerErrorCodes,
   isErrorWithCode as isDocumentPickerErrorWithCode,
 } from '@react-native-documents/picker';
 import { Colors } from '../../utils/Styles';
-import {
-  CASE_CATEGORY_OPTIONS,
-  CASE_TYPE_OPTIONS,
-  AVAILABLE_STAFF,
-} from '../../constants/queriesCases';
+import { COMPLAINT_TYPE_OPTIONS } from '../../constants/queriesCases';
 import ScreenHeader from '../../common/screenHeader';
 import { Label } from '../../common/text/label';
 import { InputField } from '../../common/inputField';
 import { DatePicker } from '../../common/DatePicker';
 import Picker from '../../common/picker';
 import { Button } from '../../common/button';
-import { StaffSelectionModal } from '../../common/modal';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { STACKS } from '../../enums/ScreenEnums';
+import { useLookup } from '../../contexts/lookupContext';
+import { useProfile } from '../../contexts/profileContext';
+import {
+  createPortalIssue,
+  uploadIssueAttachments,
+} from '../../api/issue.api';
+import {
+  buildPortalComplaintPayload,
+  filterComplaintTypeLookups,
+  getIssueApiErrorMessage,
+  isIssueApiSuccess,
+  isMemberOnMemberComplaintType,
+  isMemberOnServiceProviderComplaintType,
+  mapComplaintTypeLookupOptions,
+  parseIssueIdFromResponse,
+} from '../../helpers/issues.helper';
 
 const CreateCase = () => {
   const navigation = useNavigation();
-  const [caseTitle, setCaseTitle] = useState('');
+  const user = useSelector(state => state.auth?.user);
+  const { lookups } = useLookup();
+  const { profileDetail, profileByIdDetail } = useProfile();
+
   const [incidentDescription, setIncidentDescription] = useState('');
   const [incidentDate, setIncidentDate] = useState('');
-  const [location, setLocation] = useState('');
-  const [category, setCategory] = useState('');
-  const [caseType, setCaseType] = useState('');
-  const [assignedLead, setAssignedLead] = useState('');
-  const [internalStakeholders, setInternalStakeholders] = useState([]);
-  const [staffModalVisible, setStaffModalVisible] = useState(false);
+  const [complaintType, setComplaintType] = useState('');
+  const [serviceProvider, setServiceProvider] = useState('');
+  const [relatedMember, setRelatedMember] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const complaintTypeLookups = useMemo(
+    () => filterComplaintTypeLookups(lookups),
+    [lookups],
+  );
+
+  const complaintTypeOptions = useMemo(() => {
+    const lookupOptions = mapComplaintTypeLookupOptions(lookups);
+    return lookupOptions.length > 0 ? lookupOptions : COMPLAINT_TYPE_OPTIONS;
+  }, [lookups]);
+
+  const isMemberOnMember = useMemo(
+    () => isMemberOnMemberComplaintType(complaintType, complaintTypeLookups),
+    [complaintType, complaintTypeLookups],
+  );
+
+  const isMemberOnServiceProvider = useMemo(
+    () =>
+      isMemberOnServiceProviderComplaintType(
+        complaintType,
+        complaintTypeLookups,
+      ),
+    [complaintType, complaintTypeLookups],
+  );
+
+  const complainantProfileId = profileDetail?.profileId;
+
+  const complainantLabel = useMemo(() => {
+    const personal =
+      profileByIdDetail?.personalInfo ||
+      profileDetail?.personalInfo ||
+      profileDetail?.contactInfo ||
+      {};
+    const name =
+      [personal?.forename, personal?.surname].filter(Boolean).join(' ') ||
+      [user?.userFirstName, user?.userLastName].filter(Boolean).join(' ') ||
+      user?.fullName ||
+      user?.userName ||
+      'Current member';
+    const membershipNumber =
+      profileDetail?.membershipNumber ||
+      profileByIdDetail?.membershipNumber ||
+      '';
+
+    return membershipNumber ? `${name} (${membershipNumber})` : name;
+  }, [profileDetail, profileByIdDetail, user]);
+
+  useEffect(() => {
+    if (!isMemberOnServiceProvider) {
+      setServiceProvider('');
+    }
+  }, [isMemberOnServiceProvider]);
+
+  useEffect(() => {
+    if (!isMemberOnMember) {
+      setRelatedMember('');
+    }
+  }, [isMemberOnMember]);
 
   const handleIncidentDateChange = e => {
     const val = e?.target?.value;
     setIncidentDate(val || '');
-  };
-
-  const addStakeholder = staff => {
-    if (!internalStakeholders.find(s => s.id === staff.id)) {
-      setInternalStakeholders([...internalStakeholders, staff]);
-    }
-    setStaffModalVisible(false);
-  };
-
-  const removeStakeholder = id => {
-    setInternalStakeholders(internalStakeholders.filter(s => s.id !== id));
   };
 
   const handlePickDocument = async () => {
@@ -87,17 +148,106 @@ const CreateCase = () => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const validateForm = () => {
+    if (!incidentDescription.trim()) {
+      Alert.alert('Validation', 'Please enter a description.');
+      return false;
+    }
+    if (!incidentDate) {
+      Alert.alert('Validation', 'Please select issue date.');
+      return false;
+    }
+    if (!complaintType) {
+      Alert.alert('Validation', 'Please select complaint type.');
+      return false;
+    }
+    if (isMemberOnServiceProvider && !serviceProvider.trim()) {
+      Alert.alert('Validation', 'Please enter a service provider.');
+      return false;
+    }
+    if (isMemberOnMember && !relatedMember.trim()) {
+      Alert.alert('Validation', 'Please enter the related member.');
+      return false;
+    }
+    if (isMemberOnMember && !complainantProfileId) {
+      Alert.alert(
+        'Validation',
+        'Unable to identify complainant profile. Please try again.',
+      );
+      return false;
+    }
+    return true;
+  };
+
   const handleSaveDraft = () => {
     navigation.navigate(STACKS.QUERIES_CASES_STACK);
   };
 
-  const handleSubmitCase = () => {
-    navigation.navigate(STACKS.QUERIES_CASES_STACK);
+  const handleSubmitCase = async () => {
+    if (!validateForm()) return;
+
+    setSubmitting(true);
+    try {
+      const payload = buildPortalComplaintPayload({
+        description: incidentDescription,
+        dateReceived: incidentDate,
+        complaintType,
+        relatedMember,
+        serviceProvider,
+        complainantId: complainantProfileId,
+        complaintTypeLookups,
+      });
+
+      const response = await createPortalIssue(payload);
+      if (isIssueApiSuccess(response)) {
+        const issueId = parseIssueIdFromResponse(response);
+
+        if (uploadedFiles.length && issueId) {
+          const uploadResponse = await uploadIssueAttachments(
+            issueId,
+            uploadedFiles,
+          );
+          if (!isIssueApiSuccess(uploadResponse)) {
+            Alert.alert(
+              'Partial success',
+              getIssueApiErrorMessage(
+                uploadResponse,
+                'Complaint created but attachments failed to upload.',
+              ),
+              [
+                {
+                  text: 'OK',
+                  onPress: () => navigation.navigate(STACKS.QUERIES_CASES_STACK),
+                },
+              ],
+            );
+            return;
+          }
+        }
+
+        Alert.alert('Success', 'Complaint submitted successfully', [
+          {
+            text: 'OK',
+            onPress: () => navigation.navigate(STACKS.QUERIES_CASES_STACK),
+          },
+        ]);
+        return;
+      }
+
+      Alert.alert(
+        'Error',
+        getIssueApiErrorMessage(response, 'Failed to submit complaint'),
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to submit complaint');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title="Query" showBack={true} />
+      <ScreenHeader title="New Complaint" showBack={true} />
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
@@ -110,35 +260,10 @@ const CreateCase = () => {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Case Title */}
-          <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Title</Label>
-            <View style={styles.titleRow}>
-              <InputField
-                placeholder="Enter descriptive title."
-                value={caseTitle}
-                onChange={txt => setCaseTitle(txt)}
-                formData={!!caseTitle}
-                bgStyle={styles.titleInputBg}
-              />
-              <TouchableOpacity
-                style={styles.starIcon}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons
-                  name="star-outline"
-                  size={22}
-                  color={Colors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Incident Description */}
           <View style={styles.fieldGroup}>
             <Label style={styles.fieldLabel}>Description</Label>
             <InputField
-              placeholder="Detailed description of the incident..."
+              placeholder="Detailed description of the complaint..."
               value={incidentDescription}
               onChange={txt => setIncidentDescription(txt)}
               multiline
@@ -148,12 +273,8 @@ const CreateCase = () => {
             />
           </View>
 
-          {/* Incident Details */}
-          {/* <Label style={[styles.sectionTitle, styles.sectionSpacing,{marginTop: 50}]}>
-            Incident Details
-          </Label> */}
-          <View style={{...styles.fieldGroup,marginTop:50}}>
-            <Label style={styles.fieldLabel}>Incident Date</Label>
+          <View style={{ ...styles.fieldGroup, marginTop: 24 }}>
+            <Label style={styles.fieldLabel}>Issue Date</Label>
             <DatePicker
               name="incidentDate"
               value={incidentDate}
@@ -161,29 +282,16 @@ const CreateCase = () => {
               disableAgeValidation
             />
           </View>
-          <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Location</Label>
-            <InputField
-              placeholder="City, Region or Branch"
-              value={location}
-              onChange={txt => setLocation(txt)}
-              formData={!!location}
-            />
-          </View>
 
-          {/* Classification */}
-          {/* <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
-            Classification
-          </Label> */}
           <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Category</Label>
+            <Label style={styles.fieldLabel}>Complaint Type</Label>
             <Picker
-              selectedValue={category}
-              onValueChange={setCategory}
+              selectedValue={complaintType}
+              onValueChange={setComplaintType}
               containerStyle={styles.pickerContainer}
             >
-              <Picker.Item label="Select Category" value="" />
-              {CASE_CATEGORY_OPTIONS.map(opt => (
+              <Picker.Item label="Select complaint type" value="" />
+              {complaintTypeOptions.map(opt => (
                 <Picker.Item
                   key={opt.value}
                   label={opt.label}
@@ -192,84 +300,46 @@ const CreateCase = () => {
               ))}
             </Picker>
           </View>
-          {/* <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Case Type</Label>
-            <Picker
-              selectedValue={caseType}
-              onValueChange={setCaseType}
-              containerStyle={styles.pickerContainer}
-            >
-              <Picker.Item label="Select Type" value="" />
-              {CASE_TYPE_OPTIONS.map(opt => (
-                <Picker.Item
-                  key={opt.value}
-                  label={opt.label}
-                  value={opt.value}
-                />
-              ))}
-            </Picker>
-          </View> */}
 
-          {/* Ownership */}
-          {/* <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
-            Department
-          </Label> */}
-          <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Assigned To</Label>
-            <Picker
-              selectedValue={assignedLead}
-              onValueChange={setAssignedLead}
-              containerStyle={styles.pickerContainer}
-            >
-              <Picker.Item label="Select Lead Counsel" value="" />
-              {AVAILABLE_STAFF.map(staff => (
-                <Picker.Item
-                  key={staff.id}
-                  label={staff.name}
-                  value={staff.id}
-                />
-              ))}
-            </Picker>
-          </View>
-          {/* <View style={styles.fieldGroup}>
-            <Label style={styles.fieldLabel}>Internal Stakeholders</Label>
-            <View style={styles.staffContainer}>
-              {internalStakeholders.map(staff => (
-                <View key={staff.id} style={styles.staffChip}>
-                  <Label style={styles.staffChipText}>{staff.name}</Label>
-                  <TouchableOpacity
-                    onPress={() => removeStakeholder(staff.id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons
-                      name="close"
-                      size={16}
-                      color={Colors.white}
-                      style={styles.chipRemove}
-                    />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity
-                style={styles.addStaffButton}
-                onPress={() => setStaffModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="add"
-                  size={18}
-                  color={Colors.textSecondary}
-                  style={styles.addStaffIcon}
-                />
-                <Label style={styles.addStaffText}>Search...</Label>
-              </TouchableOpacity>
+          {isMemberOnServiceProvider ? (
+            <View style={styles.fieldGroup}>
+              <Label style={styles.fieldLabel}>Service Provider</Label>
+              <InputField
+                placeholder="Enter service provider name"
+                value={serviceProvider}
+                onChange={txt => setServiceProvider(txt)}
+                formData={!!serviceProvider}
+              />
             </View>
-          </View> */}
+          ) : null}
 
-          {/* Documentation */}
-          {/* <Label style={[styles.sectionTitle, styles.sectionSpacing]}>
-            Attachment
-          </Label> */}
+          {isMemberOnMember ? (
+            <>
+              <View style={styles.fieldGroup}>
+                <Label style={styles.fieldLabel}>Complainant</Label>
+                <Label style={styles.fieldHint}>
+                  You are recorded as the complainant for this case.
+                </Label>
+                <View style={styles.readOnlyField}>
+                  <Text style={styles.readOnlyText}>{complainantLabel}</Text>
+                </View>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Label style={styles.fieldLabel}>Related Member</Label>
+                <Label style={styles.fieldHint}>
+                  Enter member name or membership number.
+                </Label>
+                <InputField
+                  placeholder="Enter member name or number"
+                  value={relatedMember}
+                  onChange={txt => setRelatedMember(txt)}
+                  formData={!!relatedMember}
+                />
+              </View>
+            </>
+          ) : null}
+
           <View style={styles.fieldGroup}>
             <Label style={styles.fieldLabel}>Attachment</Label>
             <Pressable
@@ -285,10 +355,10 @@ const CreateCase = () => {
               />
               <Label style={styles.uploadTitle}>Upload files</Label>
               <Label style={styles.uploadHint}>
-                Drag & drop or tap to select PDFs, PNGs, or DOCX.
+                Tap to select PDFs, PNGs, or DOCX.
               </Label>
             </Pressable>
-            {uploadedFiles.length > 0 && (
+            {uploadedFiles.length > 0 ? (
               <View style={styles.fileList}>
                 {uploadedFiles.map((file, index) => (
                   <View key={index} style={styles.fileChip}>
@@ -313,36 +383,28 @@ const CreateCase = () => {
                   </View>
                 ))}
               </View>
-            )}
+            ) : null}
           </View>
 
-          {/* Action Buttons */}
           <View style={styles.buttonRow}>
             <Button
               title="Save Draft"
               onPress={handleSaveDraft}
               outlined
               style={styles.saveDraftButton}
+              disabled={submitting}
             />
             <Button
-              title="Submit Case"
+              title={submitting ? 'Submitting...' : 'Submit Complaint'}
               onPress={handleSubmitCase}
               primary
               style={styles.submitButton}
+              disabled={submitting}
             />
           </View>
           <View style={styles.bottomPadding} />
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <StaffSelectionModal
-        visible={staffModalVisible}
-        title="Select Staff"
-        staffList={AVAILABLE_STAFF}
-        selectedStaffIds={internalStakeholders.map(s => s.id)}
-        onSelect={addStakeholder}
-        onClose={() => setStaffModalVisible(false)}
-      />
     </View>
   );
 };
@@ -362,15 +424,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-    marginBottom: 16,
-  },
-  sectionSpacing: {
-    marginTop: 8,
-  },
   fieldGroup: {
     marginBottom: 16,
   },
@@ -380,23 +433,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: '500',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#E5E5E5',
-    borderRadius: 12,
-    paddingRight: 12,
-  },
-  titleInputBg: {
-    flex: 1,
-    borderWidth: 0,
-    borderColor: 'transparent',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  starIcon: {
-    padding: 4,
+  fieldHint: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    lineHeight: 18,
   },
   descriptionInput: {
     minHeight: 100,
@@ -405,46 +446,17 @@ const styles = StyleSheet.create({
   pickerContainer: {
     minHeight: 52,
   },
-  staffContainer: {
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: '#E5E7EB',
+  readOnlyField: {
+    borderWidth: 1.5,
+    borderColor: '#E5E5E5',
     borderRadius: 12,
-    padding: 12,
-    minHeight: 52,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    backgroundColor: '#F9FAFB',
   },
-  staffChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primaryLight,
-    paddingVertical: 6,
-    paddingLeft: 12,
-    paddingRight: 4,
-    borderRadius: 20,
-  },
-  staffChipText: {
-    color: Colors.primary,
-    fontSize: 14,
-    fontWeight: '500',
-    marginRight: 4,
-  },
-  chipRemove: {
-    padding: 2,
-  },
-  addStaffButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  addStaffIcon: {
-    marginRight: 6,
-  },
-  addStaffText: {
+  readOnlyText: {
+    fontSize: 15,
     color: Colors.textSecondary,
-    fontSize: 14,
     fontWeight: '500',
   },
   uploadZone: {
@@ -492,6 +504,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginRight: 4,
     maxWidth: 180,
+  },
+  chipRemove: {
+    padding: 2,
   },
   buttonRow: {
     flexDirection: 'row',
