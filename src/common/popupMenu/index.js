@@ -15,6 +15,12 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 
 const { width } = Dimensions.get('window');
 
+const GRID_PADDING = 20; // matches scrollContent padding
+const ITEMS_PER_ROW = 4;
+const ITEM_GAP = 12;
+const ITEM_WIDTH =
+  (width - GRID_PADDING * 2 - ITEM_GAP * (ITEMS_PER_ROW - 1)) / ITEMS_PER_ROW;
+
 const MEMBER_ONLY_ROUTES = ['Category', 'Membership', 'PaymentMethod', 'QueriesCases'];
 
 const PopupMenu = ({ visible, onClose, onNavigate, isMember = true }) => {
@@ -128,23 +134,29 @@ const PopupMenu = ({ visible, onClose, onNavigate, isMember = true }) => {
             contentContainerStyle={styles.scrollContent}
           >
             <View style={styles.menuGrid}>
-              {menuItems.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.menuItem}
-                  onPress={() => handleItemPress(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
-                    {item.iconType === 'Ionicons' ? (
-                      <Ionicons name={item.icon} size={28} color={item.color} />
-                    ) : (
-                      <MaterialCommunityIcons name={item.icon} size={28} color={item.color} />
-                    )}
-                  </View>
-                  <Text style={styles.menuLabel} numberOfLines={2}>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {menuItems.map((item, index) => {
+                const isLastInRow = (index + 1) % ITEMS_PER_ROW === 0;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[
+                      styles.menuItem,
+                      { marginRight: isLastInRow ? 0 : ITEM_GAP },
+                    ]}
+                    onPress={() => handleItemPress(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.iconContainer, { backgroundColor: item.bgColor }]}>
+                      {item.iconType === 'Ionicons' ? (
+                        <Ionicons name={item.icon} size={28} color={item.color} />
+                      ) : (
+                        <MaterialCommunityIcons name={item.icon} size={28} color={item.color} />
+                      )}
+                    </View>
+                    <Text style={styles.menuLabel} numberOfLines={2}>{item.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </ScrollView>
         </View>
@@ -197,15 +209,17 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: GRID_PADDING,
+    paddingTop: GRID_PADDING,
+    paddingBottom: GRID_PADDING,
   },
   menuGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   menuItem: {
-    width: (width - 60) / 4, // 4 items per row with padding
+    width: ITEM_WIDTH,
     alignItems: 'center',
     marginBottom: 20,
   },
