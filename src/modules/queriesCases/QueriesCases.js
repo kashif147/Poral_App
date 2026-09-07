@@ -179,7 +179,7 @@ const QueriesCases = () => {
           </View>
         </View>
 
-        <View style={styles.searchContainer}>
+        {/* <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
             <Ionicons
               name="search-outline"
@@ -200,7 +200,7 @@ const QueriesCases = () => {
               </TouchableOpacity>
             ) : null}
           </View>
-        </View>
+        </View> */}
 
         <ScrollView
           horizontal

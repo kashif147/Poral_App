@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, SafeAreaView, StatusBar } from 'react-native';
+import { Modal, View, Text, StyleSheet, ActivityIndicator, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert, SafeAreaView } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Button } from '../../../common/button';
 import { hp, Colors } from '../../../utils/Styles';
@@ -307,10 +307,6 @@ const SubscriptionPaymentModal = ({
   return (
     <Modal visible={visible} transparent={false} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-        <StatusBar
-          backgroundColor={Colors.background}
-          barStyle="dark-content"
-        />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

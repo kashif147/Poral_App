@@ -1,9 +1,9 @@
 import 'react-native-get-random-values';
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import TabNavigator from './src/navigation/TabNavigation';
-import { StatusBar, View, Platform, Alert, Linking, LogBox } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar, View, Platform, Alert, Linking, LogBox, AppState } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { Provider, useSelector, useDispatch } from 'react-redux';
 import store from './src/store';
@@ -89,6 +89,26 @@ function App() {
     }
     await AsyncStorage.setItem(LOGIN_STATUS_STORAGE_KEY, 'true');
   };
+
+  // Lock status bar globally — screens must not override this.
+  const applyStatusBar = useCallback(() => {
+    StatusBar.setBarStyle('dark-content', true);
+    StatusBar.setHidden(false);
+    if (Platform.OS === 'android') {
+      StatusBar.setBackgroundColor(Colors.surface);
+      StatusBar.setTranslucent(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    applyStatusBar();
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        applyStatusBar();
+      }
+    });
+    return () => subscription.remove();
+  }, [applyStatusBar]);
 
   // Android 13+: request POST_NOTIFICATIONS on first launch so delivery is not gated
   // until after login (Samsung often hides this under Settings → Notifications, not App permissions).
@@ -561,63 +581,80 @@ function App() {
     };
   }, [isSignedIn]);
 
+  const appStatusBar = (
+    <StatusBar
+      backgroundColor={
+        Platform.OS === 'android' ? Colors.surface : Colors.background
+      }
+      barStyle="dark-content"
+      translucent={false}
+      hidden={false}
+      animated={false}
+    />
+  );
+
   if (isLoading || (!isSignedIn && showUnauthSplash)) {
-    return <SplashScreen />;
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, backgroundColor: Colors.background }}>
+          {appStatusBar}
+          <SplashScreen />
+        </View>
+      </SafeAreaProvider>
+    );
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <StatusBar
-        backgroundColor={
-          Platform.OS === 'android' ? Colors.surface : Colors.background
-        }
-        barStyle="dark-content"
-        translucent={false}
-        hidden={false}
-        animated={true}
-      />
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: Colors.background }}
-        edges={['top']}
-      >
-        <StripeProvider
-          publishableKey={
-            'pk_test_51SBAG4FTlZb0wcbr19eI8nC5u62DfuaUWRVS51VTERBocxSM9JSEs4ubrW57hYTCAHK9d6jrarrT4SAViKFMqKjT00TrEr3PNV'
-          }
+    <SafeAreaProvider>
+      <View style={{ flex: 1, backgroundColor: Colors.background }}>
+        {appStatusBar}
+        <SafeAreaView
+          style={{ flex: 1, backgroundColor: Colors.background }}
+          edges={[]}
         >
-          {isSignedIn ? (
-            <NotificationProvider>
-              <LookupProvider>
-                <ApplicationProvider>
-                  <ProfileProvider>
-                    <NotificationSetup />
-                    <NavigationContainer ref={navigationRef}>
-                      <TabNavigator />
-                    </NavigationContainer>
-                  </ProfileProvider>
-                </ApplicationProvider>
-              </LookupProvider>
-            </NotificationProvider>
-          ) : showOnboarding ? (
-            <OnboardingScreen onComplete={handleOnboardingComplete} />
-          ) : (
-            <LandingPage
-              onLoginPress={handleLogin}
-              onGoogleLoginPress={handleGoogleLogin}
-              onSignUpPress={handleSignUp}
+          <StripeProvider
+            publishableKey={
+              'pk_test_51SBAG4FTlZb0wcbr19eI8nC5u62DfuaUWRVS51VTERBocxSM9JSEs4ubrW57hYTCAHK9d6jrarrT4SAViKFMqKjT00TrEr3PNV'
+            }
+          >
+            {isSignedIn ? (
+              <NotificationProvider>
+                <LookupProvider>
+                  <ApplicationProvider>
+                    <ProfileProvider>
+                      <NotificationSetup />
+                      <NavigationContainer
+                        ref={navigationRef}
+                        onReady={applyStatusBar}
+                        onStateChange={applyStatusBar}
+                      >
+                        <TabNavigator />
+                      </NavigationContainer>
+                    </ProfileProvider>
+                  </ApplicationProvider>
+                </LookupProvider>
+              </NotificationProvider>
+            ) : showOnboarding ? (
+              <OnboardingScreen onComplete={handleOnboardingComplete} />
+            ) : (
+              <LandingPage
+                onLoginPress={handleLogin}
+                onGoogleLoginPress={handleGoogleLogin}
+                onSignUpPress={handleSignUp}
+              />
+            )}
+            <WebViewLogin
+              visible={showWebView}
+              authMode={authMode}
+              onClose={handleWebViewClose}
+              onSuccess={handleLoginSuccess}
+              onError={handleLoginError}
             />
-          )}
-          <WebViewLogin
-            visible={showWebView}
-            authMode={authMode}
-            onClose={handleWebViewClose}
-            onSuccess={handleLoginSuccess}
-            onError={handleLoginError}
-          />
-          <FlashMessage position="top" />
-        </StripeProvider>
-      </SafeAreaView>
-    </View>
+            <FlashMessage position="top" />
+          </StripeProvider>
+        </SafeAreaView>
+      </View>
+    </SafeAreaProvider>
   );
 }
 

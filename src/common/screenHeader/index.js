@@ -56,7 +56,7 @@ const ScreenHeader = ({ title, showBack, onBackPress }) => {
     <View
       style={[
         styles.header,
-        { paddingTop: Platform.OS === 'ios' ? insets.top + 16 : 16 },
+        { paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 16 },
       ]}
     >
       <View style={styles.leftSection}>

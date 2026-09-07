@@ -5,8 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  StatusBar,
-  Platform,
   ImageBackground,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -73,12 +71,6 @@ const OnboardingScreen = ({ onComplete }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar
-        translucent={Platform.OS === 'android'}
-        backgroundColor={Platform.OS === 'android' ? 'rgba(30, 39, 130, 0.40)' : 'transparent'}
-        barStyle="light-content"
-      />
-
       <ImageBackground
         source={IMAGES.SPLASH}
         defaultSource={IMAGES.SPLASH}

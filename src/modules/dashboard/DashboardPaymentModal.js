@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   SafeAreaView,
-  StatusBar,
   TouchableOpacity,
 } from 'react-native';
 import { Colors, hp } from '../../utils/Styles';
@@ -200,7 +199,6 @@ const DashboardPaymentModal = ({ visible, onClose, onSuccess, netAmountInCents }
       presentationStyle="pageSheet"
     >
       <SafeAreaView style={{ flex: 1, backgroundColor: Colors.background }}>
-        <StatusBar backgroundColor={Colors.background} barStyle="dark-content" />
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

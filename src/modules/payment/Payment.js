@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   ActivityIndicator,
-  StatusBar,
   TouchableOpacity,
 } from 'react-native';
 import { Colors } from '../../utils/Styles';
@@ -187,7 +186,6 @@ const Payment = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor={Colors.background} barStyle="dark-content" />
       <ScreenHeader title="Payment" />
       {renderContent()}
     </View>

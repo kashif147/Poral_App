@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Image, StyleSheet, Animated, StatusBar, Platform, ImageBackground } from 'react-native';
+import { View, Text, Image, StyleSheet, Animated, Platform, ImageBackground } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import FontIcons from '../../utils/FontIcons';
 import { wp, hp } from '../../utils/Styles';
@@ -100,11 +100,6 @@ const SplashScreen = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar
-        translucent={Platform.OS === 'android'}
-        backgroundColor={Platform.OS === 'android' ? 'rgba(30, 39, 130, 0.40)' : 'transparent'}
-        barStyle="light-content"
-      />
       <View style={styles.backgroundLayer}>
         <ImageBackground
           source={IMAGES.SPLASH}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { SafeAreaView, View, Text, Image, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { SafeAreaView, View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, wp, hp } from '../../utils/Styles';
 import FontIcons from '../../utils/FontIcons';
 
@@ -8,7 +8,6 @@ const LandingPage = ({ onLoginPress, onGoogleLoginPress, onSignUpPress }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.layout}>
           <View style={styles.authCard}>

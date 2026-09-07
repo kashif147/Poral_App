@@ -1,5 +1,5 @@
-import React, { Fragment, useContext } from 'react';
-import { StatusBar, View } from 'react-native';
+import React, { Fragment } from 'react';
+import { View } from 'react-native';
 import { getStyles } from './styles';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Header } from '../header';
@@ -10,7 +10,6 @@ export const Wrapper = ({ noSafeArea, style, children, edges, showHeader = true,
     <Fragment>
       {noSafeArea ? (
         <View style={styles.container}>
-          <StatusBar backgroundColor={'transparent'} translucent={true} barStyle={'light-content'} />
           {showHeader ? (
             <Header title={title} showBack={showBack} onBellPress={onBellPress} onProfilePress={onProfilePress} />
           ) : null}
@@ -21,7 +20,6 @@ export const Wrapper = ({ noSafeArea, style, children, edges, showHeader = true,
           <SafeAreaView
             edges={edges || ['top']}
             style={styles.safeAreaView}>
-            <StatusBar backgroundColor={'transparent'} translucent={true} barStyle={'light-content'} />
             <View style={styles.container}>
               {showHeader ? (
                 <Header title={title} showBack={showBack} onBellPress={onBellPress} onProfilePress={onProfilePress} />

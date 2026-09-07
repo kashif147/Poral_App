@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   Text,
   RefreshControl,
-  StatusBar,
 } from 'react-native';
 import { Label } from '../../common/text/label';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -490,11 +489,6 @@ const DashBoard = () => {
 
   return (
     <View style={styles.container}>
-      <StatusBar
-        backgroundColor="#F8F5ED"
-        barStyle="dark-content"
-        translucent={false}
-      />
       <ScreenHeader showBack={false} title={`Dashboard`} />
       <ScrollView
         showsVerticalScrollIndicator={false}

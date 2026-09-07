@@ -273,7 +273,7 @@ const CreateCase = () => {
             />
           </View>
 
-          <View style={{ ...styles.fieldGroup, marginTop: 24 }}>
+          <View style={{ ...styles.fieldGroup, marginTop: 48 }}>
             <Label style={styles.fieldLabel}>Issue Date</Label>
             <DatePicker
               name="incidentDate"
