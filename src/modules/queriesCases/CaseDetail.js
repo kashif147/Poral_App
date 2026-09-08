@@ -44,15 +44,6 @@ import {
 } from '../../helpers/issues.helper';
 import ScreenHeader from '../../common/screenHeader';
 
-const SECTION_KEYS = {
-  general: 'general',
-  attachments: 'attachments',
-  details: 'details',
-  more: 'more',
-  resolution: 'resolution',
-  activity: 'activity',
-};
-
 const CaseDetail = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -67,18 +58,12 @@ const CaseDetail = () => {
   const [commentBody, setCommentBody] = useState('');
   const [commentFile, setCommentFile] = useState(null);
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [activityFilter, setActivityFilter] = useState('all');
   const [editingActivityId, setEditingActivityId] = useState('');
   const [editingBody, setEditingBody] = useState('');
   const [savingActivityId, setSavingActivityId] = useState('');
-  const [expanded, setExpanded] = useState({
-    [SECTION_KEYS.general]: true,
-    [SECTION_KEYS.attachments]: true,
-    [SECTION_KEYS.details]: true,
-    [SECTION_KEYS.more]: true,
-    [SECTION_KEYS.resolution]: true,
-    [SECTION_KEYS.activity]: true,
-  });
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(true);
+  const [activityExpanded, setActivityExpanded] = useState(true);
+  const [detailsExpanded, setDetailsExpanded] = useState(true);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
@@ -88,8 +73,6 @@ const CaseDetail = () => {
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const showSub = Keyboard.addListener(showEvent, event => {
-      // Android uses windowSoftInputMode=adjustResize, so the window
-      // already shrinks — only lift the bar manually on iOS.
       if (Platform.OS === 'android') {
         setKeyboardHeight(0);
         return;
@@ -155,10 +138,6 @@ const CaseDetail = () => {
     setRefreshing(true);
     await Promise.all([loadIssue(), loadActivities()]);
     setRefreshing(false);
-  };
-
-  const toggleSection = key => {
-    setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handlePickAttachment = async () => {
@@ -355,16 +334,6 @@ const CaseDetail = () => {
     );
   };
 
-  const filteredActivities = useMemo(() => {
-    if (activityFilter === 'comments') {
-      return activities.filter(activity => {
-        const type = String(activity.type || '').toLowerCase();
-        return !type || type.includes('comment') || Boolean(activity.body);
-      });
-    }
-    return activities;
-  }, [activities, activityFilter]);
-
   const activityAttachments = useMemo(
     () =>
       activities.flatMap(activity =>
@@ -380,74 +349,26 @@ const CaseDetail = () => {
   const attachmentCount = issueAttachments.length + activityAttachments.length;
 
   const caseReference =
-    issue?.internalReferenceNumber || issue?.caseTitle || issue?.id || '';
+    issue?.internalReferenceNumber || issue?.id || '';
   const statusLabel = issue?.issueStatus || issue?.status || 'Open';
   const isResolved =
     String(statusLabel).toLowerCase().includes('closed') ||
-    String(statusLabel).toLowerCase().includes('resolved') ||
-    Boolean(issue?.resolution && issue.resolution !== '—');
+    String(statusLabel).toLowerCase().includes('resolved');
 
-  const avatarLetter = String(
-    issue?.complainant || issue?.ownerTeam || issue?.caseTitle || 'C',
-  )
-    .trim()
-    .charAt(0)
-    .toUpperCase();
-
-  const renderHeader = () => (
-    <View
-      style={[
-        styles.topBar,
-        { paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 12 },
-      ]}
-    >
-      <TouchableOpacity
-        style={styles.backCircle}
-        onPress={() => navigation.goBack()}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons name="chevron-back" size={22} color="#172B4D" />
-      </TouchableOpacity>
-
-      <View style={styles.headerActions}>
-        <TouchableOpacity
-          style={styles.headerActionBtn}
-          onPress={handleRefresh}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="flash-outline" size={18} color="#172B4D" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.headerActionBtn}
-          onPress={() =>
-            setExpanded({
-              [SECTION_KEYS.general]: true,
-              [SECTION_KEYS.attachments]: true,
-              [SECTION_KEYS.details]: true,
-              [SECTION_KEYS.more]: true,
-              [SECTION_KEYS.resolution]: true,
-              [SECTION_KEYS.activity]: true,
-            })
-          }
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="list-outline" size={18} color="#172B4D" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.headerActionBtn}
-          onPress={handlePickAttachment}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="ellipsis-horizontal" size={18} color="#172B4D" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  // Detail = case title when it is not just a repeat of the reference
+  const detailValue = useMemo(() => {
+    const title = String(issue?.caseTitle || '').trim();
+    const ref = String(caseReference || '').trim();
+    if (!title || title === ref) {
+      return issue?.raw?.detail || issue?.raw?.details || '';
+    }
+    return title;
+  }, [issue, caseReference]);
 
   if (loading) {
     return (
       <View style={styles.container}>
-        {renderHeader()}
+        <ScreenHeader title="Case Detail" showBack />
         <ActivityIndicator color={Colors.primary} style={styles.loader} />
       </View>
     );
@@ -456,7 +377,7 @@ const CaseDetail = () => {
   if (!issue) {
     return (
       <View style={styles.container}>
-        {/* {renderHeader()} */}
+        <ScreenHeader title="Case Detail" showBack />
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>Case not found.</Text>
           <Button
@@ -472,8 +393,7 @@ const CaseDetail = () => {
 
   return (
     <View style={styles.container}>
-      {/* {renderHeader()} */}
-      <ScreenHeader title="Case Detail" showBack={true} />
+      <ScreenHeader title="Case Detail" showBack />
 
       <View style={styles.flex}>
         <ScrollView
@@ -490,96 +410,69 @@ const CaseDetail = () => {
             />
           }
         >
-          <View style={styles.keyRow}>
-            <View style={styles.typeIcon}>
-              <Ionicons name="bug" size={14} color="#FFFFFF" />
+          {/* Ref + Status */}
+          <View style={styles.refStatusCard}>
+            <View style={styles.refStatusRow}>
+              <View style={styles.refBlock}>
+                <Text style={styles.fieldLabel}>Ref</Text>
+                <View style={styles.refRow}>
+                  <View style={styles.typeIcon}>
+                    <Ionicons name="bug" size={12} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.refValue}>
+                    {formatDisplayValue(caseReference)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.statusBlock}>
+                <Text style={styles.fieldLabel}>Status</Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusBg(statusLabel) },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusBadgeText,
+                      { color: getStatusColor(statusLabel) },
+                    ]}
+                  >
+                    {statusLabel}
+                  </Text>
+                </View>
+              </View>
             </View>
-            <Text style={styles.keyText}>
-              {formatDisplayValue(caseReference)}
+          </View>
+
+          {/* Description */}
+          <View style={styles.descriptionCard}>
+            <Text style={styles.fieldLabel}>Description</Text>
+            <Text style={styles.bodyText}>
+              {formatDisplayValue(issue.description)}
             </Text>
-            <Ionicons name="link-outline" size={14} color="#6B778C" />
           </View>
 
-          <View style={styles.titleRow}>
-            <Text style={styles.title}>
-              {formatDisplayValue(issue.caseTitle || caseReference)}
-            </Text>
-            {/* <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{avatarLetter}</Text>
-            </View> */}
-          </View>
-
-          <View style={styles.statusRow}>
-            <View
-              style={[
-                styles.statusButton,
-                { backgroundColor: getStatusBg(statusLabel) },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusButtonText,
-                  { color: getStatusColor(statusLabel) },
-                ]}
-              >
-                {statusLabel}
-              </Text>
-              <Ionicons
-                name="chevron-down"
-                size={14}
-                color={getStatusColor(statusLabel)}
-              />
-            </View>
-
-            <View style={styles.transitionButton}>
-              <Ionicons name="checkmark" size={16} color="#172B4D" />
-              <Text style={styles.transitionText} numberOfLines={1}>
-                {statusLabel}
-              </Text>
-            </View>
-
-            <View style={styles.iconSquare}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#172B4D" />
-            </View>
-          </View>
-
-          {isResolved && issue.resolution ? (
-            <SectionCard
-              title="Resolution"
-              subtitle="Outcome and resolved date"
-              expanded={expanded[SECTION_KEYS.resolution]}
-              onToggle={() => toggleSection(SECTION_KEYS.resolution)}
-            >
-              <Text style={styles.bodyText}>{issue.resolution}</Text>
-              {issue.dateResolved ? (
-                <Text style={styles.metaHint}>
-                  Resolved on {issue.dateResolved}
-                  {issue.ownerTeam ? ` • ${issue.ownerTeam}` : ''}
-                </Text>
-              ) : null}
-            </SectionCard>
-          ) : null}
-
+          {/* Detail collapse */}
           <SectionCard
-            title="General"
-            subtitle="Priority, Description, Complaint type, and Origin"
-            expanded={expanded[SECTION_KEYS.general]}
-            onToggle={() => toggleSection(SECTION_KEYS.general)}
+            title="Details"
+            subtitle="Issue Type, Complaint Type, Priority, Received..."
+            expanded={detailsExpanded}
+            onToggle={() => setDetailsExpanded(prev => !prev)}
           >
-            <FieldRow label="Priority" value={issue.priority} />
+            <FieldRow label="Issue Type" value={issue.issueType} />
             <FieldRow
               label="Complaint Type"
               value={issue.complaintTypeLabel || issue.complaintType}
             />
-            <FieldRow label="Origin" value={issue.origin} />
-            <View style={styles.fieldBlock}>
-              <Text style={styles.fieldLabel}>Description</Text>
-              <Text style={styles.bodyText}>
-                {formatDisplayValue(issue.description)}
-              </Text>
-            </View>
+            <FieldRow label="Priority" value={issue.priority} />
+            <FieldRow label="Received" value={issue.dateReceived} />
+            <FieldRow label="Assigned Team" value={issue.ownerTeam} />
+            <FieldRow label="Last Activity" value={issue.lastActivityAt} last />
           </SectionCard>
 
+          {/* Attachments */}
           <SectionCard
             title="Attachments"
             badge={attachmentCount > 0 ? String(attachmentCount) : null}
@@ -588,8 +481,8 @@ const CaseDetail = () => {
                 ? `${attachmentCount} file${attachmentCount === 1 ? '' : 's'}`
                 : 'No files attached'
             }
-            expanded={expanded[SECTION_KEYS.attachments]}
-            onToggle={() => toggleSection(SECTION_KEYS.attachments)}
+            expanded={attachmentsExpanded}
+            onToggle={() => setAttachmentsExpanded(prev => !prev)}
           >
             {attachmentCount === 0 ? (
               <Text style={styles.emptyInline}>No attachments yet.</Text>
@@ -622,104 +515,24 @@ const CaseDetail = () => {
             )}
           </SectionCard>
 
-          <SectionCard
-            title="Details"
-            subtitle="Issue Type, Assignee, Reporter, Labels, Received..."
-            expanded={expanded[SECTION_KEYS.details]}
-            onToggle={() => toggleSection(SECTION_KEYS.details)}
-          >
-            <FieldRow label="Issue Type" value={issue.issueType} />
-            <FieldRow label="Assigned Team" value={issue.ownerTeam} />
-            <FieldRow label="Complainant" value={issue.complainant} />
-            <FieldRow label="Service Provider" value={issue.serviceProvider} />
-            <FieldRow label="Received" value={issue.dateReceived} />
-            <FieldRow label="Last Activity" value={issue.lastActivityAt} />
-            <FieldRow
-              label="Reference"
-              value={issue.internalReferenceNumber}
-            />
-          </SectionCard>
-
-          <SectionCard
-            title="More fields"
-            subtitle="Due date, External agency, Members, Portal..."
-            expanded={expanded[SECTION_KEYS.more]}
-            onToggle={() => toggleSection(SECTION_KEYS.more)}
-          >
-            <FieldRow label="Due Date" value={issue.dueDate} />
-            <FieldRow label="Created On" value={issue.createdOn} />
-            <FieldRow label="External Agency" value={issue.externalAgency} />
-            <FieldRow label="External Case Ref" value={issue.externalCaseRef} />
-            <FieldRow
-              label="Members"
-              value={
-                issue.memberCount > 0 ? String(issue.memberCount) : undefined
-              }
-            />
-            <FieldRow
-              label="Created via Portal"
-              value={
-                issue.createdViaPortal === true
-                  ? 'Yes'
-                  : issue.createdViaPortal === false
-                    ? 'No'
-                    : undefined
-              }
-            />
-            <FieldRow
-              label="External Solicitor"
-              value={
-                issue.externalSolicitorInvolved === true
-                  ? 'Yes'
-                  : issue.externalSolicitorInvolved === false
-                    ? 'No'
-                    : undefined
-              }
-            />
-          </SectionCard>
-
+          {/* 12. Activity */}
           <SectionCard
             title="Activity"
             subtitle={`${activities.length} update${
               activities.length === 1 ? '' : 's'
             }`}
-            expanded={expanded[SECTION_KEYS.activity]}
-            onToggle={() => toggleSection(SECTION_KEYS.activity)}
+            expanded={activityExpanded}
+            onToggle={() => setActivityExpanded(prev => !prev)}
           >
-            <View style={styles.filterRow}>
-              {[
-                { key: 'all', label: 'All Activity' },
-                { key: 'comments', label: 'Comments' },
-              ].map(tab => (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[
-                    styles.filterChip,
-                    activityFilter === tab.key && styles.filterChipActive,
-                  ]}
-                  onPress={() => setActivityFilter(tab.key)}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      activityFilter === tab.key && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
             {activitiesLoading ? (
               <ActivityIndicator
                 color={Colors.primary}
                 style={{ marginVertical: 16 }}
               />
-            ) : filteredActivities.length === 0 ? (
+            ) : activities.length === 0 ? (
               <Text style={styles.emptyInline}>No activity yet.</Text>
             ) : (
-              filteredActivities.map(activity => (
+              activities.map(activity => (
                 <View key={activity.id} style={styles.activityCard}>
                   <View style={styles.activityMeta}>
                     <Text style={styles.activityDate}>
@@ -862,14 +675,14 @@ const CaseDetail = () => {
   );
 };
 
-const SectionCard = ({
-  title,
-  subtitle,
-  badge,
-  expanded,
-  onToggle,
-  children,
-}) => (
+const FieldRow = ({ label, value, last }) => (
+  <View style={[styles.fieldRow, last && styles.fieldRowLast]}>
+    <Text style={styles.fieldLabel}>{label}</Text>
+    <Text style={styles.fieldValue}>{formatDisplayValue(value)}</Text>
+  </View>
+);
+
+const SectionCard = ({ title, subtitle, badge, expanded, onToggle, children }) => (
   <View style={styles.sectionCard}>
     <TouchableOpacity
       style={styles.sectionHeader}
@@ -898,13 +711,6 @@ const SectionCard = ({
       />
     </TouchableOpacity>
     {expanded ? <View style={styles.sectionBody}>{children}</View> : null}
-  </View>
-);
-
-const FieldRow = ({ label, value }) => (
-  <View style={styles.fieldRow}>
-    <Text style={styles.fieldLabel}>{label}</Text>
-    <Text style={styles.fieldValue}>{formatDisplayValue(value)}</Text>
   </View>
 );
 
@@ -939,49 +745,9 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    backgroundColor: '#F4F5F7',
-  },
-  backCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#091E42',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-    shadowColor: '#091E42',
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  headerActionBtn: {
-    width: 34,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 12,
     paddingBottom: 24,
   },
   loader: {
@@ -1003,11 +769,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     paddingVertical: 4,
   },
-  keyRow: {
+  refStatusCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
+  },
+  refStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  refBlock: {
+    flex: 1,
+  },
+  statusBlock: {
+    alignItems: 'flex-end',
+  },
+  refRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
   },
   typeIcon: {
     width: 20,
@@ -1017,78 +801,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  keyText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B778C',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 14,
-  },
-  title: {
-    flex: 1,
-    fontSize: 22,
+  refValue: {
+    fontSize: 18,
     fontWeight: '700',
     color: '#172B4D',
-    lineHeight: 28,
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#0052CC',
-    alignItems: 'center',
-    justifyContent: 'center',
+  descriptionCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 10,
   },
-  avatarText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  statusButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  statusBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 8,
   },
-  statusButtonText: {
+  statusBadgeText: {
     fontSize: 13,
     fontWeight: '700',
-  },
-  transitionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#EBECF0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  transitionText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#172B4D',
-  },
-  iconSquare: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    backgroundColor: '#EBECF0',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   sectionCard: {
     backgroundColor: '#FFFFFF',
@@ -1137,18 +870,18 @@ const styles = StyleSheet.create({
   },
   sectionBody: {
     paddingHorizontal: 16,
-    paddingBottom: 14,
+    paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#EBECF0',
-    paddingTop: 10,
+    paddingTop: 4,
   },
   fieldRow: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#F4F5F7',
   },
-  fieldBlock: {
-    paddingVertical: 10,
+  fieldRowLast: {
+    borderBottomWidth: 0,
   },
   fieldLabel: {
     fontSize: 12,
@@ -1167,33 +900,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: '#172B4D',
-  },
-  metaHint: {
-    marginTop: 8,
-    fontSize: 12,
-    color: '#6B778C',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#F4F5F7',
-  },
-  filterChipActive: {
-    backgroundColor: '#DEEBFF',
-  },
-  filterChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#42526E',
-  },
-  filterChipTextActive: {
-    color: '#0052CC',
   },
   activityCard: {
     backgroundColor: '#F4F5F7',

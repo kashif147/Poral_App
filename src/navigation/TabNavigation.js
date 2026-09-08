@@ -230,8 +230,6 @@ const TabNavigator = () => {
           headerShown: false,
           tabBarStyle: { display: 'none' },
           sceneStyle: { backgroundColor: Colors.background },
-          statusBarStyle: 'dark',
-          statusBarAnimation: 'none',
         }}
       >
         <Tab.Screen name={STACKS.DASHBOARD_STACK} component={DashBoard} />
