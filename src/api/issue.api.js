@@ -43,6 +43,9 @@ export const fetchPortalIssueById = id =>
 export const fetchPortalIssueActivities = id =>
   issue_request.get(`${PORTAL_ISSUES_BASE}/${id}/activities`);
 
+export const fetchPortalIssueHistory = id =>
+  issue_request.get(`${PORTAL_ISSUES_BASE}/${id}/history`);
+
 export const createPortalIssueActivity = (id, { body = '', file } = {}) => {
   const trimmedBody = String(body || '').trim();
 

@@ -231,6 +231,44 @@ export const mapPortalIssueActivities = response =>
     .map(mapPortalIssueActivity)
     .filter(Boolean);
 
+export const parseIssueHistoryResponse = response => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  return Array.isArray(payload) ? payload : payload?.items || [];
+};
+
+export const mapPortalIssueHistoryItem = (item, index = 0) => {
+  if (!item) return null;
+
+  return {
+    id: item?._id || item?.id || `history-${index}`,
+    issueId: item?.issueId || '',
+    entityType: item?.entityType || '',
+    entityId: item?.entityId || '',
+    action: String(item?.action || '').toUpperCase(),
+    summary: item?.summary || item?.message || 'History update',
+    changedFields: Array.isArray(item?.changedFields) ? item.changedFields : [],
+    actorId: item?.actorId || item?.actor?.id || '',
+    actorEmail: item?.actorEmail || item?.actor?.email || '',
+    actorName: item?.actorName || item?.actor?.name || '',
+    createdAt: formatIssueDateTime(item?.createdAt || item?.createdOn),
+    createdAtRaw: item?.createdAt || item?.createdOn || '',
+    raw: item,
+  };
+};
+
+export const mapPortalIssueHistory = response =>
+  parseIssueHistoryResponse(response)
+    .map(mapPortalIssueHistoryItem)
+    .filter(Boolean);
+
+export const getHistoryActionColor = action => {
+  const value = String(action || '').toUpperCase();
+  if (value === 'CREATED') return '#0052CC';
+  if (value === 'UPDATED') return '#FF8B00';
+  if (value === 'DELETED') return '#DE350B';
+  return '#6B778C';
+};
+
 export const parseAttachmentDownloadResponse = response => {
   const payload = response?.data?.data ?? response?.data ?? null;
   if (!payload?.url) return null;

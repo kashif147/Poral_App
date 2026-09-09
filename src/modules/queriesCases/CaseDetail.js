@@ -31,14 +31,17 @@ import {
   downloadPortalIssueActivityAttachment,
   fetchPortalIssueActivities,
   fetchPortalIssueById,
+  fetchPortalIssueHistory,
   updatePortalIssueActivity,
 } from '../../api/issue.api';
 import {
   formatDisplayValue,
+  getHistoryActionColor,
   getIssueApiErrorMessage,
   isIssueApiSuccess,
   mapPortalIssueActivities,
   mapPortalIssueDetail,
+  mapPortalIssueHistory,
   parseAttachmentDownloadResponse,
   parseIssueDetailResponse,
 } from '../../helpers/issues.helper';
@@ -52,8 +55,10 @@ const CaseDetail = () => {
 
   const [issue, setIssue] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [commentBody, setCommentBody] = useState('');
   const [commentFile, setCommentFile] = useState(null);
@@ -63,6 +68,7 @@ const CaseDetail = () => {
   const [savingActivityId, setSavingActivityId] = useState('');
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(true);
   const [activityExpanded, setActivityExpanded] = useState(true);
+  const [historyExpanded, setHistoryExpanded] = useState(true);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -125,18 +131,35 @@ const CaseDetail = () => {
     }
   }, [issueId]);
 
+  const loadHistory = useCallback(async () => {
+    if (!issueId) return;
+    setHistoryLoading(true);
+    try {
+      const response = await fetchPortalIssueHistory(issueId);
+      if (isIssueApiSuccess(response)) {
+        setHistory(mapPortalIssueHistory(response));
+      } else {
+        setHistory([]);
+      }
+    } catch (error) {
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [issueId]);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([loadIssue(), loadActivities()]);
+      await Promise.all([loadIssue(), loadActivities(), loadHistory()]);
       setLoading(false);
     };
     init();
-  }, [loadIssue, loadActivities]);
+  }, [loadIssue, loadActivities, loadHistory]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadIssue(), loadActivities()]);
+    await Promise.all([loadIssue(), loadActivities(), loadHistory()]);
     setRefreshing(false);
   };
 
@@ -182,7 +205,7 @@ const CaseDetail = () => {
       if (isIssueApiSuccess(response)) {
         setCommentBody('');
         setCommentFile(null);
-        await Promise.all([loadActivities(), loadIssue()]);
+        await Promise.all([loadActivities(), loadHistory(), loadIssue()]);
         return;
       }
 
@@ -251,7 +274,7 @@ const CaseDetail = () => {
 
       if (isIssueApiSuccess(response)) {
         cancelEditActivity();
-        await loadActivities();
+        await Promise.all([loadActivities(), loadHistory()]);
         return;
       }
 
@@ -285,7 +308,7 @@ const CaseDetail = () => {
                 if (editingActivityId === activity.id) {
                   cancelEditActivity();
                 }
-                await Promise.all([loadActivities(), loadIssue()]);
+                await Promise.all([loadActivities(), loadHistory(), loadIssue()]);
                 return;
               }
               Alert.alert(
@@ -318,7 +341,7 @@ const CaseDetail = () => {
                 attachment.index,
               );
               if (isIssueApiSuccess(response)) {
-                await loadActivities();
+                await Promise.all([loadActivities(), loadHistory()]);
                 return;
               }
               Alert.alert(
@@ -466,7 +489,23 @@ const CaseDetail = () => {
               label="Complaint Type"
               value={issue.complaintTypeLabel || issue.complaintType}
             />
-            <FieldRow label="Priority" value={issue.priority} />
+            <FieldRow label="Priority">
+              <View
+                style={[
+                  styles.priorityTag,
+                  { backgroundColor: getPriorityBg(issue.priority) },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.priorityTagText,
+                    { color: getPriorityColor(issue.priority) },
+                  ]}
+                >
+                  {formatDisplayValue(issue.priority)}
+                </Text>
+              </View>
+            </FieldRow>
             <FieldRow label="Received" value={issue.dateReceived} />
             <FieldRow label="Assigned Team" value={issue.ownerTeam} />
             <FieldRow label="Last Activity" value={issue.lastActivityAt} last />
@@ -610,6 +649,83 @@ const CaseDetail = () => {
               ))
             )}
           </SectionCard>
+
+          {/* 13. History */}
+          <SectionCard
+            title="History"
+            subtitle={`${history.length} event${
+              history.length === 1 ? '' : 's'
+            }`}
+            expanded={historyExpanded}
+            onToggle={() => setHistoryExpanded(prev => !prev)}
+          >
+            {historyLoading ? (
+              <ActivityIndicator
+                color={Colors.primary}
+                style={{ marginVertical: 16 }}
+              />
+            ) : history.length === 0 ? (
+              <Text style={styles.emptyInline}>No history yet.</Text>
+            ) : (
+              history.map(entry => (
+                <View key={entry.id} style={styles.historyCard}>
+                  <View style={styles.historyHeader}>
+                    <Text style={styles.historySummary}>{entry.summary}</Text>
+                    {entry.action ? (
+                      <View
+                        style={[
+                          styles.historyActionBadge,
+                          {
+                            backgroundColor: `${getHistoryActionColor(
+                              entry.action,
+                            )}18`,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.historyActionText,
+                            { color: getHistoryActionColor(entry.action) },
+                          ]}
+                        >
+                          {String(entry.action).toLowerCase()}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.historyMeta}>
+                    {entry.actorName || entry.actorEmail || 'Unknown actor'}
+                    {' · '}
+                    {entry.createdAt || 'Date unavailable'}
+                  </Text>
+                  {entry.entityType ? (
+                    <Text style={styles.historyEntity}>
+                      {String(entry.entityType).toLowerCase()}
+                    </Text>
+                  ) : null}
+                  {entry.changedFields?.length
+                    ? entry.changedFields.map((field, index) => {
+                        const label =
+                          field?.field ||
+                          field?.name ||
+                          field?.key ||
+                          `Field ${index + 1}`;
+                        const from = field?.from ?? field?.oldValue ?? '—';
+                        const to = field?.to ?? field?.newValue ?? '—';
+                        return (
+                          <Text
+                            key={`${entry.id}-field-${index}`}
+                            style={styles.historyField}
+                          >
+                            {label}: {String(from)} → {String(to)}
+                          </Text>
+                        );
+                      })
+                    : null}
+                </View>
+              ))
+            )}
+          </SectionCard>
         </ScrollView>
 
         <View
@@ -675,10 +791,30 @@ const CaseDetail = () => {
   );
 };
 
-const FieldRow = ({ label, value, last }) => (
+const getPriorityColor = priority => {
+  const value = String(priority || '').toLowerCase();
+  if (value.includes('high') || value.includes('urgent')) return '#DE350B';
+  if (value.includes('medium')) return '#FF8B00';
+  if (value.includes('low')) return '#006644';
+  return '#0052CC';
+};
+
+const getPriorityBg = priority => {
+  const value = String(priority || '').toLowerCase();
+  if (value.includes('high') || value.includes('urgent')) return '#FFEBE6';
+  if (value.includes('medium')) return '#FFFAE6';
+  if (value.includes('low')) return '#E3FCEF';
+  return '#DEEBFF';
+};
+
+const FieldRow = ({ label, value, last, children }) => (
   <View style={[styles.fieldRow, last && styles.fieldRowLast]}>
     <Text style={styles.fieldLabel}>{label}</Text>
-    <Text style={styles.fieldValue}>{formatDisplayValue(value)}</Text>
+    {children ? (
+      children
+    ) : (
+      <Text style={styles.fieldValue}>{formatDisplayValue(value)}</Text>
+    )}
   </View>
 );
 
@@ -896,6 +1032,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#172B4D',
   },
+  priorityTag: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  priorityTagText: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
   bodyText: {
     fontSize: 14,
     lineHeight: 22,
@@ -920,6 +1067,50 @@ const styles = StyleSheet.create({
   activityActions: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  historyCard: {
+    backgroundColor: '#F4F5F7',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 10,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  historySummary: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#172B4D',
+  },
+  historyActionBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  historyActionText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  historyMeta: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#6B778C',
+  },
+  historyEntity: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#97A0AF',
+    textTransform: 'capitalize',
+  },
+  historyField: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#42526E',
   },
   editInput: {
     minHeight: 80,
