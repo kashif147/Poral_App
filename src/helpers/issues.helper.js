@@ -121,6 +121,12 @@ export const formatIssueDateTime = value => {
   return parsed.isValid() ? parsed.format('D MMM YYYY • h:mm A') : String(value);
 };
 
+export const formatAttachmentDateTime = value => {
+  if (!value) return '';
+  const parsed = moment(value);
+  return parsed.isValid() ? parsed.format('DD/MM/YYYY HH:mm') : String(value);
+};
+
 export const parseIssuesListResponse = response => {
   const payload = response?.data?.data ?? response?.data ?? [];
   return Array.isArray(payload) ? payload : payload?.items || [];
@@ -173,9 +179,16 @@ export const parseIssueAttachments = issue => {
   const attachments = issue?.attachments ?? issue?.documents ?? [];
   return (Array.isArray(attachments) ? attachments : []).map((item, index) => ({
     id: item?._id || item?.id || index,
-    name: item?.fileName || item?.name || item?.originalName || 'Attachment',
+    name: item?.filename || item?.fileName || item?.name || item?.originalName || 'Attachment',
     url: item?.url || item?.fileUrl || item?.downloadUrl,
     mimeType: item?.mimeType || item?.contentType,
+    size: item?.size,
+    blobPath: item?.blobPath || '',
+    createdAt: formatAttachmentDateTime(
+      item?.createdAt || item?.uploadedAt || item?.createdOn,
+    ),
+    createdAtRaw:
+      item?.createdAt || item?.uploadedAt || item?.createdOn || '',
   }));
 };
 
@@ -215,12 +228,31 @@ export const mapPortalIssueActivity = (activity, index = 0) => {
       index: attachmentIndex,
       id: item?._id || item?.id || attachmentIndex,
       name:
+        item?.filename ||
         item?.fileName ||
         item?.originalName ||
         item?.name ||
         `Attachment ${attachmentIndex + 1}`,
       mimeType: item?.mimeType || item?.contentType || '',
+      size: item?.size,
+      blobPath: item?.blobPath || '',
       url: item?.url || item?.fileUrl || item?.downloadUrl || '',
+      createdAt: formatAttachmentDateTime(
+        item?.createdAt ||
+          item?.uploadedAt ||
+          item?.createdOn ||
+          activity?.createdAt ||
+          activity?.createdOn ||
+          activity?.timestamp,
+      ),
+      createdAtRaw:
+        item?.createdAt ||
+        item?.uploadedAt ||
+        item?.createdOn ||
+        activity?.createdAt ||
+        activity?.createdOn ||
+        activity?.timestamp ||
+        '',
     })),
     raw: activity,
   };

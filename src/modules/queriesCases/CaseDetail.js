@@ -220,32 +220,36 @@ const CaseDetail = () => {
     }
   };
 
+  const resolveActivityAttachmentUrl = async (activity, attachment) => {
+    if (attachment?.url) return attachment.url;
+
+    const response = await downloadPortalIssueActivityAttachment(
+      issueId,
+      activity.id,
+      attachment.index,
+    );
+
+    if (!isIssueApiSuccess(response)) {
+      throw new Error(
+        getIssueApiErrorMessage(response, 'Failed to open attachment'),
+      );
+    }
+
+    const downloadInfo = parseAttachmentDownloadResponse(response);
+    const url = downloadInfo?.url;
+    if (!url) {
+      throw new Error('Download link was not returned by the server.');
+    }
+
+    return url;
+  };
+
   const handleDownloadAttachment = async (activity, attachment) => {
     try {
-      const response = await downloadPortalIssueActivityAttachment(
-        issueId,
-        activity.id,
-        attachment.index,
-      );
-
-      if (!isIssueApiSuccess(response)) {
-        Alert.alert(
-          'Error',
-          getIssueApiErrorMessage(response, 'Failed to download attachment'),
-        );
-        return;
-      }
-
-      const downloadInfo = parseAttachmentDownloadResponse(response);
-      const url = downloadInfo?.url || attachment.url;
-      if (!url) {
-        Alert.alert('Error', 'Download link was not returned by the server.');
-        return;
-      }
-
+      const url = await resolveActivityAttachmentUrl(activity, attachment);
       await Linking.openURL(url);
     } catch (error) {
-      Alert.alert('Error', 'Failed to download attachment');
+      Alert.alert('Error', error?.message || 'Failed to download attachment');
     }
   };
 
@@ -526,11 +530,12 @@ const CaseDetail = () => {
             {attachmentCount === 0 ? (
               <Text style={styles.emptyInline}>No attachments yet.</Text>
             ) : (
-              <>
+              <View style={styles.attachmentGrid}>
                 {issueAttachments.map((attachment, index) => (
                   <AttachmentItem
                     key={`issue-${attachment.id || index}`}
                     name={attachment.name || `Attachment ${index + 1}`}
+                    createdAt={attachment.createdAt}
                     onDownload={
                       attachment.url
                         ? () => Linking.openURL(attachment.url)
@@ -542,6 +547,7 @@ const CaseDetail = () => {
                   <AttachmentItem
                     key={`activity-${attachment.activity.id}-${attachment.index}`}
                     name={attachment.name}
+                    createdAt={attachment.createdAt}
                     onDownload={() =>
                       handleDownloadAttachment(attachment.activity, attachment)
                     }
@@ -550,7 +556,7 @@ const CaseDetail = () => {
                     }
                   />
                 ))}
-              </>
+              </View>
             )}
           </SectionCard>
 
@@ -631,11 +637,13 @@ const CaseDetail = () => {
                     <Text style={styles.bodyText}>{activity.body}</Text>
                   ) : null}
 
-                  {activity.attachments?.length
-                    ? activity.attachments.map(attachment => (
+                  {activity.attachments?.length ? (
+                    <View style={styles.attachmentGrid}>
+                      {activity.attachments.map(attachment => (
                         <AttachmentItem
                           key={`${activity.id}-${attachment.index}`}
                           name={attachment.name}
+                          createdAt={attachment.createdAt}
                           onDownload={() =>
                             handleDownloadAttachment(activity, attachment)
                           }
@@ -643,8 +651,9 @@ const CaseDetail = () => {
                             handleDeleteAttachment(activity, attachment)
                           }
                         />
-                      ))
-                    : null}
+                      ))}
+                    </View>
+                  ) : null}
                 </View>
               ))
             )}
@@ -850,23 +859,33 @@ const SectionCard = ({ title, subtitle, badge, expanded, onToggle, children }) =
   </View>
 );
 
-const AttachmentItem = ({ name, onDownload, onRemove }) => (
-  <View style={styles.attachmentRow}>
-    <View style={styles.attachmentInfo}>
-      <Ionicons name="attach-outline" size={16} color="#6B778C" />
-      <Text style={styles.attachmentName} numberOfLines={1}>
-        {name}
-      </Text>
+const AttachmentItem = ({ name, createdAt, onDownload, onRemove }) => (
+  <View style={styles.attachmentCard}>
+    <View style={styles.attachmentPreview}>
+      <Ionicons name="document-text-outline" size={22} color="#DE350B" />
     </View>
-    <View style={styles.attachmentActions}>
+    <Text style={styles.attachmentCardName}>
+      {name || 'Attachment'}
+    </Text>
+    {createdAt ? (
+      <Text style={styles.attachmentCardDate}>{createdAt}</Text>
+    ) : null}
+    <View style={styles.attachmentCardActions}>
       {onDownload ? (
-        <TouchableOpacity onPress={onDownload}>
-          <Text style={styles.downloadText}>Download</Text>
+        <TouchableOpacity
+          onPress={onDownload}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="download-outline" size={16} color="#42526E" />
         </TouchableOpacity>
       ) : null}
       {onRemove ? (
-        <TouchableOpacity onPress={onRemove} style={{ marginLeft: 12 }}>
-          <Text style={styles.removeText}>Remove</Text>
+        <TouchableOpacity
+          onPress={onRemove}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ marginLeft: 14 }}
+        >
+          <Ionicons name="trash-outline" size={16} color="#42526E" />
         </TouchableOpacity>
       ) : null}
     </View>
@@ -1135,6 +1154,53 @@ const styles = StyleSheet.create({
   saveText: {
     color: '#0052CC',
     fontWeight: '700',
+  },
+  attachmentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  attachmentCard: {
+    width: 112,
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DFE1E6',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
+  attachmentPreview: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DFE1E6',
+    backgroundColor: '#F4F5F7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  attachmentCardName: {
+    width: '100%',
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#172B4D',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
+  attachmentCardDate: {
+    marginTop: 2,
+    fontSize: 9,
+    color: '#97A0AF',
+    textAlign: 'center',
+  },
+  attachmentCardActions: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   attachmentRow: {
     marginTop: 8,

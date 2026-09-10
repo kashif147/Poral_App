@@ -75,7 +75,7 @@ const Event = ({ initialCategoryType } = {}) => {
     subscriptionDetail,
     categoryData,
   } = useApplication();
-  const { profileDetail, getProfileDetail } = useProfile();
+  const { getProfileDetail } = useProfile();
   const membershipCategory =
     professionalDetail?.professionalDetails?.membershipCategory ||
     subscriptionDetail?.subscriptionDetails?.membershipCategory ||
@@ -103,11 +103,10 @@ const Event = ({ initialCategoryType } = {}) => {
 
   const loadData = useCallback(async () => {
     try {
-      const profileId = profileDetail?.profileId;
       const [eventsRes, coursesRes, registrationsRes] = await Promise.all([
         fetchPublishedEvents(),
         fetchPublishedCourses(),
-        fetchMyRegistrations(profileId),
+        fetchMyRegistrations(),
       ]);
 
       const eventsOk = eventsRes?.status >= 200 && eventsRes?.status < 300;
@@ -141,7 +140,7 @@ const Event = ({ initialCategoryType } = {}) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [profileDetail?.profileId]);
+  }, []);
 
   useEffect(() => {
     getProfileDetail?.();

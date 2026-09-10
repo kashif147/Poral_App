@@ -82,12 +82,5 @@ export const fetchPublishedCourses = (params = {}) =>
 export const createRegistrationRequest = data =>
   events_request.post('/api/registrations', data);
 
-export const fetchProfileRegistrations = profileId =>
-  withEventsRetry(() =>
-    events_request.get(`/api/registrations/profile/${profileId}`),
-  );
-
-export const fetchMyRegistrations = profileId =>
-  profileId
-    ? fetchProfileRegistrations(profileId)
-    : Promise.resolve(null);
+export const fetchMyRegistrations = () =>
+  withEventsRetry(() => events_request.get('/api/registrations/mine'));
