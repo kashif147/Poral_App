@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { Colors, hp, wp } from '../../utils/Styles';
+import { Colors, Radius, Shadows, wp } from '../../utils/Styles';
 
 export const getStyles = ({
   disabled,
@@ -11,42 +11,33 @@ export const getStyles = ({
   StyleSheet.create({
     container: {
       ...(type === 'tag'
-        ? { paddingHorizontal: wp(3), paddingVertical: hp(0.6), borderRadius: 20 }
-        : { 
-            height: 52,
+        ? {
+            paddingHorizontal: wp(3),
+            paddingVertical: 6,
+            borderRadius: Radius.full,
+          }
+        : {
+            height: 50,
             paddingHorizontal: wp(5),
-            shadowColor: '#000',
-            shadowOffset: {
-              width: 0,
-              height: primary && !outlined ? 4 : 2,
-            },
-            shadowOpacity: primary && !outlined ? 0.2 : 0.08,
-            shadowRadius: primary && !outlined ? 8 : 4,
-            elevation: primary && !outlined ? 6 : 2,
+            ...(primary && !outlined && !disabled && !isloading
+              ? Shadows.soft
+              : Shadows.none),
             borderWidth: 0,
           }),
-      borderRadius: 12,
+      borderRadius: type === 'tag' ? Radius.full : Radius.md,
       backgroundColor:
         disabled || isloading
-          ? '#CCCCCC'
+          ? Colors.muted
           : outlined
             ? 'transparent'
-            : primary
-              ? Colors.primary
-              : Colors.primary,
-      ...(outlined && { 
-        borderWidth: 2, 
-        borderColor: disabled ? '#CCCCCC' : Colors.primary,
+            : Colors.primary,
+      ...(outlined && {
+        borderWidth: 1.5,
+        borderColor: disabled ? Colors.border : Colors.primary,
         backgroundColor: 'transparent',
       }),
-      ...(!outlined && !disabled && !isloading && {
-        backgroundColor: primary ? Colors.primary : Colors.primary,
-      }),
-      ...(primary && !outlined && !disabled && !isloading && {
-        backgroundColor: Colors.primary,
-      }),
       ...(disabled && {
-        opacity: 0.5,
+        opacity: 0.55,
       }),
     },
     innerContainer: {
@@ -57,20 +48,24 @@ export const getStyles = ({
       flex: 1,
     },
     titleStyle: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '600',
-      color: outlined 
-        ? (disabled ? '#999999' : Colors.primary)
-        : (disabled ? '#666666' : Colors.white),
-      letterSpacing: 0.3,
+      color: outlined
+        ? disabled
+          ? Colors.textMuted
+          : Colors.primary
+        : disabled
+          ? Colors.textSecondary
+          : Colors.white,
+      letterSpacing: 0.2,
       textAlign: 'center',
       textTransform: 'none',
     },
-    leftIconView: { 
+    leftIconView: {
       paddingRight: wp(2),
       marginRight: wp(1),
     },
-    rightIconView: { 
+    rightIconView: {
       paddingLeft: wp(2),
       marginLeft: wp(1),
     },

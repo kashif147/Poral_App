@@ -272,12 +272,12 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   banner: {
-    backgroundColor: Colors.white || '#FFF',
+    backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -324,11 +324,11 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: Colors.white || '#FFF',
+    backgroundColor: Colors.surface,
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: Colors.border,
   },
   statIcon: {
     width: 36,

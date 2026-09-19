@@ -18,18 +18,18 @@ export const uploadIssueAttachments = (issueId, files = []) => {
   files.forEach(file => {
     if (!file) return;
     if (file?.uri) {
-      formData.append('file', {
+      formData.append('files', {
         uri: file.uri,
         name: file.name || 'attachment',
         type: file.type || 'application/octet-stream',
       });
       return;
     }
-    formData.append('file', file);
+    formData.append('files', file);
   });
 
   return issue_request.post(
-    `${PORTAL_ISSUES_BASE}/${issueId}/activities`,
+    `${PORTAL_ISSUES_BASE}/${issueId}/attachments`,
     formData,
   );
 };

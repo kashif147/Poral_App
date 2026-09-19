@@ -68,7 +68,7 @@ const ScreenHeader = ({ title, showBack, onBackPress }) => {
           >
             <Ionicons
               name="chevron-back-outline"
-              size={24}
+              size={22}
               color={Colors.textPrimary}
             />
           </TouchableOpacity>
@@ -86,7 +86,7 @@ const ScreenHeader = ({ title, showBack, onBackPress }) => {
         >
           <Ionicons
             name="notifications-outline"
-            size={24}
+            size={20}
             color={Colors.textPrimary}
           />
           {unreadCount > 0 && <View style={styles.notificationBadge} />}
@@ -115,60 +115,70 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 14,
     backgroundColor: Colors.surface,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    paddingRight: 12,
   },
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   backButton: {
-    marginRight: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.muted,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '500',
+    fontSize: 22,
+    fontWeight: '700',
     color: Colors.textPrimary,
+    letterSpacing: -0.3,
   },
   logo: {
-    width: 35,
-    height: 35,
+    width: 32,
+    height: 32,
     marginRight: 10,
+    borderRadius: 8,
   },
   profileButton: {
-    // marginRight: 12,
+    borderRadius: 18,
   },
   headerAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: Colors.divider,
+    borderWidth: 1.5,
+    borderColor: Colors.primaryLight,
   },
   notificationButton: {
     position: 'relative',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.muted,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   notificationBadge: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 10,
-    height: 10,
+    top: 6,
+    right: 6,
+    width: 9,
+    height: 9,
     borderRadius: 5,
-    backgroundColor: '#FF4444',
+    backgroundColor: Colors.danger,
     borderWidth: 2,
     borderColor: Colors.surface,
   },

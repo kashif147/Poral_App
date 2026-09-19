@@ -112,29 +112,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 
   return (
     <>
-      <View
-        style={{
-          height: hp(8),
-          flexDirection: 'row',
-          backgroundColor: Colors.white,
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderTopWidth: 0,
-          shadowColor: '#000',
-          shadowOpacity: 0.15,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: -2 },
-          elevation: 10,
-          paddingBottom: 0,
-          paddingHorizontal: wp(6),
-        }}
-      >
+      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom * 0.35, 4) }]}>
         {visibleRoutes.map((route, idx) => {
           const actualIndex = isMember ? idx : [0, 1, 2, 4][idx];
           const { options } = descriptors[route.key];
           const isFocused = state.index === actualIndex;
           const tab = visibleTabIcons[idx];
-          const iconColor = isFocused ? Colors.primary : Colors.textPrimary;
+          const iconColor = isFocused ? Colors.primary : Colors.textMuted;
 
           const onPress = () => {
             if (tab.name === 'menu') {
@@ -160,24 +144,18 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
               testID={options.tabBarTestID}
               onPress={onPress}
               activeOpacity={0.8}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: hp(0.8), position: 'relative' }}
+              style={styles.tabItem}
             >
-              <View style={{
-                borderRadius: 24,
-                marginBottom: 2,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
+              <View
+                style={[
+                  styles.tabIconWrap,
+                  isFocused && styles.tabIconWrapActive,
+                ]}
+              >
                 {tab.name === 'menu' ? (
-                  <HamburgerIcon
-                    color={iconColor}
-                    size={wp(5)}
-                  />
+                  <HamburgerIcon color={iconColor} size={wp(5)} />
                 ) : tab.name === STACKS.PAYMENT_STACK ? (
-                  <PaymentIcon
-                    color={iconColor}
-                    size={wp(5)}
-                  />
+                  <PaymentIcon color={iconColor} size={wp(5)} />
                 ) : (
                   <Image
                     source={tab.icon}
@@ -189,23 +167,14 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                   />
                 )}
               </View>
-              <Text style={{
-                color: iconColor,
-                fontSize: 10,
-                fontWeight: isFocused ? '600' : '500',
-                marginTop: 2,
-              }}>{tab.label}</Text>
-              {isFocused && (
-                <View style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: wp(3),
-                  right: wp(3),
-                  height: 3,
-                  backgroundColor: Colors.primary,
-                  borderRadius: 2,
-                }} />
-              )}
+              <Text
+                style={[
+                  styles.tabLabel,
+                  { color: iconColor, fontWeight: isFocused ? '700' : '500' },
+                ]}
+              >
+                {tab.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -258,7 +227,43 @@ const TabNavigator = () => {
 export default TabNavigator;
 
 export const styles = StyleSheet.create({
-
+  tabBar: {
+    minHeight: hp(7.5),
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+    paddingTop: 6,
+    paddingHorizontal: wp(4),
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 8,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: hp(0.5),
+  },
+  tabIconWrap: {
+    width: 40,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  tabIconWrapActive: {
+    backgroundColor: Colors.primaryLight,
+  },
+  tabLabel: {
+    fontSize: 11,
+    marginTop: 1,
+  },
   image: {
     height: wp(4.5),
     width: wp(4.5),

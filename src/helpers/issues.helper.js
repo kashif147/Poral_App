@@ -178,6 +178,7 @@ export const parseIssueIdFromResponse = response => {
 export const parseIssueAttachments = issue => {
   const attachments = issue?.attachments ?? issue?.documents ?? [];
   return (Array.isArray(attachments) ? attachments : []).map((item, index) => ({
+    index,
     id: item?._id || item?.id || index,
     name: item?.filename || item?.fileName || item?.name || item?.originalName || 'Attachment',
     url: item?.url || item?.fileUrl || item?.downloadUrl,
@@ -190,6 +191,42 @@ export const parseIssueAttachments = issue => {
     createdAtRaw:
       item?.createdAt || item?.uploadedAt || item?.createdOn || '',
   }));
+};
+
+/** Match an issue-level attachment to the activity attachment that owns it. */
+export const findMatchingActivityAttachment = (activities = [], attachment) => {
+  if (!attachment || !Array.isArray(activities)) return null;
+
+  const attachmentId = attachment.id != null ? String(attachment.id) : '';
+  const blobPath = attachment.blobPath || '';
+  const name = String(attachment.name || '').trim().toLowerCase();
+
+  for (const activity of activities) {
+    for (const item of activity?.attachments || []) {
+      const sameId =
+        attachmentId &&
+        item?.id != null &&
+        String(item.id) === attachmentId;
+      const sameBlob =
+        Boolean(blobPath) &&
+        Boolean(item?.blobPath) &&
+        item.blobPath === blobPath;
+      const sameName =
+        Boolean(name) &&
+        String(item?.name || '')
+          .trim()
+          .toLowerCase() === name &&
+        (!attachment.createdAtRaw ||
+          !item.createdAtRaw ||
+          attachment.createdAtRaw === item.createdAtRaw);
+
+      if (sameId || sameBlob || sameName) {
+        return { activity, attachment: item };
+      }
+    }
+  }
+
+  return null;
 };
 
 export const parseIssueActivitiesResponse = response => {

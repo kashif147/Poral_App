@@ -700,52 +700,73 @@ const Profile = () => {
           setShowValidation(false);
           setShowPersonalInfoForm(false);
         }}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.formModal}>
-            <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>Edit Personal Information</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowValidation(false);
-                  setShowPersonalInfoForm(false);
-                }}>
-                <Ionicons name="close" size={24} color={Colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
+        <KeyboardAvoidingView
+          style={styles.modalKeyboard}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              activeOpacity={1}
+              onPress={() => {
+                setShowValidation(false);
+                setShowPersonalInfoForm(false);
+              }}
+            />
+            <View
+              style={[
+                styles.formModal,
+                { paddingBottom: Math.max(insets.bottom, 16) },
+              ]}>
+              <View style={styles.sheetHandle} />
+              <View style={styles.formHeader}>
+                <Text style={styles.formTitle}>Edit Personal Information</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => {
+                    setShowValidation(false);
+                    setShowPersonalInfoForm(false);
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close" size={20} color={Colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
 
-            <ScrollView
-              style={styles.formScroll}
-              contentContainerStyle={{ paddingBottom: 24 }}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled">
-              <PersonalInformation
-                formData={personalInfo}
-                onFormDataChange={setPersonalInfo}
-                showValidation={showValidation}
-              />
-            </ScrollView>
+              <ScrollView
+                style={styles.formScroll}
+                contentContainerStyle={styles.formScrollContent}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                bounces={false}>
+                <PersonalInformation
+                  formData={personalInfo}
+                  onFormDataChange={setPersonalInfo}
+                  showValidation={showValidation}
+                  variant="sheet"
+                />
+              </ScrollView>
 
-            <View style={styles.formActions}>
-              <Button
-                title={loading ? 'Saving…' : 'Save Changes'}
-                onPress={handleSave}
-                primary
-                style={{ flex: 1 }}
-                disabled={loading || isReadOnly}
-              />
-              <Button
-                title="Cancel"
-                onPress={() => {
-                  setShowValidation(false);
-                  setShowPersonalInfoForm(false);
-                }}
-                outlined
-                style={{ flex: 1 }}
-                disabled={loading}
-              />
+              <View style={styles.formActions}>
+                <Button
+                  title={loading ? 'Saving…' : 'Save Changes'}
+                  onPress={handleSave}
+                  primary
+                  style={{ flex: 1 }}
+                  disabled={loading || isReadOnly}
+                />
+                <Button
+                  title="Cancel"
+                  onPress={() => {
+                    setShowValidation(false);
+                    setShowPersonalInfoForm(false);
+                  }}
+                  outlined
+                  style={{ flex: 1 }}
+                  disabled={loading}
+                />
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -953,46 +974,79 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  // Form Modal
-  formModal: {
-    backgroundColor: Colors.white,
-    marginHorizontal: 12,
-    marginTop: hp(6),
-    marginBottom: hp(3),
-    padding: 16,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+  // Form Modal — bottom sheet
+  modalKeyboard: {
     flex: 1,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+    backgroundColor: Colors.backdrop,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  formModal: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '92%',
+    paddingTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
+    marginBottom: 4,
   },
   formScroll: {
-    flex: 1,
+    maxHeight: hp(62),
+  },
+  formScrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
   },
   formHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.divider,
   },
   formTitle: {
-    fontSize: 18,
+    flex: 1,
+    fontSize: 17,
     fontWeight: '700',
     color: Colors.textPrimary,
+    letterSpacing: -0.3,
+    marginRight: 12,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   formActions: {
     flexDirection: 'row',
-    marginTop: 14,
     gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.divider,
+    backgroundColor: Colors.white,
   },
 });
 

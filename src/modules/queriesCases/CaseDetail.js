@@ -33,9 +33,11 @@ import {
   fetchPortalIssueById,
   fetchPortalIssueHistory,
   updatePortalIssueActivity,
+  uploadIssueAttachments,
 } from '../../api/issue.api';
 import {
   formatDisplayValue,
+  findMatchingActivityAttachment,
   getHistoryActionColor,
   getIssueApiErrorMessage,
   isIssueApiSuccess,
@@ -71,6 +73,7 @@ const CaseDetail = () => {
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [detailsExpanded, setDetailsExpanded] = useState(true);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   useEffect(() => {
     const showEvent =
@@ -220,6 +223,75 @@ const CaseDetail = () => {
     }
   };
 
+  const handleDownloadIssueAttachment = async attachment => {
+    const match = findMatchingActivityAttachment(activities, attachment);
+    if (match) {
+      await handleDownloadAttachment(match.activity, match.attachment);
+      return;
+    }
+
+    if (attachment?.url) {
+      try {
+        await Linking.openURL(attachment.url);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to download attachment');
+      }
+      return;
+    }
+
+    Alert.alert('Error', 'Unable to download this attachment.');
+  };
+
+  const handleDeleteIssueAttachment = attachment => {
+    const match = findMatchingActivityAttachment(activities, attachment);
+    if (match) {
+      handleDeleteAttachment(match.activity, match.attachment);
+      return;
+    }
+
+    Alert.alert('Error', 'Unable to remove this attachment.');
+  };
+
+  const handleUploadIssueAttachment = async () => {
+    if (!issueId || uploadingAttachment) return;
+
+    try {
+      const results = await pickDocument({
+        type: [
+          'application/pdf',
+          'image/png',
+          'image/jpeg',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ],
+        allowMultiSelection: false,
+      });
+      const file = results?.[0];
+      if (!file) return;
+
+      setUploadingAttachment(true);
+      const response = await uploadIssueAttachments(issueId, [file]);
+      if (isIssueApiSuccess(response)) {
+        await Promise.all([loadIssue(), loadActivities(), loadHistory()]);
+        return;
+      }
+
+      Alert.alert(
+        'Error',
+        getIssueApiErrorMessage(response, 'Failed to upload attachment'),
+      );
+    } catch (err) {
+      if (
+        isDocumentPickerErrorWithCode(err) &&
+        err.code === documentPickerErrorCodes.OPERATION_CANCELED
+      ) {
+        return;
+      }
+      Alert.alert('Error', 'Failed to upload attachment');
+    } finally {
+      setUploadingAttachment(false);
+    }
+  };
+
   const resolveActivityAttachmentUrl = async (activity, attachment) => {
     if (attachment?.url) return attachment.url;
 
@@ -345,7 +417,7 @@ const CaseDetail = () => {
                 attachment.index,
               );
               if (isIssueApiSuccess(response)) {
-                await Promise.all([loadActivities(), loadHistory()]);
+                await Promise.all([loadActivities(), loadHistory(), loadIssue()]);
                 return;
               }
               Alert.alert(
@@ -361,19 +433,8 @@ const CaseDetail = () => {
     );
   };
 
-  const activityAttachments = useMemo(
-    () =>
-      activities.flatMap(activity =>
-        (activity.attachments || []).map(attachment => ({
-          ...attachment,
-          activity,
-        })),
-      ),
-    [activities],
-  );
-
   const issueAttachments = issue?.attachments || [];
-  const attachmentCount = issueAttachments.length + activityAttachments.length;
+  const attachmentCount = issueAttachments.length;
 
   const caseReference =
     issue?.internalReferenceNumber || issue?.id || '';
@@ -527,37 +588,22 @@ const CaseDetail = () => {
             expanded={attachmentsExpanded}
             onToggle={() => setAttachmentsExpanded(prev => !prev)}
           >
-            {attachmentCount === 0 ? (
-              <Text style={styles.emptyInline}>No attachments yet.</Text>
-            ) : (
-              <View style={styles.attachmentGrid}>
-                {issueAttachments.map((attachment, index) => (
-                  <AttachmentItem
-                    key={`issue-${attachment.id || index}`}
-                    name={attachment.name || `Attachment ${index + 1}`}
-                    createdAt={attachment.createdAt}
-                    onDownload={
-                      attachment.url
-                        ? () => Linking.openURL(attachment.url)
-                        : undefined
-                    }
-                  />
-                ))}
-                {activityAttachments.map(attachment => (
-                  <AttachmentItem
-                    key={`activity-${attachment.activity.id}-${attachment.index}`}
-                    name={attachment.name}
-                    createdAt={attachment.createdAt}
-                    onDownload={() =>
-                      handleDownloadAttachment(attachment.activity, attachment)
-                    }
-                    onRemove={() =>
-                      handleDeleteAttachment(attachment.activity, attachment)
-                    }
-                  />
-                ))}
-              </View>
-            )}
+            <View style={styles.attachmentGrid}>
+              {issueAttachments.map((attachment, index) => (
+                <AttachmentItem
+                  key={`issue-${attachment.id || index}`}
+                  name={attachment.name || `Attachment ${index + 1}`}
+                  createdAt={attachment.createdAt}
+                  onDownload={() => handleDownloadIssueAttachment(attachment)}
+                  onRemove={() => handleDeleteIssueAttachment(attachment)}
+                />
+              ))}
+              <UploadNewItem
+                uploading={uploadingAttachment}
+                disabled={isResolved || uploadingAttachment}
+                onPress={handleUploadIssueAttachment}
+              />
+            </View>
           </SectionCard>
 
           {/* 12. Activity */}
@@ -859,24 +905,33 @@ const SectionCard = ({ title, subtitle, badge, expanded, onToggle, children }) =
   </View>
 );
 
-const AttachmentItem = ({ name, createdAt, onDownload, onRemove }) => (
+const AttachmentItem = ({ name, createdAt, onView, onDownload, onRemove }) => (
   <View style={styles.attachmentCard}>
     <View style={styles.attachmentPreview}>
       <Ionicons name="document-text-outline" size={22} color="#DE350B" />
     </View>
-    <Text style={styles.attachmentCardName}>
+    <Text style={styles.attachmentCardName} numberOfLines={1}>
       {name || 'Attachment'}
     </Text>
     {createdAt ? (
       <Text style={styles.attachmentCardDate}>{createdAt}</Text>
     ) : null}
     <View style={styles.attachmentCardActions}>
+      {onView ? (
+        <TouchableOpacity
+          onPress={onView}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="eye-outline" size={16} color="#1B2A4A" />
+        </TouchableOpacity>
+      ) : null}
       {onDownload ? (
         <TouchableOpacity
           onPress={onDownload}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={{ marginLeft: onView ? 14 : 0 }}
         >
-          <Ionicons name="download-outline" size={16} color="#42526E" />
+          <Ionicons name="download-outline" size={16} color="#1B2A4A" />
         </TouchableOpacity>
       ) : null}
       {onRemove ? (
@@ -892,10 +947,30 @@ const AttachmentItem = ({ name, createdAt, onDownload, onRemove }) => (
   </View>
 );
 
+const UploadNewItem = ({ uploading, disabled, onPress }) => (
+  <TouchableOpacity
+    style={styles.uploadNewCard}
+    onPress={onPress}
+    disabled={disabled}
+    activeOpacity={0.85}
+  >
+    <View style={styles.uploadNewPreview}>
+      {uploading ? (
+        <ActivityIndicator color="#FFFFFF" size="small" />
+      ) : (
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      )}
+    </View>
+    <Text style={styles.uploadNewLabel}>
+      {uploading ? 'Uploading…' : 'Upload New'}
+    </Text>
+  </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F5F7',
+    backgroundColor: Colors.background,
   },
   flex: {
     flex: 1,
@@ -915,17 +990,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emptyText: {
-    color: '#6B778C',
+    color: Colors.textSecondary,
     fontSize: 15,
     textAlign: 'center',
   },
   emptyInline: {
-    color: '#6B778C',
+    color: Colors.textSecondary,
     fontSize: 14,
     paddingVertical: 4,
   },
   refStatusCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -959,10 +1034,10 @@ const styles = StyleSheet.create({
   refValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#172B4D',
+    color: Colors.textPrimary,
   },
   descriptionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -979,10 +1054,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   sectionCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
     marginBottom: 10,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1002,19 +1079,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#172B4D',
+    color: Colors.textPrimary,
   },
   sectionSubtitle: {
     marginTop: 2,
     fontSize: 13,
-    color: '#6B778C',
+    color: Colors.textSecondary,
   },
   badge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
     paddingHorizontal: 6,
-    backgroundColor: '#EBECF0',
+    backgroundColor: Colors.muted,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1027,13 +1104,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#EBECF0',
+    borderTopColor: Colors.border,
     paddingTop: 4,
   },
   fieldRow: {
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#F4F5F7',
+    borderBottomColor: Colors.muted,
   },
   fieldRowLast: {
     borderBottomWidth: 0,
@@ -1041,7 +1118,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6B778C',
+    color: Colors.textSecondary,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.2,
@@ -1049,7 +1126,7 @@ const styles = StyleSheet.create({
   fieldValue: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#172B4D',
+    color: Colors.textPrimary,
   },
   priorityTag: {
     alignSelf: 'flex-start',
@@ -1065,10 +1142,10 @@ const styles = StyleSheet.create({
   bodyText: {
     fontSize: 14,
     lineHeight: 22,
-    color: '#172B4D',
+    color: Colors.textPrimary,
   },
   activityCard: {
-    backgroundColor: '#F4F5F7',
+    backgroundColor: Colors.background,
     borderRadius: 10,
     padding: 12,
     marginBottom: 10,
@@ -1081,14 +1158,14 @@ const styles = StyleSheet.create({
   },
   activityDate: {
     fontSize: 12,
-    color: '#6B778C',
+    color: Colors.textSecondary,
   },
   activityActions: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   historyCard: {
-    backgroundColor: '#F4F5F7',
+    backgroundColor: Colors.background,
     borderRadius: 10,
     padding: 12,
     marginBottom: 10,
@@ -1103,7 +1180,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#172B4D',
+    color: Colors.textPrimary,
   },
   historyActionBadge: {
     borderRadius: 999,
@@ -1118,12 +1195,12 @@ const styles = StyleSheet.create({
   historyMeta: {
     marginTop: 6,
     fontSize: 12,
-    color: '#6B778C',
+    color: Colors.textSecondary,
   },
   historyEntity: {
     marginTop: 4,
     fontSize: 11,
-    color: '#97A0AF',
+    color: Colors.textMuted,
     textTransform: 'capitalize',
   },
   historyField: {
@@ -1134,11 +1211,11 @@ const styles = StyleSheet.create({
   editInput: {
     minHeight: 80,
     borderWidth: 1,
-    borderColor: '#DFE1E6',
+    borderColor: Colors.border,
     borderRadius: 8,
     padding: 12,
-    backgroundColor: '#FFFFFF',
-    color: '#172B4D',
+    backgroundColor: Colors.surface,
+    color: Colors.textPrimary,
     fontSize: 14,
   },
   editActions: {
@@ -1148,7 +1225,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   cancelText: {
-    color: '#6B778C',
+    color: Colors.textSecondary,
     fontWeight: '600',
   },
   saveText: {
@@ -1164,9 +1241,9 @@ const styles = StyleSheet.create({
   attachmentCard: {
     width: 112,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#DFE1E6',
+    borderColor: Colors.border,
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 8,
@@ -1176,8 +1253,8 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DFE1E6',
-    backgroundColor: '#F4F5F7',
+    borderColor: Colors.border,
+    backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
@@ -1186,14 +1263,14 @@ const styles = StyleSheet.create({
     width: '100%',
     fontSize: 11,
     fontWeight: '600',
-    color: '#172B4D',
+    color: Colors.textPrimary,
     textAlign: 'center',
     lineHeight: 13,
   },
   attachmentCardDate: {
     marginTop: 2,
     fontSize: 9,
-    color: '#97A0AF',
+    color: Colors.textMuted,
     textAlign: 'center',
   },
   attachmentCardActions: {
@@ -1202,11 +1279,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  uploadNewCard: {
+    width: 112,
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
+  uploadNewPreview: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#1B2A4A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  uploadNewLabel: {
+    width: '100%',
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1B2A4A',
+    textAlign: 'center',
+    lineHeight: 13,
+  },
   attachmentRow: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: '#DFE1E6',
-    backgroundColor: '#FFFFFF',
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
     borderRadius: 8,
     padding: 10,
   },
@@ -1220,7 +1320,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 13,
     fontWeight: '600',
-    color: '#172B4D',
+    color: Colors.textPrimary,
   },
   attachmentActions: {
     flexDirection: 'row',
@@ -1237,7 +1337,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   commentBar: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#DFE1E6',
     paddingHorizontal: 12,
@@ -1245,7 +1345,7 @@ const styles = StyleSheet.create({
   },
   resolvedHint: {
     fontSize: 11,
-    color: '#6B778C',
+    color: Colors.textSecondary,
     marginBottom: 6,
     paddingHorizontal: 4,
   },
@@ -1264,12 +1364,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 36,
     maxHeight: 100,
-    backgroundColor: '#F4F5F7',
+    backgroundColor: Colors.background,
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 8,
     fontSize: 14,
-    color: '#172B4D',
+    color: Colors.textPrimary,
   },
   sendIconBtn: {
     width: 36,

@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  Platform,
 } from 'react-native';
-import { Colors, hp } from '../../utils/Styles';
+import { Colors, Radius, Spacing } from '../../utils/Styles';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenHeader from '../../common/screenHeader';
@@ -178,25 +179,26 @@ const Resources = () => {
           style={styles.filterScrollView}
         >
           {filters.map((filter) => (
-          <TouchableOpacity
-            key={filter.id}
-            style={[
-              styles.filterButton,
-              selectedFilter === filter.id && styles.filterButtonActive,
-            ]}
-            onPress={() => setSelectedFilter(filter.id)}
-            activeOpacity={0.7}
-          >
-            <Text
+            <TouchableOpacity
+              key={filter.id}
               style={[
-                styles.filterButtonText,
-                selectedFilter === filter.id && styles.filterButtonTextActive,
+                styles.filterButton,
+                selectedFilter === filter.id && styles.filterButtonActive,
               ]}
+              onPress={() => setSelectedFilter(filter.id)}
+              activeOpacity={0.85}
             >
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.filterButtonText,
+                  selectedFilter === filter.id && styles.filterButtonTextActive,
+                ]}
+              >
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       </View>
 
@@ -250,7 +252,7 @@ const Resources = () => {
                         ? 'bookmark'
                         : 'bookmark-outline'
                     }
-                    size={20}
+                    size={16}
                     color={Colors.white}
                   />
                 </TouchableOpacity>
@@ -260,7 +262,9 @@ const Resources = () => {
                 <Text style={styles.cardTitle} numberOfLines={2}>
                   {resource.title}
                 </Text>
-                <Text style={styles.cardType}>{resource.type}</Text>
+                <Text style={styles.cardType} numberOfLines={1}>
+                  {resource.type}
+                </Text>
 
                 {resource.badge && (
                   <View
@@ -413,83 +417,87 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
 
-  // Filter Tabs - fixed height; flex: 0 so this row never takes extra space when content shrinks
+  // Filter pills — fixed height + minWidth so all look uniform
   filterRowWrapper: {
     flex: 0,
-    height: 70,
-    minHeight: 70,
-    maxHeight: 70,
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   filterScrollView: {
-    height: 70,
-    minHeight: 70,
-    maxHeight: 70,
+    flexGrow: 0,
   },
   filterContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: Colors.surface,
-    paddingBottom: 32,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
   },
   filterButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
+    height: 34,
+    minWidth: 92,
+    paddingHorizontal: 16,
+    borderRadius: Radius.full,
     marginRight: 8,
-    backgroundColor: '#F3F4F6',
-    height: 28,
+    backgroundColor: Colors.muted,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   filterButtonActive: {
     backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
   },
   filterButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
-    color: Colors.textPrimary,
+    lineHeight: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    ...Platform.select({
+      android: {
+        includeFontPadding: false,
+        textAlignVertical: 'center',
+      },
+    }),
   },
   filterButtonTextActive: {
     color: Colors.white,
   },
 
-  // Resources Grid - flex: 1 and minHeight: 0 so this takes all space below filter without pushing it
   contentScrollView: {
     flex: 1,
     minHeight: 0,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
     paddingBottom: 100,
   },
   resourcesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 20,
     justifyContent: 'space-between',
   },
   resourceCard: {
     width: '48%',
     backgroundColor: Colors.white,
-    borderRadius: 16,
-    marginBottom: 16,
+    borderRadius: Radius.md,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
     overflow: 'hidden',
   },
   cardImageContainer: {
     position: 'relative',
     width: '100%',
-    height: 120,
+    height: 88,
     overflow: 'hidden',
   },
   cardImage: {
@@ -502,44 +510,45 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
   },
   bookmarkButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardContent: {
-    padding: 16,
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 10,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 8,
-    lineHeight: 22,
+    marginBottom: 3,
+    lineHeight: 17,
   },
   cardType: {
-    fontSize: 13,
+    fontSize: 11,
     color: Colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: 6,
     fontWeight: '400',
   },
   badge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Radius.sm,
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
   },
 

@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { Colors } from '../utils/Styles';
+import { Colors, Radius, Spacing } from '../utils/Styles';
 
-const PILL_HEIGHT = 32;
+const PILL_HEIGHT = 34;
 const PILL_GAP = 8;
 
 /**
@@ -67,34 +67,37 @@ const FilterPillBar = ({
 const styles = StyleSheet.create({
   wrapper: {
     backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    minHeight: PILL_HEIGHT + 18,
+    paddingHorizontal: Spacing.xl,
+    minHeight: PILL_HEIGHT + 16,
   },
   pill: {
     height: PILL_HEIGHT,
-    paddingHorizontal: 16,
-    borderRadius: PILL_HEIGHT / 2,
-    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 14,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.muted,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   pillSpacing: {
     marginRight: PILL_GAP,
   },
   pillActive: {
-    backgroundColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.primary,
   },
   pillText: {
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 16,
-    color: Colors.textPrimary,
+    color: Colors.textSecondary,
     textAlign: 'center',
     ...Platform.select({
       android: {
@@ -104,7 +107,7 @@ const styles = StyleSheet.create({
     }),
   },
   pillTextActive: {
-    color: Colors.white,
+    color: Colors.primaryDark,
   },
 });
 

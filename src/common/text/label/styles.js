@@ -3,7 +3,7 @@ import { Colors, TEXT_STYLE, wp } from '../../../utils/Styles';
 
 export const styles = StyleSheet.create({
   textStyle: {
-    color: Colors.black,
+    color: Colors.textPrimary,
     ...TEXT_STYLE.h16M,
     fontSize: wp(3.2),
   },

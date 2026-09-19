@@ -3,6 +3,7 @@ import {
   buildApplicationPersonalInfo,
   validateApplicationStep,
 } from './applicationForm.helper';
+import { isDataFormat } from './date.helper';
 
 export const PRICING_TIER_TYPES = {
   EARLY_BIRD_MEMBER: 'EARLY_BIRD_MEMBER',
@@ -898,15 +899,24 @@ export const buildEventsRegistrationProfile = ({
       : formData.workLocation;
   const grade =
     formData.grade === 'other' ? formData.otherGrade : formData.grade;
+  const dateOfBirth =
+    isDataFormat(formData.dateOfBirth || formData.dob) ||
+    formData.dateOfBirth ||
+    formData.dob ||
+    '';
 
   const profile = {
     profileId: profileId || formData.profileId || undefined,
     email,
+    title: formData.title || '',
     firstName: formData.forename || user?.userFirstName || user?.firstName || '',
     lastName: formData.surname || user?.userLastName || user?.lastName || '',
+    gender: formData.gender || '',
+    dateOfBirth,
     phone: formData.mobileNo || user?.userMobilePhone || user?.mobilePhone || '',
     workLocation: workLocation || '',
     grade: grade || '',
+    nmbiNumber: formData.nmbiNumber || formData.nmbiNo || '',
     addressLine1: formData.addressLine1 || '',
     addressLine2: formData.addressLine2 || '',
     townCity: formData.addressLine3 || '',

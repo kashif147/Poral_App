@@ -270,7 +270,13 @@ const PersonalInformation = ({
   showValidation,
   personalDetail,
   showProfessionalFields = false,
+  variant = 'default',
 }) => {
+  const isSheet = variant === 'sheet';
+  const cardStyle = isSheet ? [styles.card, styles.sheetCard] : styles.card;
+  const cardTitleStyle = isSheet
+    ? [styles.cardTitle, styles.sheetCardTitle]
+    : styles.cardTitle;
   const ref = useRef();
   const textInputRef = useRef(null);
   // Get lookups from context (matching web version - context handles all fetching centrally)
@@ -577,16 +583,10 @@ const PersonalInformation = ({
   };
 
   return (
-    <View
-      style={{
-        backgroundColor: Colors.background,
-        paddingBottom: 16,
-        paddingTop: 4,
-      }}
-    >
+    <View style={[styles.root, isSheet && styles.sheetRoot]}>
       {/* Basic Information Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Personal Information</Text>
+      <View style={cardStyle}>
+        <Text style={cardTitleStyle}>Personal Information</Text>
 
         {/* Title */}
         <Text style={styles.label}>Title *</Text>
@@ -724,8 +724,8 @@ const PersonalInformation = ({
       </View>
 
       {/* Consent Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Consent</Text>
+      <View style={cardStyle}>
+        <Text style={cardTitleStyle}>Consent</Text>
         <View style={styles.termsRow}>
           <View style={styles.termsLabelContainer}>
             <Text style={styles.termsLabel}>
@@ -748,8 +748,8 @@ const PersonalInformation = ({
       </View>
 
       {/* Address Information Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Correspondence Details</Text>
+      <View style={cardStyle}>
+        <Text style={cardTitleStyle}>Correspondence Details</Text>
 
         <View style={styles.halfInput}>
           <Text style={styles.label}>Preferred address *</Text>
@@ -1084,8 +1084,8 @@ const PersonalInformation = ({
       </View>
 
       {/* Contact Information Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Contact Details</Text>
+      <View style={cardStyle}>
+        <Text style={cardTitleStyle}>Contact Details</Text>
 
         <View style={styles.halfInput}>
           <Text style={styles.label}>Mobile No *</Text>
@@ -1252,8 +1252,8 @@ const PersonalInformation = ({
       </View>
 
       {showProfessionalFields ? (
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Professional Details</Text>
+      <View style={cardStyle}>
+        <Text style={cardTitleStyle}>Professional Details</Text>
 
         <Text style={styles.label}>Work Location *</Text>
         <View
@@ -1366,6 +1366,16 @@ const PersonalInformation = ({
 };
 
 const styles = StyleSheet.create({
+  root: {
+    backgroundColor: Colors.background,
+    paddingBottom: 16,
+    paddingTop: 4,
+  },
+  sheetRoot: {
+    backgroundColor: Colors.white,
+    paddingTop: 0,
+    paddingBottom: 8,
+  },
   card: {
     backgroundColor: Colors.cardBackground,
     marginBottom: 16,
@@ -1379,6 +1389,19 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
+  sheetCard: {
+    backgroundColor: Colors.white,
+    marginBottom: 4,
+    paddingHorizontal: 0,
+    paddingVertical: 16,
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.divider,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
   cardTitle: {
     color: Colors.textPrimary,
     fontWeight: '700',
@@ -1388,6 +1411,16 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+  },
+  sheetCardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: Colors.textSecondary,
+    marginBottom: 8,
+    paddingBottom: 10,
+    borderBottomColor: Colors.divider,
   },
   sectionTitle: {
     color: Colors.textPrimary,
@@ -1400,8 +1433,8 @@ const styles = StyleSheet.create({
   label: {
     color: Colors.textPrimary,
     fontWeight: '600',
-    fontSize: 15,
-    marginTop: 12,
+    fontSize: 14,
+    marginTop: 14,
     marginBottom: 6,
     letterSpacing: 0.1,
     lineHeight: 20,

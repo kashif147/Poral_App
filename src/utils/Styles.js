@@ -42,11 +42,11 @@ const boldTextFont = { fontFamily: boldFont };
 const styleTextFont = { fontFamily: styleFont };
 
 const Colors = {
-  primary: '#3A7BF6', // Blue primary color from the image
-  background: '#F5F5F5', // Light gray background
-  surface: '#FFFFFF', // White surface
-  primaryDark: '#2E62CC',
-  primaryLight: '#E8F0FE',
+  primary: '#3A7BF6',
+  background: '#F4F6F9',
+  surface: '#FFFFFF',
+  primaryDark: '#2563EB',
+  primaryLight: '#EFF6FF',
   white: '#FFFFFF',
   grey70: '#48484A',
   gray: '#929292',
@@ -70,11 +70,11 @@ const Colors = {
   lightGreen: '#F5FFFC',
   redFaded: 'rgba(255,0,0,0.4)',
   red: 'rgb(155,0,0)',
-  iconColor: '#949494',
+  iconColor: '#94A3B8',
   StarkWhite: '#CCC4B7',
   appleBlue: '#559EF8',
   Manatee: '#86868A',
-  darkCharcoal: '#323234', //Divider Color
+  darkCharcoal: '#323234',
   Charcoal: '#323233',
   charlestonGreen: '#2C2C2E',
   gray9: '#171717',
@@ -146,7 +146,7 @@ const Colors = {
   searchFaded: 'rgba(255,255,255,0.25)',
   silvedFaded: 'rgba(196, 196, 196, 0.7)',
   whiteFaded: 'rgba(255, 255, 255, 0)',
-  backdrop: 'rgba(0, 0, 0, 0.4)',
+  backdrop: 'rgba(15, 23, 42, 0.45)',
   blurEffect: 'rgba(0, 0, 0, 0.5)',
   blackShadow: '#rgba(0, 0, 0, 0.6)',
   blackFaded: 'rgba(0, 0, 0, 0.7)',
@@ -160,10 +160,68 @@ const Colors = {
   blue100: '#4293EE',
   blue200: '#0A84FF',
   lightgray: '#E7E7E7',
-  textPrimary: '#1A1A1A', // Dark text for light theme
-  textSecondary: '#666666', // Secondary text color
-  cardBackground: '#FFFFFF', // Card background
-  divider: '#E5E5E5', // Divider color
+  textPrimary: '#0F172A',
+  textSecondary: '#64748B',
+  textMuted: '#94A3B8',
+  cardBackground: '#FFFFFF',
+  divider: '#E2E8F0',
+  border: '#E2E8F0',
+  muted: '#F1F5F9',
+  success: '#059669',
+  successLight: '#D1FAE5',
+  warning: '#D97706',
+  warningLight: '#FEF3C7',
+  danger: '#DC2626',
+  dangerLight: '#FEE2E2',
+};
+
+const Spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+};
+
+const Radius = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  full: 999,
+};
+
+const Shadows = {
+  none: {
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  soft: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  medium: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  strong: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 8,
+  },
 };
 
 const Fonts = {
@@ -336,19 +394,15 @@ const TEXT_STYLE = StyleSheet.create({
 const form = StyleSheet.create({
   inputBG: {
     flexDirection: 'row',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#E5E5E5',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: wp(4),
     backgroundColor: Colors.white,
-    height: wp(13),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    height: wp(12.5),
+    ...Shadows.soft,
   },
   inputText: {
     ...TEXT_STYLE.h14M,
@@ -363,7 +417,7 @@ const form = StyleSheet.create({
 const container = StyleSheet.create({
   parent: {
     flex: 1,
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.background,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -455,44 +509,34 @@ const commonStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   shadow_5: {
-    elevation: 5,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    ...Shadows.medium,
   },
   shadow_3: {
-    elevation: 3,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 2.22,
+    ...Shadows.soft,
   },
   shadow_10: {
-    elevation: 10,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.34,
-    shadowRadius: 6.27,
+    ...Shadows.strong,
   },
   shadow_20: {
-    elevation: 20,
-    shadowColor: Colors.black,
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.51,
-    shadowRadius: 13.16,
+    ...Shadows.strong,
+  },
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.soft,
+  },
+  screen: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  sectionTitle: {
+    ...FontStyles.Satoshi.SemiBold,
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.textPrimary,
+    letterSpacing: -0.2,
   },
   noPadding: {
     paddingTop: 0,
@@ -606,29 +650,25 @@ const shadow = StyleSheet.create({
 });
 const btnStyle = StyleSheet.create({
   btnBG: {
-    height: 52,
+    height: 50,
     paddingHorizontal: wp(6),
-    borderRadius: 12,
+    borderRadius: Radius.md,
     borderWidth: 0,
     borderColor: Colors.transparent,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    ...Shadows.soft,
   },
   btnText: {
-    ...FontStyles.Satoshi.Bold,
-    fontSize: 16,
+    ...FontStyles.Satoshi.SemiBold,
+    fontSize: 15,
     fontWeight: '600',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   btnTextCol: {
     ...FontStyles.Satoshi.Medium,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.textPrimary,
     fontWeight: '500',
   },
@@ -656,11 +696,13 @@ export {
   primaryColor,
   secondryColor,
   tertiaryColor,
-  // headings,
   form,
   shadow,
   transparent,
   Colors,
+  Spacing,
+  Radius,
+  Shadows,
   TEXT_STYLE,
   commonStyles,
   ACTIVE_OPACITY,
