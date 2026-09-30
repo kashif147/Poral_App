@@ -1,50 +1,117 @@
-import { Platform } from 'react-native';
-import { generatePKCE } from './crypt.helper';
-import { setVerifier } from './verifier.helper';
+import { generatePkceRequest } from '../api/auth.api';
+import {
+  clearB2CAuthTransaction,
+  setB2CAuthTransaction,
+} from './verifier.helper';
 
-export const POLICY_BY_MODE = {
-  signin: 'B2C_1_projectshell_signin',
-  signup: 'B2C_1_projectshell_signup',
-  gmail: 'B2C_1_projectshell_signup_signin_gmail',
-  default: 'B2C_1_projectshell',
+export const B2C_FLOW_STORAGE_KEY = 'azure_b2c_flow';
+
+const FLOW_BY_MODE = {
+  signin: 'signin',
+  signup: 'signup',
+  gmail: 'gmail',
+  'password-reset': 'password-reset',
+  default: 'signin',
 };
 
-const CLIENT_ID = 'b0a62557-3308-4efb-954a-fb4b6a787309';
-const TENANT = 'projectshellAB2C.onmicrosoft.com';
-const B2C_DOMAIN = 'projectshellAB2C.b2clogin.com';
+const AUTHORIZATION_URL_KEY_BY_FLOW = {
+  signin: 'azureB2CSignIn',
+  signup: 'azureB2CSignUp',
+  gmail: 'azureB2CGmailCombined',
+  'password-reset': 'azureB2CPasswordReset',
+  default: 'azureB2C',
+};
 
-export const getB2CRedirectUri = () =>
-  Platform.OS === 'android'
-    ? 'com.portal://com.portal/android/callback'
-    : 'com.portal://com.portal/ios/callback';
+export const pickB2CAuthorizationUrl = (payload, flow = 'signin') => {
+  const urls = payload?.authorizationUrls || {};
+  const key =
+    AUTHORIZATION_URL_KEY_BY_FLOW[flow] || AUTHORIZATION_URL_KEY_BY_FLOW.default;
+  return urls[key] || urls.azureB2C || payload?.authorizationUrl || null;
+};
+
+/** Normalize /pkce/generate response whether fields are top-level or under data. */
+export const normalizePkcePayload = response => {
+  const root = response?.data ?? response ?? {};
+  const nested = root?.data && typeof root.data === 'object' ? root.data : null;
+  return {
+    ...root,
+    ...(nested || {}),
+    authorizationUrls:
+      nested?.authorizationUrls || root?.authorizationUrls || {},
+    codeVerifier: nested?.codeVerifier || root?.codeVerifier || null,
+    state: nested?.state || root?.state || null,
+  };
+};
+
+export const extractOAuthParam = (urlString, paramName) => {
+  if (!urlString || !paramName) return null;
+  try {
+    const parsed = new URL(urlString);
+    const value = parsed.searchParams.get(paramName);
+    if (value) return value;
+  } catch {
+    // Custom schemes may fail URL parsing.
+  }
+  const match = String(urlString).match(
+    new RegExp(`[?&#]${paramName}=([^&#]+)`),
+  );
+  return match ? decodeURIComponent(match[1]) : null;
+};
 
 /**
- * Generates PKCE, persists code_verifier for token exchange, and returns the Azure B2C authorize URL.
- * Use for WebView or system browser (e.g. Google sign-in must not use WebView).
+ * Start B2C via backend GET /pkce/generate.
+ * Returns the exact authorize URL + retained PKCE transaction fields.
  */
-export const buildB2CAuthorizeUrl = async (authMode = 'signin') => {
-  const { code_verifier, code_challenge } = await generatePKCE();
-  await setVerifier(code_verifier);
+export const startB2CAuthorization = async (authMode = 'signin') => {
+  const flow = FLOW_BY_MODE[authMode] || FLOW_BY_MODE.default;
+  const response = await generatePkceRequest(flow);
+  const payload = normalizePkcePayload(response);
 
-  const policy = POLICY_BY_MODE[authMode] || POLICY_BY_MODE.default;
-  const redirectUri = getB2CRedirectUri();
+  if (!(response?.status >= 200 && response?.status < 300) || !payload) {
+    await clearB2CAuthTransaction();
+    throw new Error(
+      payload?.message ||
+        payload?.error ||
+        'Failed to start authentication. Please try again.',
+    );
+  }
 
-  const url = new URL(
-    `https://${B2C_DOMAIN}/${TENANT}/${policy}/oauth2/v2.0/authorize`,
-  );
+  const codeVerifier = payload.codeVerifier;
+  const authUrl = pickB2CAuthorizationUrl(payload, flow);
 
-  const params = {
-    client_id: CLIENT_ID,
-    response_type: 'code',
-    redirect_uri: redirectUri,
-    scope: 'openid profile offline_access',
-    response_mode: 'query',
-    code_challenge: code_challenge,
-    code_challenge_method: 'S256',
-    prompt: 'login',
+  if (!codeVerifier || !authUrl) {
+    await clearB2CAuthTransaction();
+    throw new Error('Authentication challenge was incomplete. Please try again.');
+  }
+
+  const stateFromUrl = extractOAuthParam(authUrl, 'state');
+  const state = stateFromUrl || payload.state || null;
+
+  if (!state) {
+    await clearB2CAuthTransaction();
+    throw new Error('Authentication state was missing. Please try again.');
+  }
+
+  await setB2CAuthTransaction({ codeVerifier, state });
+
+  return {
+    authUrl,
+    codeVerifier,
+    state,
+    flow,
+    redirectUri: extractOAuthParam(authUrl, 'redirect_uri'),
   };
-
-  Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-
-  return { authUrl: url.toString(), codeVerifier: code_verifier };
 };
+
+/** @deprecated Use startB2CAuthorization — kept for older call sites. */
+export const buildB2CAuthorizeUrl = async (authMode = 'signin') => {
+  const result = await startB2CAuthorization(authMode);
+  return {
+    authUrl: result.authUrl,
+    codeVerifier: result.codeVerifier,
+    state: result.state,
+  };
+};
+
+/** Legacy helper — redirect URI is now owned by the backend authorize URL. */
+export const getB2CRedirectUri = () => null;

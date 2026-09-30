@@ -9,8 +9,8 @@ import {
 import { WebView } from 'react-native-webview';
 import { getVerifier } from '../../helpers/verifier.helper';
 import {
-  buildB2CAuthorizeUrl,
-  getB2CRedirectUri,
+  extractOAuthParam,
+  startB2CAuthorization,
 } from '../../helpers/b2cMobileAuthorize';
 
 const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onError }) => {
@@ -18,49 +18,35 @@ const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onErro
   const [isProcessing, setIsProcessing] = useState(false);
   const [authUrl, setAuthUrl] = useState(null);
   const [codeVerifier, setCodeVerifier] = useState(null);
+  const [authState, setAuthState] = useState(null);
   const webViewRef = React.useRef(null);
 
-  // Generate PKCE and create auth URL when modal opens (shared helper)
+  // Load backend-issued authorize URL when modal opens
   useEffect(() => {
     if (visible) {
       const initializeAuth = async () => {
         try {
-          const { authUrl: nextUrl, codeVerifier: verifier } =
-            await buildB2CAuthorizeUrl(authMode);
+          const {
+            authUrl: nextUrl,
+            codeVerifier: verifier,
+            state,
+          } = await startB2CAuthorization(authMode);
           setCodeVerifier(verifier);
-          console.log('Auth URL with PKCE:', nextUrl, 'mode:', authMode);
+          setAuthState(state);
           setAuthUrl(nextUrl);
           setLoading(true);
         } catch (error) {
-          console.error('Error initializing auth:', error);
           onError('Failed to initialize authentication');
         }
       };
 
       initializeAuth();
     } else {
-      // Reset when modal closes
       setAuthUrl(null);
       setCodeVerifier(null);
+      setAuthState(null);
     }
   }, [visible, authMode, onError]);
-
-  // Parse custom URL scheme manually since new URL() might not work with custom schemes
-  const parseUrl = urlString => {
-    const params = {};
-    const urlParts = urlString.split('?');
-    if (urlParts.length > 1) {
-      const queryString = urlParts[1];
-      const pairs = queryString.split('&');
-      pairs.forEach(pair => {
-        const [key, value] = pair.split('=');
-        if (key && value) {
-          params[decodeURIComponent(key)] = decodeURIComponent(value);
-        }
-      });
-    }
-    return params;
-  };
 
   /**
    * Process redirect URL from B2C (code or error).
@@ -68,84 +54,59 @@ const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onErro
    * we close the WebView without calling onError so no "Login Failed" is shown.
    */
   const processAuthRedirect = async url => {
-    // Prevent processing the same redirect multiple times
     if (isProcessing) {
-      console.log('Already processing redirect, ignoring duplicate');
       return;
     }
 
-    console.log('Processing auth redirect:', url);
     setIsProcessing(true);
 
     try {
-      // Clean up the URL in case it has extra characters
       let cleanUrl = url.trim();
       if (cleanUrl.startsWith('REDIRECT:')) {
         cleanUrl = cleanUrl.replace('REDIRECT:', '').trim();
       }
 
-      const params = parseUrl(cleanUrl);
-      const code = params.code;
-      const error = params.error;
-      const errorDescription = params.error_description;
+      const code = extractOAuthParam(cleanUrl, 'code');
+      const state =
+        extractOAuthParam(cleanUrl, 'state') || authState || null;
+      const error = extractOAuthParam(cleanUrl, 'error');
+      const errorDescription = extractOAuthParam(
+        cleanUrl,
+        'error_description',
+      );
 
       if (error) {
-        // AADB2C90091 = user cancelled sign-up / self-asserted screen; treat as benign, do not show Login Failed
         const desc = (errorDescription || '').toString();
         const isUserCancel =
           desc.includes('AADB2C90091') ||
-          desc.includes('The user has cancelled entering self-asserted information');
+          desc.includes(
+            'The user has cancelled entering self-asserted information',
+          );
         if (isUserCancel) {
-          console.log('User cancelled sign-up (AADB2C90091).');
           onClose();
           return;
         }
-        console.error('Auth error from Azure:', error, errorDescription);
         onError(errorDescription || error || 'Authentication failed');
         onClose();
         return;
       }
 
       if (code) {
-        console.log('✅ Authorization code received in processAuthRedirect');
-        console.log('Code length:', code.length);
-
-        // Get code_verifier from storage
         const verifier = codeVerifier || (await getVerifier());
         if (!verifier) {
-          console.error('❌ Code verifier not found!');
           throw new Error('Code verifier not found');
         }
-
-        console.log('✅ Code verifier found, length:', verifier.length);
-
-        // Pass code and codeVerifier to App.js for API call (similar to web flow)
-        console.log('📤 Calling onSuccess with code and codeVerifier...');
-        console.log(
-          'onSuccess callback exists:',
-          typeof onSuccess === 'function',
-        );
-
-        try {
-          onSuccess({ code, codeVerifier: verifier });
-          console.log('✅ onSuccess called successfully');
-        } catch (error) {
-          console.error('❌ Error calling onSuccess:', error);
-          throw error;
+        if (!state) {
+          throw new Error('Authentication state was missing');
         }
 
-        console.log('📤 Calling onClose...');
+        onSuccess({ code, codeVerifier: verifier, state });
         onClose();
-        console.log('✅ onClose called');
       } else {
-        console.error('❌ No authorization code found in redirect URL');
-        console.error('URL was:', cleanUrl);
-        console.error('Parsed params:', params);
         onError('No authorization code received');
         onClose();
       }
     } catch (error) {
-      console.error('Error processing redirect:', error);
       onError(error.message || 'Failed to process authentication');
       onClose();
     } finally {
@@ -155,165 +116,45 @@ const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onErro
 
   const handleNavigationStateChange = navState => {
     const { url } = navState;
-    console.log('Navigation changed to:', url);
+    if (!url) return;
 
-    // Check if URL contains code parameter (even if it's not our redirect URL yet)
-    // This catches cases where Azure B2C redirects to http://localhost or other URLs with code
-    if (url && url.includes('code=')) {
-      const codeMatch = url.match(/[?&]code=([^&]+)/);
-      if (codeMatch && codeMatch[1]) {
-        const code = decodeURIComponent(codeMatch[1]);
-        // Check if it looks like a JWT token (long string)
-        if (code.length > 100) {
-          console.log(
-            'Code parameter found in navigation URL, length:',
-            code.length,
-          );
-          const redirectUrl = `com.portal://com.portal/ios/callback?code=${encodeURIComponent(
-            code,
-          )}`;
-          console.log(
-            'Processing authentication directly from navigation state change...',
-          );
-          // Process directly instead of using deep link
-          processAuthRedirect(redirectUrl);
-          return;
-        }
-      }
-    }
-
-    // Check if this is our redirect URL
-    if (
-      url &&
-      (url.startsWith('com.portal://com.portal/ios/callback') ||
-        url.startsWith('com.portal://com.portal/android/callback'))
-    ) {
-      console.log('Redirect URL detected in navigation state change');
+    if (url.includes('code=') && url.includes('state=')) {
       processAuthRedirect(url);
       return;
     }
 
-    // Check if URL contains our callback pattern (in case of encoding issues)
-    if (
-      url &&
-      (url.includes('com.portal://com.portal/ios/callback') ||
-        url.includes('com.portal://com.portal/android/callback'))
-    ) {
-      console.log(
-        'Redirect URL detected (pattern match) in navigation state change',
-      );
-      processAuthRedirect(url);
-      return;
-    }
-
-    // If we're on the confirmed page, inject script to monitor for redirect
-    if (url && url.includes('/confirmed')) {
-      console.log('On confirmed page, monitoring for redirect...');
-    }
-  };
-
-  const onShouldStartLoadWithRequest = request => {
-    const { url } = request;
-    console.log('Should start loading:', url);
-
-    if (!url) {
-      return true;
-    }
-
-    // Check if URL contains code parameter (even if it's not our redirect URL yet)
-    // This is critical - Azure B2C might redirect to http://localhost or other URLs with code
-    if (url && url.includes('code=')) {
-      const codeMatch = url.match(/[?&]code=([^&]+)/);
-      if (codeMatch && codeMatch[1]) {
-        const code = decodeURIComponent(codeMatch[1]);
-        // Check if it looks like a JWT token (long string, typically > 100 chars)
-        if (code.length > 100) {
-          console.log('⚠️ CODE PARAMETER FOUND IN URL! Length:', code.length);
-          console.log('URL was:', url.substring(0, 200) + '...');
-
-          // Process directly via processAuthRedirect instead of deep link
-          // This ensures the onSuccess callback is called immediately
-          console.log('Processing authentication directly...');
-          processAuthRedirect(
-            `com.portal://com.portal/ios/callback?code=${encodeURIComponent(
-              code,
-            )}`,
-          );
-          return false; // Prevent WebView from loading this URL
-        }
-      }
-    }
-
-    // If it's our redirect URL, process it and prevent WebView from loading it
     if (
       url.startsWith('com.portal://com.portal/ios/callback') ||
       url.startsWith('com.portal://com.portal/android/callback') ||
       url.includes('com.portal://com.portal/ios/callback') ||
       url.includes('com.portal://com.portal/android/callback')
     ) {
-      console.log(
-        'Redirect URL detected in onShouldStartLoadWithRequest:',
-        url,
-      );
-      // Process the redirect asynchronously
       processAuthRedirect(url);
-      // Prevent WebView from trying to load the custom URL scheme
+    }
+  };
+
+  const onShouldStartLoadWithRequest = request => {
+    const { url } = request;
+    if (!url) {
+      return true;
+    }
+
+    if (url.includes('code=') && (url.includes('state=') || authState)) {
+      processAuthRedirect(url);
+      return false;
+    }
+
+    if (
+      url.startsWith('com.portal://com.portal/ios/callback') ||
+      url.startsWith('com.portal://com.portal/android/callback') ||
+      url.includes('com.portal://com.portal/ios/callback') ||
+      url.includes('com.portal://com.portal/android/callback')
+    ) {
+      processAuthRedirect(url);
       return false;
     }
 
     return true;
-  };
-
-  const exchangeCodeForTokens = async (code, redirectUri, codeVerifier) => {
-    const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309';
-    const tenant = 'projectshellAB2C.onmicrosoft.com';
-    const policy = 'B2C_1_projectshell';
-    const b2cDomain = 'projectshellAB2C.b2clogin.com';
-
-    // Use provided redirectUri or default based on platform
-    const finalRedirectUri = redirectUri || getB2CRedirectUri();
-
-    const tokenUrl = `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`;
-
-    console.log('Exchanging code for tokens at:', tokenUrl);
-    console.log('Using code_verifier:', codeVerifier ? 'present' : 'missing');
-
-    try {
-      const bodyParams = {
-        client_id: clientId,
-        code: code,
-        redirect_uri: finalRedirectUri,
-        grant_type: 'authorization_code',
-        code_verifier: codeVerifier,
-      };
-
-      const response = await fetch(tokenUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams(bodyParams).toString(),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Token exchange failed:', response.status, errorText);
-        throw new Error(`Token exchange failed: ${response.status}`);
-      }
-
-      const tokenData = await response.json();
-      console.log('Token exchange successful');
-
-      return {
-        accessToken: tokenData.access_token,
-        idToken: tokenData.id_token,
-        refreshToken: tokenData.refresh_token,
-        expiresIn: tokenData.expires_in,
-      };
-    } catch (error) {
-      console.error('Token exchange error:', error);
-      throw error;
-    }
   };
 
   // Reset processing flag when modal closes
@@ -349,44 +190,34 @@ const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onErro
             onLoadEnd={syntheticEvent => {
               const { nativeEvent } = syntheticEvent;
               const url = nativeEvent?.url;
-              console.log('WebView loading finished:', url);
               setLoading(false);
 
-              // Check if this is our redirect URL
+              // HTTPS MS_REDIRECT_URI or custom-scheme callback — keep exchange in-app.
               if (
                 url &&
-                (url.startsWith('com.portal://com.portal/ios/callback') ||
+                (url.includes('code=') ||
+                  url.startsWith('com.portal://com.portal/ios/callback') ||
                   url.startsWith('com.portal://com.portal/android/callback'))
               ) {
-                console.log('Redirect URL detected in onLoadEnd');
                 processAuthRedirect(url);
                 return;
               }
 
               // If we're on the confirmed page, check for redirect after a delay
               if (url && url.includes('/confirmed')) {
-                console.log('On confirmed page, will check for redirect...');
-
-                // Also check the current URL for code parameter immediately
                 try {
-                  const urlParams = new URLSearchParams(
-                    url.split('?')[1] || '',
-                  );
-                  const code = urlParams.get('code');
-                  if (code && code.length > 100) {
-                    console.log('✅ Code found in confirmed page URL!');
+                  const code = extractOAuthParam(url, 'code');
+                  const state =
+                    extractOAuthParam(url, 'state') || authState || '';
+                  if (code) {
                     const redirectUrl = `com.portal://com.portal/ios/callback?code=${encodeURIComponent(
                       code,
-                    )}`;
-                    console.log('Triggering redirect immediately');
-                    Linking.openURL(redirectUrl).catch(err => {
-                      console.error('Error opening redirect URL:', err);
-                      processAuthRedirect(redirectUrl);
-                    });
+                    )}${state ? `&state=${encodeURIComponent(state)}` : ''}`;
+                    processAuthRedirect(redirectUrl);
                     return;
                   }
                 } catch (e) {
-                  console.log('Error parsing confirmed page URL:', e);
+                  // continue monitoring below
                 }
 
                 // Set up a timeout to check if redirect happens after a delay

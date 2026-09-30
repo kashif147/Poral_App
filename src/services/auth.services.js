@@ -13,30 +13,17 @@ import {
   setRefreshToken,
   deleteRefreshToken,
 } from '../helpers/auth.helper';
-import { deleteVerifier } from '../helpers/verifier.helper';
+import { clearB2CAuthTransaction } from '../helpers/verifier.helper';
+import { microsoftLogoutRedirect } from '../helpers/B2C.helper';
 import { setSignedIn, setUser, setDetail } from '../store/slice/auth.slice';
 import { getMemberDetail } from '../helpers/decode.helper';
 import { toast } from '../utils/toast.utils';
-import { decryptToken } from '../helpers/crypt.helper';
-
-const normalizeRefreshToken = async token => {
-  if (!token || typeof token !== 'string') return null;
-
-  const looksEncrypted = token.includes(':') && token.split(':').length === 3;
-  if (!looksEncrypted) return token;
-
-  try {
-    return await decryptToken(token);
-  } catch {
-    return token;
-  }
-};
 
 const performLogoutCleanup = async dispatch => {
   await deleteHeaders();
   await deleteRefreshToken();
   await deleteUser();
-  await deleteVerifier();
+  await clearB2CAuthTransaction();
   dispatch(setSignedIn(false));
   dispatch(setUser({}));
   dispatch(setDetail(null));
@@ -46,36 +33,26 @@ export const validation = () => {
   return async dispatch => {
     try {
       const res = await getHeaders();
-      const storedRefreshToken = await getRefreshToken();
+      const refreshToken = await getRefreshToken();
       const hasToken =
         res?.token &&
         typeof res.token === 'string' &&
         res.token.trim().length > 0;
 
-      if (!hasToken || !storedRefreshToken) {
+      if (!hasToken || !refreshToken) {
         dispatch(setSignedIn(false));
         dispatch(setUser({}));
         dispatch(setDetail(null));
         return;
       }
 
-      const refreshToken = await normalizeRefreshToken(storedRefreshToken);
-      if (!refreshToken) {
-        await performLogoutCleanup(dispatch);
-        return;
-      }
-
+      // Backend now sends tokens as-is (no client-side decryption).
       const refreshUser = await refreshTokenRequest({ refreshToken });
       if (refreshUser?.status === 200) {
         const tokenPayload = refreshUser?.data?.data ?? refreshUser?.data;
         await setHeaders(tokenPayload);
         if (tokenPayload?.refreshToken) {
-          const nextRefreshToken = await normalizeRefreshToken(
-            tokenPayload.refreshToken,
-          );
-          if (nextRefreshToken) {
-            await setRefreshToken(nextRefreshToken);
-          }
+          await setRefreshToken(tokenPayload.refreshToken);
         }
       } else {
         await performLogoutCleanup(dispatch);
@@ -83,11 +60,9 @@ export const validation = () => {
       }
 
       const meRes = await validationRequest();
-      const isSuccess =
-        meRes?.status >= 200 && meRes?.status < 300;
+      const isSuccess = meRes?.status >= 200 && meRes?.status < 300;
 
       if (isSuccess) {
-        // /api/me returns { success, data: { id, email, firstName, ... }, policyVersion }
         const meUser = meRes.data?.data ?? meRes.data;
         if (meUser) {
           await saveUser(meUser);
@@ -113,15 +88,10 @@ export const signInMicrosoft = data => {
         if (res.status === 200) {
           await setHeaders(res.data);
           if (res?.data?.refreshToken) {
-            const normalizedRefreshToken = await normalizeRefreshToken(
-              res.data.refreshToken,
-            );
-            if (normalizedRefreshToken) {
-              await setRefreshToken(normalizedRefreshToken);
-            }
+            await setRefreshToken(res.data.refreshToken);
           }
           await saveUser(res.data.user);
-          deleteVerifier();
+          await clearB2CAuthTransaction();
           dispatch(setSignedIn(true));
           dispatch(setUser(res.data.user));
           const memberDetail = await getMemberDetail();
@@ -139,19 +109,16 @@ export const signInMicrosoft = data => {
 export const signOut = navigation => {
   return async dispatch => {
     try {
-      await deleteHeaders();
-      await deleteRefreshToken();
-      await deleteUser();
-      await deleteVerifier();
-      dispatch(setSignedIn(false));
-      dispatch(setUser({}));
-      dispatch(setDetail(null));
+      await performLogoutCleanup(dispatch);
       try {
         const { unRegisterAppWithFcm } = await import('./firebase.services');
         await unRegisterAppWithFcm();
       } catch (fcmError) {
         console.error('FCM unregister error:', fcmError);
       }
+
+      // End B2C browser session so next login prompts for credentials.
+      await microsoftLogoutRedirect();
     } catch (error) {
       console.error('Sign out error:', error);
       dispatch(setSignedIn(false));

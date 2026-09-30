@@ -5,7 +5,7 @@
 // const ACCOUNT_URL = `https://accountsservieshell-azezcecrecgkd6cm.northeurope-01.azurewebsites.net`;
 // const PROFILE_URL = `https://profileserviceshell-bqfmh8apf9erf0b0.northeurope-01.azurewebsites.net`;
 
-const DOMAIN = 'projectshell-vm.northeurope.cloudapp.azure.com';
+const DOMAIN = 'projectshell-vm.northeurope.cloudapp.azure.com:8443';
 const BASE_URL = `https://${DOMAIN}/user-service`;
 const PORTAL_URL = `https://${DOMAIN}/portal-service`;
 const ACCOUNT_URL = `https://${DOMAIN}/account-service`;

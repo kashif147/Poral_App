@@ -8,7 +8,7 @@ const request = axios.create();
 request.interceptors.request.use(
   async config => {
     const headers = await getHeaders();
-   
+    // Backend sends the signed JWT as-is (no client-side decryption).
     if (headers.token) {
       config.headers['Authorization'] = `Bearer ${headers.token}`;
     }

@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { decryptToken } from './crypt.helper';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
@@ -7,31 +6,19 @@ const REFRESH_TOKEN_KEY = 'refreshToken';
 
 export const setHeaders = async headers => {
   try {
-    await AsyncStorage.setItem(TOKEN_KEY, headers['accessToken']);
+    const accessToken =
+      headers?.accessToken || headers?.token || headers?.access_token;
+    if (typeof accessToken === 'string' && accessToken.trim()) {
+      await AsyncStorage.setItem(TOKEN_KEY, accessToken);
+    }
   } catch {}
 };
 
 export const getHeaders = async () => {
   try {
+    // Backend now sends the signed JWT as-is (no client-side decryption).
     const token = await AsyncStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      return { token: null };
-    }
-    
-    // Check if token is encrypted (format: iv:authTag:encrypted)
-    if (token.includes(':') && token.split(':').length === 3) {
-      try {
-        const decryptedToken = await decryptToken(token);
-        return { token: decryptedToken };
-      } catch (error) {
-        console.error('Error decrypting token:', error);
-        // If decryption fails, return original token (might not be encrypted)
-        return { token };
-      }
-    }
-    
-    // Token is not encrypted, return as is
-    return { token };
+    return { token: token || null };
   } catch {
     return { token: null };
   }

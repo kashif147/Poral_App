@@ -23,10 +23,18 @@ import {
   setHeaders,
   setRefreshToken,
 } from './src/helpers/auth.helper';
-import { deleteVerifier } from './src/helpers/verifier.helper';
+import {
+  clearB2CAuthTransaction,
+  getB2CAuthTransaction,
+} from './src/helpers/verifier.helper';
 import { signInMicrosoftRequest } from './src/api/auth.api';
 import WebViewLogin from './src/common/WebViewLogin';
-import { buildB2CAuthorizeUrl } from './src/helpers/b2cMobileAuthorize';
+import WebViewLogout from './src/common/WebViewLogout';
+import { registerB2CLogoutHandler } from './src/helpers/b2cLogoutBridge';
+import {
+  B2C_FLOW_STORAGE_KEY,
+  extractOAuthParam,
+} from './src/helpers/b2cMobileAuthorize';
 import {
   getFcmToken,
   checkApplicationNotificationsPermission,
@@ -46,7 +54,6 @@ import { getMemberDetail } from './src/helpers/decode.helper';
 
 LogBox.ignoreAllLogs(true);
 
-const B2C_FLOW_STORAGE_KEY = 'azure_b2c_flow';
 const LOGIN_STATUS_STORAGE_KEY = 'login';
 
 function App() {
@@ -55,6 +62,7 @@ function App() {
   const isLoading = useSelector(state => state.auth.isLoading);
   const [showWebView, setShowWebView] = useState(false);
   const [authMode, setAuthMode] = useState('signin');
+  const [b2cLogoutUrl, setB2cLogoutUrl] = useState(null);
   const [showUnauthSplash, setShowUnauthSplash] = useState(true);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(true);
@@ -63,31 +71,41 @@ function App() {
   const notificationsInitializedRef = useRef(false);
   const notificationSetupTimeoutRef = useRef(null);
   const notificationRetryTimeoutRef = useRef(null);
+  const processedAuthCodeRef = useRef(null);
 
   const saveFlowToStorage = flow => {
     AsyncStorage.setItem(B2C_FLOW_STORAGE_KEY, flow).catch(() => {});
   };
 
-  const buildAuthPayload = async (code, codeVerifier) => {
-    const data = {
+  const clearAuthTransaction = async () => {
+    await clearB2CAuthTransaction();
+    await AsyncStorage.removeItem(B2C_FLOW_STORAGE_KEY);
+  };
+
+  /** Required backend contract: code + codeVerifier + state only. */
+  const buildAuthPayload = async (code, codeVerifier, state) => {
+    const transaction = await getB2CAuthTransaction();
+    return {
       code,
-      codeVerifier,
+      codeVerifier: codeVerifier || transaction.codeVerifier,
+      state: state || transaction.state,
     };
-
-    const storedFlow = await AsyncStorage.getItem(B2C_FLOW_STORAGE_KEY);
-    if (storedFlow) {
-      data.flow = storedFlow;
-    }
-
-    return data;
   };
 
   const finalizeSuccessfulAuth = async () => {
-    const storedFlow = await AsyncStorage.getItem(B2C_FLOW_STORAGE_KEY);
-    if (storedFlow) {
-      await AsyncStorage.removeItem(B2C_FLOW_STORAGE_KEY);
-    }
+    await clearAuthTransaction();
     await AsyncStorage.setItem(LOGIN_STATUS_STORAGE_KEY, 'true');
+  };
+
+  const mapAuthErrorMessage = (response, fallback = 'Unable to Sign In') => {
+    const status = response?.status;
+    if (status === 400) {
+      return 'Your sign-in session expired or was invalid. Please try again.';
+    }
+    if (status === 401) {
+      return 'Authentication failed. Please try signing in again.';
+    }
+    return fallback;
   };
 
   // Lock status bar globally — screens must not override this.
@@ -98,6 +116,11 @@ function App() {
       StatusBar.setBackgroundColor(Colors.surface);
       StatusBar.setTranslucent(false);
     }
+  }, []);
+
+  // In-app B2C logout WebView (avoids Safari + portal-dev.vercel.app).
+  useEffect(() => {
+    return registerB2CLogoutHandler(setB2cLogoutUrl);
   }, []);
 
   useEffect(() => {
@@ -153,121 +176,139 @@ function App() {
     setShowUnauthSplash(false);
   }, [isAuthChecked, isSignedIn]);
 
-  // Enhanced deep link handling for authentication callback
+  // Deep link / app-link handling for authentication callback
   useEffect(() => {
-    const handleDeepLink = async event => {
+    const isAuthCallbackUrl = url => {
+      if (!url) return false;
       if (
-        event.url &&
-        (event.url.startsWith('com.portal://com.portal/ios/callback') ||
-          event.url.startsWith('com.portal://com.portal/android/callback'))
+        url.startsWith('com.portal://com.portal/ios/callback') ||
+        url.startsWith('com.portal://com.portal/android/callback')
       ) {
-        dispatch(setLoading(true));
-        setShowWebView(false);
-        try {
-          if (event.url.includes('error=')) {
-            const errorMatch = event.url.match(/error=([^&]+)/);
-            const errorDescriptionMatch = event.url.match(
-              /error_description=([^&]+)/,
-            );
-            const error = errorMatch
-              ? decodeURIComponent(errorMatch[1])
-              : 'Authentication failed';
-            const description = errorDescriptionMatch
-              ? decodeURIComponent(errorDescriptionMatch[1])
-              : 'Unknown error';
+        return true;
+      }
+      // Backend MS_REDIRECT_URI is HTTPS — also accept any callback carrying code+state.
+      return (
+        (url.startsWith('https://') || url.startsWith('http://')) &&
+        url.includes('code=') &&
+        url.includes('state=')
+      );
+    };
 
-            dispatch(setLoading(false));
-            Alert.alert('Login Failed', `${error}: ${description}`);
-            return;
-          }
+    const handleDeepLink = async event => {
+      const url = event?.url;
+      if (!isAuthCallbackUrl(url)) return;
 
-          const codeMatch = event.url.match(/code=([^&]+)/);
-          if (codeMatch && codeMatch[1]) {
-            const code = decodeURIComponent(codeMatch[1]);
+      dispatch(setLoading(true));
+      setShowWebView(false);
+      try {
+        if (url.includes('error=')) {
+          await clearAuthTransaction();
+          dispatch(setLoading(false));
+          Alert.alert(
+            'Login Failed',
+            'Sign-in was cancelled or failed. Please try again.',
+          );
+          return;
+        }
 
-            const { getVerifier } = require('./src/helpers/verifier.helper');
+        const code = extractOAuthParam(url, 'code');
+        const state = extractOAuthParam(url, 'state');
 
-            const codeVerifier = await getVerifier();
-            if (!codeVerifier) {
+        if (!code) {
+          await clearAuthTransaction();
+          dispatch(setLoading(false));
+          Alert.alert('Login Failed', 'No authorization code received');
+          return;
+        }
+
+        if (processedAuthCodeRef.current === code) {
+          dispatch(setLoading(false));
+          return;
+        }
+        processedAuthCodeRef.current = code;
+
+        const transaction = await getB2CAuthTransaction();
+        const codeVerifier = transaction.codeVerifier;
+        if (!codeVerifier || !state) {
+          await clearAuthTransaction();
+          dispatch(setLoading(false));
+          Alert.alert(
+            'Error',
+            'Your sign-in session expired or was incomplete. Please try again.',
+          );
+          return;
+        }
+
+        if (transaction.state && transaction.state !== state) {
+          await clearAuthTransaction();
+          dispatch(setLoading(false));
+          Alert.alert(
+            'Error',
+            'Your sign-in session was invalid. Please try signing in again.',
+          );
+          return;
+        }
+
+        const data = await buildAuthPayload(code, codeVerifier, state);
+        const response = await signInMicrosoftRequest(data);
+
+        if (response && response.status === 200) {
+          if (response.data) {
+            const accessToken =
+              response.data.accessToken ||
+              response.data.token ||
+              response.data.access_token;
+
+            if (accessToken) {
+              await setHeaders({ accessToken: accessToken });
+              await AsyncStorage.setItem('token', accessToken);
+              await setBearerToken(accessToken);
+            } else {
+              await clearAuthTransaction();
               dispatch(setLoading(false));
-              Alert.alert(
-                'Error',
-                'Code verifier not found. Please try logging in again.',
-              );
+              Alert.alert('Error', 'No access token received from server');
               return;
             }
 
-            const data = await buildAuthPayload(code, codeVerifier);
+            if (response.data.user) {
+              await saveUser(response.data.user);
+            }
 
-            const response = await signInMicrosoftRequest(data);
-
-            if (response && response.status === 200) {
-              if (response.data) {
-                const accessToken =
-                  response.data.accessToken ||
-                  response.data.token ||
-                  response.data.access_token;
-
-                if (accessToken) {
-                  await setHeaders({ accessToken: accessToken });
-                  await AsyncStorage.setItem('token', accessToken);
-                  await setBearerToken(accessToken);
-                } else {
-                  dispatch(setLoading(false));
-                  Alert.alert('Error', 'No access token received from server');
-                  return;
-                }
-
-                if (response.data.user) {
-                  await saveUser(response.data.user);
-                }
-
-                const refreshToken =
-                  response.data.refreshToken || response.data.refresh_token;
-                if (refreshToken) {
-                  await setRefreshToken(refreshToken);
-                }
-              } else {
-                dispatch(setLoading(false));
-                Alert.alert('Error', 'Invalid response from server');
-                return;
-              }
-
-              await deleteVerifier();
-
-              dispatch(setSignedIn(true));
-              if (response.data.user) {
-                dispatch(setUser(response.data.user));
-              }
-              await finalizeSuccessfulAuth();
-              const memberDetail = await getMemberDetail();
-              await registerFcmOnAuth(response.data.user, memberDetail);
-            } else {
-              dispatch(setLoading(false));
-              const errorMsg =
-                response?.data?.errors?.[0] || 'Unable to Sign In';
-              Alert.alert('Login Failed', errorMsg);
+            const refreshToken =
+              response.data.refreshToken || response.data.refresh_token;
+            if (refreshToken) {
+              await setRefreshToken(refreshToken);
             }
           } else {
+            await clearAuthTransaction();
             dispatch(setLoading(false));
-            Alert.alert('Login Failed', 'No authorization code received');
+            Alert.alert('Error', 'Invalid response from server');
+            return;
           }
-        } catch (error) {
+
+          dispatch(setSignedIn(true));
+          if (response.data.user) {
+            dispatch(setUser(response.data.user));
+          }
+          await finalizeSuccessfulAuth();
+          const memberDetail = await getMemberDetail();
+          await registerFcmOnAuth(response.data.user, memberDetail);
+        } else {
+          await clearAuthTransaction();
           dispatch(setLoading(false));
-          Alert.alert('Login Error', error.message || 'Authentication failed');
+          Alert.alert('Login Failed', mapAuthErrorMessage(response));
         }
+      } catch (error) {
+        await clearAuthTransaction();
+        dispatch(setLoading(false));
+        Alert.alert('Login Error', 'Authentication failed. Please try again.');
       }
     };
 
-    // Add event listener for deep links
     const subscription = Linking.addEventListener('url', handleDeepLink);
 
     Linking.getInitialURL().then(url => {
-      if (
-        url &&
-        (url.startsWith('com.portal://com.portal/ios/callback') ||
-          url.startsWith('com.portal://com.portal/android/callback'))
-      ) {
+      if (isAuthCallbackUrl(url)) {
         handleDeepLink({ url });
       }
     });
@@ -277,47 +318,25 @@ function App() {
     };
   }, []);
 
-  const handleLogin = () => {
-    setAuthMode('signin');
-    saveFlowToStorage('signin');
+  const startInAppAuth = mode => {
+    setAuthMode(mode);
+    saveFlowToStorage(mode);
     setShowWebView(true);
   };
 
-  const handleGoogleLogin = async () => {
-    setAuthMode('gmail');
-    saveFlowToStorage('gmail');
-    try {
-      const { authUrl } = await buildB2CAuthorizeUrl('gmail');
-      await Linking.openURL(authUrl);
-    } catch (e) {
-      Alert.alert(
-        'Error',
-        e?.message || 'Failed to start Google sign-in. Please try again.',
-      );
-    }
+  const handleLogin = () => {
+    // Keep auth inside the app WebView so the HTTPS B2C redirect (MS_REDIRECT_URI)
+    // is intercepted here with the matching codeVerifier. Opening Safari leaves the
+    // callback on the web portal without the mobile PKCE transaction.
+    startInAppAuth('signin');
+  };
+
+  const handleGoogleLogin = () => {
+    startInAppAuth('gmail');
   };
 
   const handleSignUp = () => {
-    setAuthMode('signup');
-    saveFlowToStorage('signup');
-    setShowWebView(true);
-  };
-
-  // Decode JWT token to extract user information
-  const decodeJwt = token => {
-    try {
-      const [, payload] = token.split('.');
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
-      const json = JSON.parse(
-        global.atob
-          ? atob(padded)
-          : Buffer.from(padded, 'base64').toString('utf8'),
-      );
-      return json;
-    } catch {
-      return {};
-    }
+    startInAppAuth('signup');
   };
 
   const registerFcmOnAuth = async (authenticatedUser, memberDetail) => {
@@ -361,9 +380,22 @@ function App() {
     if (result.code && result.codeVerifier) {
       dispatch(setLoading(true));
       try {
-        const data = await buildAuthPayload(result.code, result.codeVerifier);
+        const data = await buildAuthPayload(
+          result.code,
+          result.codeVerifier,
+          result.state,
+        );
+        if (!data.state) {
+          await clearAuthTransaction();
+          dispatch(setLoading(false));
+          Alert.alert(
+            'Error',
+            'Your sign-in session was incomplete. Please try again.',
+          );
+          return;
+        }
+
         const response = await signInMicrosoftRequest(data);
-        console.log('Response from signInMicrosoftRequest=============>', response);
         if (response && response.status >= 200 && response.status < 300) {
           if (response.data) {
             const accessToken =
@@ -376,6 +408,7 @@ function App() {
               await AsyncStorage.setItem('token', accessToken);
               await setBearerToken(accessToken);
             } else {
+              await clearAuthTransaction();
               dispatch(setLoading(false));
               Alert.alert('Error', 'No access token received from server');
               return;
@@ -391,12 +424,11 @@ function App() {
               await setRefreshToken(refreshToken);
             }
           } else {
+            await clearAuthTransaction();
             dispatch(setLoading(false));
             Alert.alert('Error', 'Invalid response from server');
             return;
           }
-
-          await deleteVerifier();
 
           dispatch(setSignedIn(true));
           if (response.data.user) {
@@ -405,83 +437,31 @@ function App() {
           await finalizeSuccessfulAuth();
           try {
             const memberDetail = await getMemberDetail();
-            await registerFcmOnAuth(response.data.user,memberDetail);
+            await registerFcmOnAuth(response.data.user, memberDetail);
             dispatch(setDetail(memberDetail));
           } catch (e) {
             // Token may not be readable yet or decode failed; leave userDetail for validation to set
           }
         } else {
+          await clearAuthTransaction();
           dispatch(setLoading(false));
-          const status = response?.status;
-          const errorData = response?.data;
-
-          let errorMsg = 'Unable to Sign In';
-          if (errorData) {
-            if (
-              errorData.errors &&
-              Array.isArray(errorData.errors) &&
-              errorData.errors.length > 0
-            ) {
-              errorMsg = errorData.errors[0];
-            } else if (errorData.message) {
-              errorMsg = errorData.message;
-            } else if (errorData.error) {
-              errorMsg = errorData.error;
-            } else if (typeof errorData === 'string') {
-              errorMsg = errorData;
-            }
-          }
-
-          if (status === 404) {
-            errorMsg =
-              'Authentication endpoint not found. Please check API configuration.';
-          }
-
-          Alert.alert('Login Failed', errorMsg);
+          Alert.alert('Login Failed', mapAuthErrorMessage(response));
         }
       } catch (error) {
+        await clearAuthTransaction();
         dispatch(setLoading(false));
         Alert.alert('Error', 'Failed to authenticate. Please try again.');
       }
-    } else if (result.accessToken) {
-      dispatch(setLoading(true));
-      try {
-        let decodedUser = null;
-        await AsyncStorage.setItem('token', result.accessToken);
-        await setBearerToken(result.accessToken);
-
-        if (result.idToken) {
-          const claims = decodeJwt(result.idToken);
-          const user = {
-            name: claims.name || claims.given_name || '',
-            email:
-              (Array.isArray(claims.emails)
-                ? claims.emails[0]
-                : claims.email) || '',
-            oid: claims.oid || claims.sub,
-          };
-          decodedUser = user;
-          await saveUser(user);
-          dispatch(setUser(user));
-        }
-
-        dispatch(setSignedIn(true));
-        await finalizeSuccessfulAuth();
-        const memberDetail = await getMemberDetail();
-        await registerFcmOnAuth(decodedUser || result?.user, memberDetail);
-        dispatch(setDetail(memberDetail));
-      } catch (error) {
-        dispatch(setLoading(false));
-        Alert.alert('Error', 'Failed to save authentication data');
-      }
     } else {
+      await clearAuthTransaction();
       dispatch(setLoading(false));
       Alert.alert('Error', 'Invalid authentication response');
     }
   };
 
-  const handleLoginError = error => {
+  const handleLoginError = async error => {
     setShowWebView(false);
+    await clearAuthTransaction();
 
     const raw =
       typeof error === 'string' ? error : (error?.message || '').toString();
@@ -489,21 +469,15 @@ function App() {
       raw.includes('AADB2C90091') ||
       raw.includes('The user has cancelled entering self-asserted information')
     ) {
-      console.log('User cancelled login, suppressing error alert');
       return;
     }
 
-    let errorMessage = 'Authentication failed. Please try again.';
-    if (error && typeof error === 'string') {
-      errorMessage = error;
-    } else if (error?.message) {
-      errorMessage = error.message;
-    }
-
-    Alert.alert('Login Failed', errorMessage, [{ text: 'OK' }]);
+    Alert.alert('Login Failed', 'Authentication failed. Please try again.', [
+      { text: 'OK' },
+    ]);
   };
 
-  const handleWebViewClose = () => {
+  const handleWebViewClose = async () => {
     setShowWebView(false);
   };
 
@@ -649,6 +623,10 @@ function App() {
               onClose={handleWebViewClose}
               onSuccess={handleLoginSuccess}
               onError={handleLoginError}
+            />
+            <WebViewLogout
+              url={b2cLogoutUrl}
+              onDone={() => setB2cLogoutUrl(null)}
             />
             <FlashMessage position="top" />
           </StripeProvider>

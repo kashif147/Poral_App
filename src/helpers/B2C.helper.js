@@ -1,26 +1,35 @@
-import { generatePKCE } from "./crypt.helper";
-import { setVerifier } from "./verifier.helper";
-import { Linking } from 'react-native';
+import { getLogoutUrlsRequest } from '../api/auth.api';
+import { startB2CAuthorization } from './b2cMobileAuthorize';
+import { requestB2CLogoutInApp } from './b2cLogoutBridge';
 
-export const microSoftUrlRedirect = async () => {
-  const { code_verifier, code_challenge } = await generatePKCE();
-  await setVerifier(code_verifier)
-  const authUrl = new URL(
-    "https://projectshellAB2C.b2clogin.com/projectshellAB2C.onmicrosoft.com/oauth2/v2.0/authorize"
-  );
-  authUrl.searchParams.append("p", "B2C_1_projectshell");
-  authUrl.searchParams.append("client_id", "e9460e2d-29d1-4711-be7e-e1e92d1370ef");
-  authUrl.searchParams.append("nonce", "defaultNonce");
-  authUrl.searchParams.append("redirect_uri", "http://localhost:3000");
-  authUrl.searchParams.append("scope", "openid profile offline_access");
-  authUrl.searchParams.append("response_type", "code");
-  authUrl.searchParams.append("prompt", "login");
-  authUrl.searchParams.append("code_challenge", code_challenge);
-  authUrl.searchParams.append("code_challenge_method", "S256");
-  const url = authUrl.toString();
+/**
+ * Starts B2C authorize via backend PKCE (caller opens WebView / system browser).
+ */
+export const microSoftUrlRedirect = async (authMode = 'signin') => {
+  return startB2CAuthorization(authMode);
+};
+
+export const getB2CLogoutUrl = async () => {
   try {
-    await Linking.openURL(url);
-  } catch (e) {
-    console.warn('Failed to open B2C auth URL', e);
+    const response = await getLogoutUrlsRequest();
+    const url = response?.data?.b2cLogoutUrl;
+    if (!(response?.status >= 200 && response?.status < 300) || !url) {
+      return null;
+    }
+    return url;
+  } catch {
+    return null;
   }
+};
+
+/**
+ * Ends the B2C browser session inside an in-app WebView (never Safari).
+ * Caller must clear local tokens before this. No-ops if no logout URL / handler.
+ */
+export const microsoftLogoutRedirect = async () => {
+  const url = await getB2CLogoutUrl();
+  if (!url) {
+    return false;
+  }
+  return requestB2CLogoutInApp(url);
 };
