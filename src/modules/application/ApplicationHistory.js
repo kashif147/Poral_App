@@ -22,7 +22,11 @@ import { applicationConfirmationRequest } from '../../api/application.api';
 import {
   buildApplicationBundleFromContext,
   extractApplicationsFromMeResponse,
+  isActiveApplicationCompleteStatus,
+  isProcessedApplicationStatus,
+  normalizeApplicationStatus,
   normalizeApplicationDetailResponse,
+  resolveEffectiveApplicationStatus,
 } from '../../helpers/applicationPayload.helper';
 import { toast } from '../../utils/toast.utils';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -221,6 +225,22 @@ const ApplicationHistory = () => {
   const pageBusy =
     loading || statusLoading || (isApprovedListMode && listLoading);
 
+  const effectiveStatus = resolveEffectiveApplicationStatus({
+    localStatus: resolvedStatus,
+    contextStatus: contextApplicationStatus,
+    personalDetail,
+  });
+  const normalizedStatus = normalizeApplicationStatus(effectiveStatus);
+  const isApplicationActive =
+    personalDetail?.meta?.isActive ?? personalDetail?.isActive ?? true;
+  // Match dashboard: hide Start/Resume when submitted or processed.
+  const isApplicationTerminal =
+    isActiveApplicationCompleteStatus(effectiveStatus, isApplicationActive) ||
+    isProcessedApplicationStatus(effectiveStatus) ||
+    (isApplicationActive && normalizedStatus === 'submitted');
+  const showStartResumeButton =
+    !isApprovedListMode && !statusLoading && !isApplicationTerminal;
+
   const renderItem = ({ item }) => {
     const active = resolvePersonalIsActive(item);
     return (
@@ -306,13 +326,13 @@ const ApplicationHistory = () => {
           <Text style={styles.memberValue}>{memberStatus}</Text>
         </View>
 
-        {!isApprovedListMode && (
+        {showStartResumeButton && (
           <TouchableOpacity
             style={styles.formButton}
             onPress={() => navigation.navigate(STACKS.APPLICATION_FORM)}
           >
             <Text style={styles.formButtonText}>
-              {resolvedStatus === 'rejected'
+              {normalizedStatus === 'rejected'
                 ? 'Re-apply'
                 : 'Start / Resume Application'}
             </Text>
@@ -337,7 +357,7 @@ const ApplicationHistory = () => {
                 ? 'No application history found.'
                 : "You don't have an application yet."}
             </Text>
-            {!isApprovedListMode && (
+            {showStartResumeButton && (
               <TouchableOpacity
                 style={styles.formButton}
                 onPress={() => navigation.navigate(STACKS.APPLICATION_FORM)}

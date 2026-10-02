@@ -25,213 +25,18 @@ import {
 } from '../../helpers/paymentForm.helper';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import CountryPicker from 'react-native-country-picker-modal';
+import {
+  DEFAULT_COUNTRY,
+  allowedCountryCodes,
+  buildMobileE164,
+  normalizeMobileToE164,
+  splitMobileNumber,
+} from '../../helpers/phone.helper';
 
 const preferredAddresses = ['Home', 'Work'];
 const preferredEmails = ['Personal', 'Work'];
 
 const GOOGLE_PLACES_API_KEY = 'AIzaSyCJYpj8WV5Rzof7O3jGhW9XabD0J4Yqe1o';
-
-// Country calling code mapping (calling code -> country code cca2)
-const countryCallingCode = {
-  1: 'US', // US/Canada (defaults to US)
-  44: 'GB', // United Kingdom
-  353: 'IE', // Ireland
-  91: 'IN', // India
-  92: 'PK', // Pakistan
-  93: 'AF', // Afghanistan
-  94: 'LK', // Sri Lanka
-  95: 'MM', // Myanmar
-  98: 'IR', // Iran
-  61: 'AU', // Australia
-  86: 'CN', // China
-  81: 'JP', // Japan
-  82: 'KR', // South Korea
-  49: 'DE', // Germany
-  33: 'FR', // France
-  39: 'IT', // Italy
-  34: 'ES', // Spain
-  7: 'RU', // Russia/Kazakhstan
-  20: 'EG', // Egypt
-  27: 'ZA', // South Africa
-  30: 'GR', // Greece
-  31: 'NL', // Netherlands
-  32: 'BE', // Belgium
-  36: 'HU', // Hungary
-  40: 'RO', // Romania
-  41: 'CH', // Switzerland
-  43: 'AT', // Austria
-  45: 'DK', // Denmark
-  46: 'SE', // Sweden
-  47: 'NO', // Norway
-  48: 'PL', // Poland
-  51: 'PE', // Peru
-  52: 'MX', // Mexico
-  53: 'CU', // Cuba
-  54: 'AR', // Argentina
-  55: 'BR', // Brazil
-  56: 'CL', // Chile
-  57: 'CO', // Colombia
-  58: 'VE', // Venezuela
-  60: 'MY', // Malaysia
-  62: 'ID', // Indonesia
-  63: 'PH', // Philippines
-  64: 'NZ', // New Zealand
-  65: 'SG', // Singapore
-  66: 'TH', // Thailand
-  84: 'VN', // Vietnam
-  90: 'TR', // Turkey
-  212: 'MA', // Morocco
-  213: 'DZ', // Algeria
-  216: 'TN', // Tunisia
-  218: 'LY', // Libya
-  220: 'GM', // Gambia
-  221: 'SN', // Senegal
-  222: 'MR', // Mauritania
-  223: 'ML', // Mali
-  224: 'GN', // Guinea
-  225: 'CI', // Côte d'Ivoire
-  226: 'BF', // Burkina Faso
-  227: 'NE', // Niger
-  228: 'TG', // Togo
-  229: 'BJ', // Benin
-  230: 'MU', // Mauritius
-  231: 'LR', // Liberia
-  232: 'SL', // Sierra Leone
-  233: 'GH', // Ghana
-  234: 'NG', // Nigeria
-  235: 'TD', // Chad
-  236: 'CF', // Central African Republic
-  237: 'CM', // Cameroon
-  238: 'CV', // Cape Verde
-  239: 'ST', // São Tomé and Príncipe
-  240: 'GQ', // Equatorial Guinea
-  241: 'GA', // Gabon
-  242: 'CG', // Republic of the Congo
-  243: 'CD', // Democratic Republic of the Congo
-  244: 'AO', // Angola
-  245: 'GW', // Guinea-Bissau
-  246: 'IO', // British Indian Ocean Territory
-  248: 'SC', // Seychelles
-  249: 'SD', // Sudan
-  250: 'RW', // Rwanda
-  251: 'ET', // Ethiopia
-  252: 'SO', // Somalia
-  253: 'DJ', // Djibouti
-  254: 'KE', // Kenya
-  255: 'TZ', // Tanzania
-  256: 'UG', // Uganda
-  257: 'BI', // Burundi
-  258: 'MZ', // Mozambique
-  260: 'ZM', // Zambia
-  261: 'MG', // Madagascar
-  262: 'RE', // Réunion / Mayotte
-  263: 'ZW', // Zimbabwe
-  264: 'NA', // Namibia
-  265: 'MW', // Malawi
-  266: 'LS', // Lesotho
-  267: 'BW', // Botswana
-  268: 'SZ', // Eswatini
-  269: 'KM', // Comoros
-  290: 'SH', // Saint Helena
-  291: 'ER', // Eritrea
-  297: 'AW', // Aruba
-  298: 'FO', // Faroe Islands
-  299: 'GL', // Greenland
-  350: 'GI', // Gibraltar
-  351: 'PT', // Portugal
-  352: 'LU', // Luxembourg
-  353: 'IE', // Ireland (duplicate for clarity)
-  354: 'IS', // Iceland
-  356: 'MT', // Malta
-  357: 'CY', // Cyprus
-  358: 'FI', // Finland
-  359: 'BG', // Bulgaria
-  370: 'LT', // Lithuania
-  371: 'LV', // Latvia
-  372: 'EE', // Estonia
-  373: 'MD', // Moldova
-  374: 'AM', // Armenia
-  375: 'BY', // Belarus
-  376: 'AD', // Andorra
-  377: 'MC', // Monaco
-  378: 'SM', // San Marino
-  380: 'UA', // Ukraine
-  381: 'RS', // Serbia
-  382: 'ME', // Montenegro
-  383: 'XK', // Kosovo
-  385: 'HR', // Croatia
-  386: 'SI', // Slovenia
-  387: 'BA', // Bosnia and Herzegovina
-  389: 'MK', // North Macedonia
-  420: 'CZ', // Czech Republic
-  421: 'SK', // Slovakia
-  423: 'LI', // Liechtenstein
-};
-
-// Allowed country codes (default to include Ireland and common countries)
-const allowedCountryCodes = [
-  'IE',
-  'US',
-  'GB',
-  'CA',
-  'AU',
-  'NZ',
-  'IN',
-  'PK',
-  'CN',
-  'JP',
-  'KR',
-  'DE',
-  'FR',
-  'IT',
-  'ES',
-  'NL',
-  'BE',
-  'CH',
-  'AT',
-  'SE',
-  'NO',
-  'DK',
-  'FI',
-  'PL',
-  'PT',
-  'GR',
-  'IE',
-  'CZ',
-  'HU',
-  'RO',
-  'BG',
-  'HR',
-  'SI',
-  'MX',
-  'BR',
-  'AR',
-  'CL',
-  'CO',
-  'PE',
-  'VE',
-  'MY',
-  'SG',
-  'TH',
-  'PH',
-  'ID',
-  'VN',
-  'TR',
-  'EG',
-  'ZA',
-  'MA',
-  'NG',
-  'KE',
-  'GH',
-  'TZ',
-  'UG',
-];
-
-// Default country (Ireland)
-const DEFAULT_COUNTRY = {
-  cca2: 'IE',
-  callingCode: '353',
-};
 
 // Normalize API values to match picker options (handle case differences)
 const normalizePreferredAddress = value => {
@@ -348,123 +153,66 @@ const PersonalInformation = ({
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(DEFAULT_COUNTRY);
+  // Skip re-hydrate when this value was just written by local handlers
+  const lastWrittenMobileRef = useRef(null);
 
-  // Detect country code from phone number (matching input.js logic)
-  const detectCountryCodeFromPhone = text => {
-    if (!text) return { callingCode: null, phoneNumber: null, cca2: null };
-
-    const cleaned = text.trim();
-
-    if (!cleaned.startsWith('+')) {
-      return { callingCode: null, phoneNumber: null, cca2: null };
-    }
-
-    const digitsOnly = cleaned.replace(/\D/g, '');
-
-    const sortedCallingCodes = Object.keys(countryCallingCode).sort(
-      (a, b) => b.length - a.length,
-    );
-
-    for (const callingCode of sortedCallingCodes) {
-      if (digitsOnly.startsWith(callingCode)) {
-        const cca2 = countryCallingCode[callingCode];
-
-        if (allowedCountryCodes.includes(cca2)) {
-          const phoneNumber = digitsOnly.substring(callingCode.length);
-          if (callingCode === '1' && phoneNumber.length === 10) {
-            return { callingCode, phoneNumber, cca2 };
-          } else if (
-            callingCode !== '1' &&
-            phoneNumber.length >= 6 &&
-            phoneNumber.length <= 15
-          ) {
-            return { callingCode, phoneNumber, cca2 };
-          }
-        }
-      }
-    }
-
-    return { callingCode: null, phoneNumber: null, cca2: null };
-  };
-
-  // Handle country selection
   const handleCountrySelect = country => {
-    setSelectedCountry({
+    const nextCountry = {
       cca2: country.cca2,
       callingCode: country.callingCode[0] || country.callingCode,
-    });
+    };
+    setSelectedCountry(nextCountry);
+
+    const fullNumber = normalizeMobileToE164(
+      buildMobileE164(nextCountry.callingCode, phoneNumber),
+    );
+    lastWrittenMobileRef.current = fullNumber;
+    onFormDataChange({ ...formData, mobileNo: fullNumber });
   };
 
-  // Handle phone number input change
   const handlePhoneNumberChange = text => {
     const cleanedText = text.replace(/[^0-9]/g, '');
     setPhoneNumber(cleanedText);
 
-    // Update formData with full formatted number
-    if (cleanedText) {
-      const fullNumber = `+${selectedCountry.callingCode}${cleanedText}`;
-      onFormDataChange({ ...formData, mobileNo: fullNumber });
-    } else {
-      onFormDataChange({ ...formData, mobileNo: '' });
-    }
+    const fullNumber = normalizeMobileToE164(
+      buildMobileE164(selectedCountry.callingCode, cleanedText),
+    );
+    lastWrittenMobileRef.current = fullNumber;
+    onFormDataChange({ ...formData, mobileNo: fullNumber });
   };
 
-  // Update formData when country changes (only if phone number exists)
+  // Hydrate country code + national number from stored mobile (same idea as web PhoneInput)
   useEffect(() => {
-    if (phoneNumber && selectedCountry.callingCode) {
-      const fullNumber = `+${selectedCountry.callingCode}${phoneNumber}`;
-      // Only update if it's different to avoid infinite loops
-      if (formData?.mobileNo !== fullNumber) {
-        onFormDataChange({ ...formData, mobileNo: fullNumber });
-      }
-    } else if (!phoneNumber) {
-      // Clear mobileNo when phone number is empty
-      if (formData?.mobileNo) {
-        onFormDataChange({ ...formData, mobileNo: '' });
-      }
+    const raw = formData?.mobileNo || '';
+
+    if (raw === lastWrittenMobileRef.current) {
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCountry.callingCode, phoneNumber]);
 
-  // Initialize phone value and country code from formData
-  useEffect(() => {
-    if (formData?.mobileNo) {
-      console.log('📱 Setting phone from API:', formData.mobileNo);
-
-      // Detect country from phone number
-      const detected = detectCountryCodeFromPhone(formData.mobileNo);
-
-      if (detected.phoneNumber && detected.cca2 && detected.callingCode) {
-        console.log(
-          '📱 Detected country:',
-          detected.cca2,
-          'calling code:',
-          detected.callingCode,
-        );
-        console.log('📱 Extracted national number:', detected.phoneNumber);
-
-        setSelectedCountry({
-          cca2: detected.cca2,
-          callingCode: detected.callingCode,
-        });
-        setPhoneNumber(detected.phoneNumber);
-      } else {
-        // If detection fails, default to Ireland
-        console.log('📱 Detection failed, defaulting to Ireland');
-        setSelectedCountry(DEFAULT_COUNTRY);
-        // Try to extract number without country code
-        const cleaned = formData.mobileNo.replace(/[^0-9]/g, '');
-        if (cleaned.startsWith('353')) {
-          setPhoneNumber(cleaned.substring(3));
-        } else {
-          setPhoneNumber(cleaned);
-        }
-      }
-    } else {
-      // Clear phone values when mobileNo is empty
+    if (!raw) {
       setPhoneNumber('');
       setSelectedCountry(DEFAULT_COUNTRY);
+      return;
     }
+
+    const split = splitMobileNumber(raw);
+    setSelectedCountry({
+      cca2: split.cca2,
+      callingCode: split.callingCode,
+    });
+    setPhoneNumber(split.nationalNumber);
+
+    // Persist corrected E.164 with leading "+" (e.g. 35387... → +35387..., or recover +35392... → +92...)
+    const corrected = normalizeMobileToE164(
+      buildMobileE164(split.callingCode, split.nationalNumber) || raw,
+    );
+    if (corrected && corrected !== raw) {
+      lastWrittenMobileRef.current = corrected;
+      onFormDataChange({ ...formData, mobileNo: corrected });
+    } else if (corrected) {
+      lastWrittenMobileRef.current = corrected;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData?.mobileNo]);
 
   // Normalize preferred address and email values when loaded from API
@@ -1102,7 +850,12 @@ const PersonalInformation = ({
               withFlagButton={false}
               withCallingCodeButton
               countryCode={selectedCountry?.cca2}
-              countryCodes={allowedCountryCodes}
+              countryCodes={
+                selectedCountry?.cca2 &&
+                !allowedCountryCodes.includes(selectedCountry.cca2)
+                  ? [...allowedCountryCodes, selectedCountry.cca2]
+                  : allowedCountryCodes
+              }
               onSelect={handleCountrySelect}
               renderFlagButton={props => (
                 <TouchableOpacity

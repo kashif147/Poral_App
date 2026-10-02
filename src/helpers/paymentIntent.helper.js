@@ -90,11 +90,26 @@ export const REJECTED_APPLICATION_REAPPLY_MESSAGE =
 export const APPLICATION_PAYMENT_AUTHORISED_MESSAGE =
   'Your payment has been authorised successfully. Your application is now pending review. The payment will only be completed if your application is approved.';
 
-export const normalizePaymentIntentStatus = status =>
-  String(status || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '_');
+/**
+ * Normalizes Stripe PaymentIntent statuses from both platforms:
+ * - Web (stripe.js): snake_case e.g. "requires_capture"
+ * - Mobile (@stripe/stripe-react-native): PascalCase e.g. "RequiresCapture"
+ */
+export const normalizePaymentIntentStatus = status => {
+  const raw = String(status || '').trim();
+  if (!raw) return '';
+
+  // Already snake_case / lowercase with underscores
+  if (raw.includes('_') || raw === raw.toLowerCase()) {
+    return raw.toLowerCase().replace(/\s+/g, '_');
+  }
+
+  // PascalCase / camelCase from Stripe React Native → snake_case
+  return raw
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/\s+/g, '_')
+    .toLowerCase();
+};
 
 export const getPaymentIntentMemberLabel = status => {
   const normalized = normalizePaymentIntentStatus(status);

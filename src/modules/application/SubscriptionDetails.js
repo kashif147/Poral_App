@@ -461,180 +461,6 @@ const SubscriptionDetails = ({
             />
           </View>
         )}
-
-        {/* Conditional checkboxes for new members */}
-        {formData?.memberStatus === 'new' && (
-          <View style={styles.conditionalCheckboxContainer}>
-            <Text style={styles.conditionalCheckboxTitle}>
-              Additional Options for New Members
-            </Text>
-            {formData?.otherScheme === 'no' && (
-              <TouchableOpacity
-                style={styles.checkboxItem}
-                onPress={() =>
-                  onFormDataChange({
-                    ...formData,
-                    inmoRewards: !formData?.inmoRewards,
-                  })
-                }
-              >
-                <View
-                  style={[
-                    styles.checkboxBox,
-                    formData?.inmoRewards && styles.checkboxBoxChecked,
-                  ]}
-                >
-                  {formData?.inmoRewards ? (
-                    <Text style={styles.checkboxTick}>✓</Text>
-                  ) : null}
-                </View>
-                <View style={styles.checkboxLabelContainer}>
-                  <Text style={styles.checkboxLabelBold}>
-                    Tick here to join{' '}
-                    <Text
-                      style={styles.link}
-                      onPress={() =>
-                        Linking.openURL('https://cornmarket.ie/rewards')
-                      }
-                    >
-                      Rewards
-                    </Text>{' '}
-                    for INMO members
-                  </Text>
-                  <Text style={styles.checkboxLabelSubtext}>
-                    By ticking here, you confirm that you agree to the Terms &
-                    Conditions available on{' '}
-                    <Text
-                      style={styles.link}
-                      onPress={() =>
-                        Linking.openURL(
-                          'https://cornmarket.ie/rewards-club-terms',
-                        )
-                      }
-                    >
-                      Cornmarket.ie/rewards-club-terms
-                    </Text>{' '}
-                    and the Data Protection Statement available on{' '}
-                    <Text
-                      style={styles.link}
-                      onPress={() =>
-                        Linking.openURL('https://cornmarket.ie/rewards-dps')
-                      }
-                    >
-                      Cornmarket.ie/rewards-dps
-                    </Text>
-                    . Cornmarket will contact you about your Rewards Benefits.
-                    You can opt out at any time.
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Conditional checkboxes for newly graduated */}
-        {formData?.otherScheme === 'no' &&
-          formData?.memberStatus === 'graduate' && (
-            <View style={styles.conditionalCheckboxContainer}>
-              <Text style={styles.conditionalCheckboxTitle}>
-                Additional Options for Newly Graduated Members
-              </Text>
-              <TouchableOpacity
-                style={styles.checkboxItem}
-                onPress={() =>
-                  onFormDataChange({
-                    ...formData,
-                    exclusiveDiscountsAndOffers:
-                      !formData?.exclusiveDiscountsAndOffers,
-                  })
-                }
-              >
-                <View
-                  style={[
-                    styles.checkboxBox,
-                    formData?.exclusiveDiscountsAndOffers &&
-                      styles.checkboxBoxChecked,
-                  ]}
-                >
-                  {formData?.exclusiveDiscountsAndOffers ? (
-                    <Text style={styles.checkboxTick}>✓</Text>
-                  ) : null}
-                </View>
-                <Text style={styles.checkboxLabelBold}>
-                  Would you like to hear about exclusive discounts and offers
-                  for INMO members?
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.checkboxItem}
-                onPress={() =>
-                  onFormDataChange({
-                    ...formData,
-                    incomeProtectionScheme: !formData?.incomeProtectionScheme,
-                  })
-                }
-              >
-                <View
-                  style={[
-                    styles.checkboxBox,
-                    formData?.incomeProtectionScheme &&
-                      styles.checkboxBoxChecked,
-                  ]}
-                >
-                  {formData?.incomeProtectionScheme ? (
-                    <Text style={styles.checkboxTick}>✓</Text>
-                  ) : null}
-                </View>
-                <View style={styles.checkboxLabelContainer}>
-                  <Text style={styles.checkboxLabelBold}>
-                    I consent to{' '}
-                    <Text
-                      style={styles.link}
-                      onPress={() =>
-                        Linking.openURL(
-                          'https://cornmarket.ie/income-protection',
-                        )
-                      }
-                    >
-                      INMO Income Protection Scheme
-                    </Text>
-                    .
-                  </Text>
-                  <Text style={styles.checkboxLabelSubtext}>
-                    By selecting 'I consent' below, you are agreeing to the
-                    INMO, sharing your Trade Union membership details with
-                    Cornmarket. Cornmarket as Scheme Administrator will process
-                    and retain details of your Trade Union membership for the
-                    purposes of assessing eligibility and admitting eligible
-                    members (automatically) to the Income Protection Scheme
-                    (with 9 Months' Free Cover), and for the ongoing
-                    administration of the Scheme. Where you have also opted in
-                    to receiving marketing communications, Cornmarket will
-                    provide you with information on discounts and offers they
-                    have for INMO members. This consent can be withdrawn at any
-                    time by emailing Cornmarket at dataprotection@cornmarket.ie.
-                    Please note, if you do consent below, your data will be
-                    shared with Cornmarket, and you will be assessed for
-                    eligibility for automatic Income Protection Scheme
-                    membership. If you do not consent, your data will not be
-                    shared with Cornmarket for this purpose, you will not be
-                    assessed for automatic Scheme membership (including 9
-                    Months' Free Cover) and you will have to contact Cornmarket
-                    separately should you wish to apply for Scheme membership.
-                    This offer will run on a pilot basis. Terms and conditions
-                    apply and are subject to change.
-                  </Text>
-                  <Text style={styles.checkboxLabelImportant}>
-                    Important: If you do not give your consent, your Trade union
-                    membership data will not be shared with Cornmarket for this
-                    purpose. This means you will not be assessed for Automatic
-                    Access to the Scheme.
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-          )}
       </View>
 
       {isNewOrGraduate && (
@@ -791,6 +617,176 @@ const SubscriptionDetails = ({
           </View>
         </View>
       )}
+
+      {/* Conditional checkboxes — shown below Additional Memberships when otherScheme is No */}
+      {formData?.memberStatus === 'new' && formData?.otherScheme === 'no' && (
+        <View style={styles.conditionalCheckboxContainer}>
+          <Text style={styles.conditionalCheckboxTitle}>
+            Additional Options for New Members
+          </Text>
+          <TouchableOpacity
+            style={styles.checkboxItem}
+            onPress={() =>
+              onFormDataChange({
+                ...formData,
+                inmoRewards: !formData?.inmoRewards,
+              })
+            }
+          >
+            <View
+              style={[
+                styles.checkboxBox,
+                formData?.inmoRewards && styles.checkboxBoxChecked,
+              ]}
+            >
+              {formData?.inmoRewards ? (
+                <Text style={styles.checkboxTick}>✓</Text>
+              ) : null}
+            </View>
+            <View style={styles.checkboxLabelContainer}>
+              <Text style={styles.checkboxLabelBold}>
+                Tick here to join{' '}
+                <Text
+                  style={styles.link}
+                  onPress={() =>
+                    Linking.openURL('https://cornmarket.ie/rewards')
+                  }
+                >
+                  Rewards
+                </Text>{' '}
+                for INMO members
+              </Text>
+              <Text style={styles.checkboxLabelSubtext}>
+                By ticking here, you confirm that you agree to the Terms &
+                Conditions available on{' '}
+                <Text
+                  style={styles.link}
+                  onPress={() =>
+                    Linking.openURL(
+                      'https://cornmarket.ie/rewards-club-terms',
+                    )
+                  }
+                >
+                  Cornmarket.ie/rewards-club-terms
+                </Text>{' '}
+                and the Data Protection Statement available on{' '}
+                <Text
+                  style={styles.link}
+                  onPress={() =>
+                    Linking.openURL('https://cornmarket.ie/rewards-dps')
+                  }
+                >
+                  Cornmarket.ie/rewards-dps
+                </Text>
+                . Cornmarket will contact you about your Rewards Benefits. You
+                can opt out at any time.
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {formData?.otherScheme === 'no' &&
+        formData?.memberStatus === 'graduate' && (
+          <View style={styles.conditionalCheckboxContainer}>
+            <Text style={styles.conditionalCheckboxTitle}>
+              Additional Options for Newly Graduated Members
+            </Text>
+            <TouchableOpacity
+              style={styles.checkboxItem}
+              onPress={() =>
+                onFormDataChange({
+                  ...formData,
+                  exclusiveDiscountsAndOffers:
+                    !formData?.exclusiveDiscountsAndOffers,
+                })
+              }
+            >
+              <View
+                style={[
+                  styles.checkboxBox,
+                  formData?.exclusiveDiscountsAndOffers &&
+                    styles.checkboxBoxChecked,
+                ]}
+              >
+                {formData?.exclusiveDiscountsAndOffers ? (
+                  <Text style={styles.checkboxTick}>✓</Text>
+                ) : null}
+              </View>
+              <Text style={styles.checkboxLabelBold}>
+                Would you like to hear about exclusive discounts and offers for
+                INMO members?
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.checkboxItem}
+              onPress={() =>
+                onFormDataChange({
+                  ...formData,
+                  incomeProtectionScheme: !formData?.incomeProtectionScheme,
+                })
+              }
+            >
+              <View
+                style={[
+                  styles.checkboxBox,
+                  formData?.incomeProtectionScheme &&
+                    styles.checkboxBoxChecked,
+                ]}
+              >
+                {formData?.incomeProtectionScheme ? (
+                  <Text style={styles.checkboxTick}>✓</Text>
+                ) : null}
+              </View>
+              <View style={styles.checkboxLabelContainer}>
+                <Text style={styles.checkboxLabelBold}>
+                  I consent to{' '}
+                  <Text
+                    style={styles.link}
+                    onPress={() =>
+                      Linking.openURL(
+                        'https://cornmarket.ie/income-protection',
+                      )
+                    }
+                  >
+                    INMO Income Protection Scheme
+                  </Text>
+                  .
+                </Text>
+                <Text style={styles.checkboxLabelSubtext}>
+                  By selecting 'I consent' below, you are agreeing to the INMO,
+                  sharing your Trade Union membership details with Cornmarket.
+                  Cornmarket as Scheme Administrator will process and retain
+                  details of your Trade Union membership for the purposes of
+                  assessing eligibility and admitting eligible members
+                  (automatically) to the Income Protection Scheme (with 9
+                  Months' Free Cover), and for the ongoing administration of
+                  the Scheme. Where you have also opted in to receiving
+                  marketing communications, Cornmarket will provide you with
+                  information on discounts and offers they have for INMO
+                  members. This consent can be withdrawn at any time by
+                  emailing Cornmarket at dataprotection@cornmarket.ie. Please
+                  note, if you do consent below, your data will be shared with
+                  Cornmarket, and you will be assessed for eligibility for
+                  automatic Income Protection Scheme membership. If you do not
+                  consent, your data will not be shared with Cornmarket for
+                  this purpose, you will not be assessed for automatic Scheme
+                  membership (including 9 Months' Free Cover) and you will have
+                  to contact Cornmarket separately should you wish to apply for
+                  Scheme membership. This offer will run on a pilot basis.
+                  Terms and conditions apply and are subject to change.
+                </Text>
+                <Text style={styles.checkboxLabelImportant}>
+                  Important: If you do not give your consent, your Trade union
+                  membership data will not be shared with Cornmarket for this
+                  purpose. This means you will not be assessed for Automatic
+                  Access to the Scheme.
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
 
       {isUnder35 && (
         <View style={styles.card}>

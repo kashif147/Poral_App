@@ -1,3 +1,5 @@
+import { normalizeMobileToE164 } from './phone.helper';
+
 const coalesce = (...vals) => {
   for (let i = 0; i < vals.length; i += 1) {
     const v = vals[i];
@@ -258,8 +260,10 @@ export const buildDefaultPersonalInfoFromAuth = ({ user = {}, userDetail = {} } 
     countryPrimaryQualification: '',
     personalEmail: coalesce(source.email, source.userEmail, '') || '',
     mobileNo:
-      coalesce(source.mobilePhone, source.userMobilePhone, source.mobile, '') ||
-      '',
+      normalizeMobileToE164(
+        coalesce(source.mobilePhone, source.userMobilePhone, source.mobile, '') ||
+          '',
+      ) || '',
     country: 'Ireland',
     consent: true,
     addressLine1: '',

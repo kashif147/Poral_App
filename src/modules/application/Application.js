@@ -30,6 +30,7 @@ import {
 } from '../../helpers/applicationPayload.helper';
 import { APPLICATION_PAYMENT_AUTHORISED_MESSAGE } from '../../helpers/paymentIntent.helper';
 import { calculateAgeFromDateOfBirth, isDataFormat } from '../../helpers/date.helper';
+import { normalizeMobileToE164 } from '../../helpers/phone.helper';
 import {
   getPaymentFrequencyCategory,
   isSalaryDeductionPaymentType,
@@ -684,7 +685,9 @@ const Application = () => {
           dob: personalDetail?.personalInfo?.dateOfBirth || '',
           countryPrimaryQualification: personalDetail?.personalInfo?.countryPrimaryQualification || '',
           personalEmail: personalDetail?.contactInfo?.personalEmail || '',
-          mobileNo: personalDetail?.contactInfo?.mobileNumber || '',
+          mobileNo: normalizeMobileToE164(
+            personalDetail?.contactInfo?.mobileNumber || '',
+          ),
           consent: personalDetail?.contactInfo?.consent ?? true,
           addressLine1: personalDetail?.contactInfo?.buildingOrHouse || '',
           addressLine2: personalDetail?.contactInfo?.streetOrRoad || '',
@@ -862,7 +865,7 @@ const Application = () => {
       areaOrTown: data.addressLine3,
       countyCityOrPostCode: data.addressLine4,
       country: data.country,
-      mobileNumber: data.mobileNo,
+      mobileNumber: normalizeMobileToE164(data.mobileNo),
       telephoneNumber: data.homeWorkTelNo,
       preferredEmail: data.preferredEmail ? data.preferredEmail.toLowerCase() : data.preferredEmail,
       personalEmail: data.personalEmail,
@@ -908,7 +911,7 @@ const Application = () => {
       areaOrTown: data.addressLine3,
       countyCityOrPostCode: data.addressLine4,
       country: data.country,
-      mobileNumber: data.mobileNo,
+      mobileNumber: normalizeMobileToE164(data.mobileNo),
       telephoneNumber: data.homeWorkTelNo,
       preferredEmail: data.preferredEmail ? data.preferredEmail.toLowerCase() : data.preferredEmail,
       personalEmail: data.personalEmail,

@@ -273,8 +273,23 @@ const SubscriptionPaymentModal = ({
 
       console.log('✅ Payment Confirmation Response:', JSON.stringify(paymentIntent, null, 2));
 
-      const outcome = resolvePaymentIntentOutcome(paymentIntent?.status, {
+      // Stripe RN returns PascalCase statuses (e.g. RequiresCapture); helper normalizes both.
+      const intentStatus = paymentIntent?.status;
+      if (!intentStatus) {
+        throw new Error(
+          'Payment response was incomplete. Please try again or contact support.',
+        );
+      }
+
+      const outcome = resolvePaymentIntentOutcome(intentStatus, {
         isApplicationPayment: true,
+      });
+
+      console.log('📊 Payment outcome:', {
+        rawStatus: intentStatus,
+        normalized: outcome.paymentIntentStatus,
+        success: outcome.success,
+        outcome: outcome.outcome,
       });
 
       if (outcome.success) {

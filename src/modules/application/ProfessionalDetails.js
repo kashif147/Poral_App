@@ -583,28 +583,20 @@ const ProfessionalDetails = ({
               },
           ]}
         >
-          <Picker
+          <SearchablePicker
+            items={membershipCategoryOptions}
             selectedValue={formData.membershipCategory || ''}
-            
             onValueChange={val => {
               if (val !== undefined) {
                 handleMembershipCategoryChange(val);
               }
             }}
-          >
-            <Picker.Item label="Select membership category" value="" />
-            {membershipCategoryOptions.length === 0 ? (
-              <Picker.Item label="Loading categories..." value="" disabled />
-            ) : (
-              membershipCategoryOptions.map(item => (
-                <Picker.Item
-                  key={item.value}
-                  label={item.label}
-                  value={item.value}
-                />
-              ))
-            )}
-          </Picker>
+            placeholder={
+              membershipCategoryOptions.length === 0
+                ? 'Loading categories...'
+                : 'Select membership category'
+            }
+          />
         </View>
 
         {/* Conditional fields for Undergraduate Students */}
