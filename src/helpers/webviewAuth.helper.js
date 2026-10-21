@@ -1,9 +1,10 @@
 import { Linking } from 'react-native';
 import { setHeaders, saveUser } from './auth.helper';
+import { getB2CPolicy } from '../config/b2cFlows';
 
 const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309';
 const tenant = 'projectshellAB2C.onmicrosoft.com';
-const policy = 'B2C_1_projectshell';
+const policy = () => getB2CPolicy('default');
 const b2cDomain = 'projectshellAB2C.b2clogin.com';
 const redirectUri = 'com.portal://com.portal/ios/callback';
 
@@ -20,7 +21,7 @@ const decodeJwt = (token) => {
 };
 
 export const getAuthUrl = () => {
-  const authUrl = new URL(`https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/authorize`);
+  const authUrl = new URL(`https://${b2cDomain}/${tenant}/${policy()}/oauth2/v2.0/authorize`);
   
   const params = {
     client_id: clientId,
@@ -68,7 +69,7 @@ export const handleAuthResponse = async (url) => {
 
 const exchangeCodeForTokens = async (code) => {
   try {
-    const tokenUrl = `https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/token`;
+    const tokenUrl = `https://${b2cDomain}/${tenant}/${policy()}/oauth2/v2.0/token`;
     
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -128,7 +129,7 @@ export const signInWithAzureB2C = () => {
 };
 
 export const getLogoutUrl = () => {
-  const logoutUrl = new URL(`https://${b2cDomain}/${tenant}/${policy}/oauth2/v2.0/logout`);
+  const logoutUrl = new URL(`https://${b2cDomain}/${tenant}/${policy()}/oauth2/v2.0/logout`);
   
   const params = {
     post_logout_redirect_uri: redirectUri,

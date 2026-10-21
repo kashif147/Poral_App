@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { getVerifier } from '../../helpers/verifier.helper';
+import { getB2CPolicy } from '../../config/b2cFlows';
 import {
   buildB2CAuthorizeUrl,
   getB2CRedirectUri,
@@ -267,7 +268,7 @@ const WebViewLogin = ({ visible, authMode = 'signin', onClose, onSuccess, onErro
   const exchangeCodeForTokens = async (code, redirectUri, codeVerifier) => {
     const clientId = 'b0a62557-3308-4efb-954a-fb4b6a787309';
     const tenant = 'projectshellAB2C.onmicrosoft.com';
-    const policy = 'B2C_1_projectshell';
+    const policy = getB2CPolicy('default');
     const b2cDomain = 'projectshellAB2C.b2clogin.com';
 
     // Use provided redirectUri or default based on platform
