@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { decryptToken } from './crypt.helper';
 
 const TOKEN_KEY = 'token';
 const USER_KEY = 'user';
+
+export const isLegacyEncryptedToken = token =>
+  typeof token === 'string' && token.split(':').length === 3;
 
 export const setHeaders = async headers => {
   try {
@@ -17,20 +19,14 @@ export const getHeaders = async () => {
       return { token: null };
     }
     
-    // Check if token is encrypted (format: iv:authTag:encrypted)
-    if (token.includes(':') && token.split(':').length === 3) {
-      try {
-        const decryptedToken = await decryptToken(token);
-        console.log('decrypted token=========>',decryptedToken)
-        return { token: decryptedToken };
-      } catch (error) {
-        console.error('Error decrypting token:', error);
-        // If decryption fails, return original token (might not be encrypted)
-        return { token };
-      }
+    // Legacy AES-encrypted token (iv:authTag:ciphertext) from before the server returned the
+    // signed JWT itself. It can no longer be used (and expired long ago): drop it so the user
+    // signs in again, never send it as a Bearer token.
+    if (isLegacyEncryptedToken(token)) {
+      await AsyncStorage.removeItem(TOKEN_KEY);
+      return { token: null };
     }
-    
-    // Token is not encrypted, return as is
+
     return { token };
   } catch {
     return { token: null };
