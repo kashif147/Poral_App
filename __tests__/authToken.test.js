@@ -51,11 +51,17 @@ describe('no server signing secret in the app', () => {
     );
   const src = walk(path.join(ROOT, 'src')).filter(f => /\.(js|jsx|ts|tsx)$/.test(f));
 
-  test('no source file imports @env secrets or decrypts tokens', () => {
-    const bad = src.filter(f =>
-      /JWT_SECRET|decryptToken|createDecipheriv|from ['"]@env['"]/.test(fs.readFileSync(f, 'utf8')),
-    );
+  test('no source file references the JWT secret or decrypts tokens', () => {
+    const bad = src.filter(f => /JWT_SECRET|decryptToken|createDecipheriv/.test(fs.readFileSync(f, 'utf8')));
     expect(bad.map(f => path.relative(ROOT, f))).toEqual([]);
+  });
+
+  test("only src/config/b2cFlows.js imports from '@env', and only B2C_FLOW_ENV", () => {
+    const importers = src.filter(f => /from ['"]@env['"]/.test(fs.readFileSync(f, 'utf8')));
+    expect(importers.map(f => path.relative(ROOT, f))).toEqual([path.join('src', 'config', 'b2cFlows.js')]);
+    const names = [...fs.readFileSync(importers[0], 'utf8').matchAll(/import\s*\{([^}]*)\}\s*from ['"]@env['"]/g)]
+      .flatMap(m => m[1].split(',').map(s => s.trim()).filter(Boolean));
+    expect(names).toEqual(['B2C_FLOW_ENV']);
   });
 
   test('.env.example declares no secret variables', () => {

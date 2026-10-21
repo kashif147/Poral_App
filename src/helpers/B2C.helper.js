@@ -1,5 +1,6 @@
 import { generatePKCE } from "./crypt.helper";
 import { setVerifier } from "./verifier.helper";
+import { getB2CPolicy } from "../config/b2cFlows";
 import { Linking } from 'react-native';
 
 export const microSoftUrlRedirect = async () => {
@@ -8,7 +9,7 @@ export const microSoftUrlRedirect = async () => {
   const authUrl = new URL(
     "https://projectshellAB2C.b2clogin.com/projectshellAB2C.onmicrosoft.com/oauth2/v2.0/authorize"
   );
-  authUrl.searchParams.append("p", "B2C_1_projectshell");
+  authUrl.searchParams.append("p", getB2CPolicy("default"));
   authUrl.searchParams.append("client_id", "e9460e2d-29d1-4711-be7e-e1e92d1370ef");
   authUrl.searchParams.append("nonce", "defaultNonce");
   authUrl.searchParams.append("redirect_uri", "http://localhost:3000");
