@@ -12,24 +12,20 @@ import {
   setHeaders,
   setRefreshToken,
   deleteRefreshToken,
+  isLegacyEncryptedToken,
 } from '../helpers/auth.helper';
 import { deleteVerifier } from '../helpers/verifier.helper';
 import { setSignedIn, setUser, setDetail } from '../store/slice/auth.slice';
 import { getMemberDetail } from '../helpers/decode.helper';
 import { toast } from '../utils/toast.utils';
-import { decryptToken } from '../helpers/crypt.helper';
 
-const normalizeRefreshToken = async token => {
+// Refresh tokens are stored and sent as issued. A legacy AES-encrypted value (iv:authTag:ciphertext)
+// from before the server stopped encrypting tokens cannot be used: return null so the caller signs
+// the user out (fail closed). The app never decrypts tokens and holds no server secret.
+export const normalizeRefreshToken = async token => {
   if (!token || typeof token !== 'string') return null;
-
-  const looksEncrypted = token.includes(':') && token.split(':').length === 3;
-  if (!looksEncrypted) return token;
-
-  try {
-    return await decryptToken(token);
-  } catch {
-    return token;
-  }
+  if (isLegacyEncryptedToken(token)) return null;
+  return token;
 };
 
 const performLogoutCleanup = async dispatch => {
