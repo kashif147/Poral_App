@@ -13,15 +13,18 @@ describe('B2C flow configuration', () => {
     expect(getB2CPolicy('gmail', 'dev')).toBe('B2C_1_projectshell_signup_signin_gmail_dev');
     expect(getB2CPolicy('signin', 'dev')).toBe('B2C_1_projectshell_signin_dev');
     const uat = new Set(Object.values(B2C_FLOWS.uat));
+    // UAT uses its own _uat flows (ValidateProfile-UAT), never the legacy shared flow names.
+    for (const name of ['B2C_1_projectshell', 'B2C_1_projectshell_signup', 'B2C_1_projectshell_signin', 'B2C_1_projectshell_signup_signin_gmail']) expect(uat.has(name)).toBe(false);
+    for (const name of uat) expect(name).toMatch(/_uat$/);
     for (const name of Object.values(B2C_FLOWS.dev)) expect(uat.has(name)).toBe(false);
   });
 
   test('UAT build keeps the existing flow names', () => {
     expect(resolveB2CFlows('uat')).toEqual({
-      signin: 'B2C_1_projectshell_signin',
-      signup: 'B2C_1_projectshell_signup',
-      gmail: 'B2C_1_projectshell_signup_signin_gmail',
-      default: 'B2C_1_projectshell',
+      signin: 'B2C_1_projectshell_signin_uat',
+      signup: 'B2C_1_projectshell_signup_uat',
+      gmail: 'B2C_1_projectshell_signup_signin_gmail_uat',
+      default: 'B2C_1_projectshell_uat',
     });
   });
 

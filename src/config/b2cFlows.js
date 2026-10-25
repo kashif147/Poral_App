@@ -13,10 +13,10 @@ export const B2C_FLOWS = Object.freeze({
     default: 'B2C_1_projectshell_dev',
   }),
   uat: Object.freeze({
-    signin: 'B2C_1_projectshell_signin',
-    signup: 'B2C_1_projectshell_signup',
-    gmail: 'B2C_1_projectshell_signup_signin_gmail',
-    default: 'B2C_1_projectshell',
+    signin: 'B2C_1_projectshell_signin_uat',
+    signup: 'B2C_1_projectshell_signup_uat',
+    gmail: 'B2C_1_projectshell_signup_signin_gmail_uat',
+    default: 'B2C_1_projectshell_uat',
   }),
 });
 
