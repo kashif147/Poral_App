@@ -13,16 +13,40 @@ export const createPortalIssue = data => {
   return issue_request.post(PORTAL_ISSUES_BASE, payload);
 };
 
+const resolveUploadUri = file => {
+  const raw =
+    file?.fileCopyUri ||
+    file?.localUri ||
+    file?.fileCopyURI ||
+    file?.uri ||
+    file?.path ||
+    '';
+  const value = String(raw || '').trim();
+  if (!value) return '';
+  if (value.startsWith('file://') || value.startsWith('content://')) {
+    return value;
+  }
+  if (value.startsWith('/')) return `file://${value}`;
+  return value;
+};
+
+const toUploadFilePart = file => {
+  const uri = resolveUploadUri(file);
+  if (!uri) return null;
+  return {
+    uri,
+    name: file?.name || file?.fileName || 'attachment',
+    type: file?.type || 'application/octet-stream',
+  };
+};
+
 export const uploadIssueAttachments = (issueId, files = []) => {
   const formData = new FormData();
   files.forEach(file => {
     if (!file) return;
-    if (file?.uri) {
-      formData.append('files', {
-        uri: file.uri,
-        name: file.name || 'attachment',
-        type: file.type || 'application/octet-stream',
-      });
+    const part = toUploadFilePart(file);
+    if (part) {
+      formData.append('files', part);
       return;
     }
     formData.append('files', file);
@@ -54,12 +78,9 @@ export const createPortalIssueActivity = (id, { body = '', file } = {}) => {
     if (trimmedBody) {
       formData.append('body', trimmedBody);
     }
-    if (file?.uri) {
-      formData.append('file', {
-        uri: file.uri,
-        name: file.name || 'attachment',
-        type: file.type || 'application/octet-stream',
-      });
+    const part = toUploadFilePart(file);
+    if (part) {
+      formData.append('file', part);
     } else {
       formData.append('file', file);
     }

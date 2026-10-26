@@ -12,11 +12,6 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
-import {
-  pick as pickDocument,
-  errorCodes as documentPickerErrorCodes,
-  isErrorWithCode as isDocumentPickerErrorWithCode,
-} from '@react-native-documents/picker';
 import { Colors } from '../../utils/Styles';
 import { COMPLAINT_TYPE_OPTIONS } from '../../constants/queriesCases';
 import ScreenHeader from '../../common/screenHeader';
@@ -43,6 +38,11 @@ import {
   mapComplaintTypeLookupOptions,
   parseIssueIdFromResponse,
 } from '../../helpers/issues.helper';
+import { chooseAttachSource } from '../../helpers/attachSource.helper';
+import {
+  CASE_ATTACHMENT_TYPES_HINT,
+  pickCaseAttachmentsFromSource,
+} from '../../helpers/documentPicker.helper';
 
 const CreateCase = () => {
   const navigation = useNavigation();
@@ -121,28 +121,21 @@ const CreateCase = () => {
     setIncidentDate(val || '');
   };
 
-  const handlePickDocument = async () => {
+  const handleAttachSource = async source => {
     try {
-      const results = await pickDocument({
-        type: [
-          'application/pdf',
-          'image/png',
-          'image/jpeg',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ],
-        allowMultiSelection: true,
-      });
-      setUploadedFiles(prev => [...prev, ...results]);
+      const next = await pickCaseAttachmentsFromSource(source);
+      if (!next?.length) return;
+      setUploadedFiles(prev => [...prev, ...next]);
     } catch (err) {
-      if (
-        isDocumentPickerErrorWithCode(err) &&
-        err.code === documentPickerErrorCodes.OPERATION_CANCELED
-      ) {
-        return;
-      }
-      console.warn('Document picker error', err);
+      Alert.alert(
+        'Attachments',
+        err?.message ||
+          `Could not open the file picker. Allowed: ${CASE_ATTACHMENT_TYPES_HINT}.`,
+      );
     }
   };
+
+  const handlePickDocument = () => chooseAttachSource(handleAttachSource);
 
   const removeFile = index => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
@@ -355,7 +348,7 @@ const CreateCase = () => {
               />
               <Label style={styles.uploadTitle}>Upload files</Label>
               <Label style={styles.uploadHint}>
-                Tap to select PDFs, PNGs, or DOCX.
+                Camera, Photos, or Files — {CASE_ATTACHMENT_TYPES_HINT}.
               </Label>
             </Pressable>
             {uploadedFiles.length > 0 ? (

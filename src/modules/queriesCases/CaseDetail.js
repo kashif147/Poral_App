@@ -15,11 +15,6 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  pick as pickDocument,
-  errorCodes as documentPickerErrorCodes,
-  isErrorWithCode as isDocumentPickerErrorWithCode,
-} from '@react-native-documents/picker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Button } from '../../common/button';
 import { Colors } from '../../utils/Styles';
@@ -47,6 +42,11 @@ import {
   parseAttachmentDownloadResponse,
   parseIssueDetailResponse,
 } from '../../helpers/issues.helper';
+import { chooseAttachSource } from '../../helpers/attachSource.helper';
+import {
+  CASE_ATTACHMENT_TYPES_HINT,
+  pickCaseAttachmentsFromSource,
+} from '../../helpers/documentPicker.helper';
 import ScreenHeader from '../../common/screenHeader';
 
 const CaseDetail = () => {
@@ -166,30 +166,23 @@ const CaseDetail = () => {
     setRefreshing(false);
   };
 
-  const handlePickAttachment = async () => {
+  const handlePickAttachmentFromSource = async source => {
     try {
-      const results = await pickDocument({
-        type: [
-          'application/pdf',
-          'image/png',
-          'image/jpeg',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ],
-        allowMultiSelection: false,
-      });
-      if (results?.[0]) {
-        setCommentFile(results[0]);
-      }
+      const next = await pickCaseAttachmentsFromSource(source);
+      if (!next?.[0]) return;
+      // Comment form supports a single attachment (same as before).
+      setCommentFile(next[0]);
     } catch (err) {
-      if (
-        isDocumentPickerErrorWithCode(err) &&
-        err.code === documentPickerErrorCodes.OPERATION_CANCELED
-      ) {
-        return;
-      }
-      console.warn('Document picker error', err);
+      Alert.alert(
+        'Attachments',
+        err?.message ||
+          `Could not open the file picker. Allowed: ${CASE_ATTACHMENT_TYPES_HINT}.`,
+      );
     }
   };
+
+  const handlePickAttachment = () =>
+    chooseAttachSource(handlePickAttachmentFromSource);
 
   const handleSubmitComment = async () => {
     const trimmedBody = commentBody.trim();
@@ -252,24 +245,15 @@ const CaseDetail = () => {
     Alert.alert('Error', 'Unable to remove this attachment.');
   };
 
-  const handleUploadIssueAttachment = async () => {
+  const handleUploadIssueAttachmentFromSource = async source => {
     if (!issueId || uploadingAttachment) return;
 
     try {
-      const results = await pickDocument({
-        type: [
-          'application/pdf',
-          'image/png',
-          'image/jpeg',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ],
-        allowMultiSelection: false,
-      });
-      const file = results?.[0];
-      if (!file) return;
+      const next = await pickCaseAttachmentsFromSource(source);
+      if (!next?.length) return;
 
       setUploadingAttachment(true);
-      const response = await uploadIssueAttachments(issueId, [file]);
+      const response = await uploadIssueAttachments(issueId, next);
       if (isIssueApiSuccess(response)) {
         await Promise.all([loadIssue(), loadActivities(), loadHistory()]);
         return;
@@ -280,16 +264,18 @@ const CaseDetail = () => {
         getIssueApiErrorMessage(response, 'Failed to upload attachment'),
       );
     } catch (err) {
-      if (
-        isDocumentPickerErrorWithCode(err) &&
-        err.code === documentPickerErrorCodes.OPERATION_CANCELED
-      ) {
-        return;
-      }
-      Alert.alert('Error', 'Failed to upload attachment');
+      Alert.alert(
+        'Error',
+        err?.message || 'Failed to upload attachment',
+      );
     } finally {
       setUploadingAttachment(false);
     }
+  };
+
+  const handleUploadIssueAttachment = () => {
+    if (!issueId || uploadingAttachment) return;
+    chooseAttachSource(handleUploadIssueAttachmentFromSource);
   };
 
   const resolveActivityAttachmentUrl = async (activity, attachment) => {

@@ -11,7 +11,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import { InputField } from '../../common/inputField';
 import Picker from '../../common/picker';
 import SearchablePicker from '../../common/SearchablePicker';
-import CustomSwitch from '../../common/switch';
 import { Colors, form, wp } from '../../utils/Styles';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { DatePicker } from '../../common/DatePicker';
@@ -471,28 +470,38 @@ const PersonalInformation = ({
         </View>
       </View>
 
-      {/* Consent Card */}
+      {/* Consent Card — checkbox layout matches portal web */}
       <View style={cardStyle}>
         <Text style={cardTitleStyle}>Consent</Text>
-        <View style={styles.termsRow}>
+        <TouchableOpacity
+          style={styles.consentCheckboxRow}
+          activeOpacity={0.7}
+          onPress={() =>
+            onFormDataChange({ ...formData, consent: !formData.consent })
+          }
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: Boolean(formData.consent) }}>
+          <View
+            style={[
+              styles.consentCheckbox,
+              formData.consent && styles.consentCheckboxChecked,
+            ]}>
+            {formData.consent ? (
+              <Text style={styles.consentCheckboxTick}>✓</Text>
+            ) : null}
+          </View>
           <View style={styles.termsLabelContainer}>
-            <Text style={styles.termsLabel}>
-            Consent to receive Correspondence
-            {organizationName ? ` from ${organizationName}` : ''}
+            <Text style={styles.termsLabelBold}>
+              Consent to receive Correspondence
+              {organizationName ? ` from ${organizationName}` : ''}
             </Text>
             <Text style={styles.termsLabelSubtext}>
-              Please un-tick this box if you would<Text style={{ fontWeight: 'bold' }}> NOT like </Text> to receive correspondence via email or phone.
+              Please un-tick this box if you would{' '}
+              <Text style={{ fontWeight: 'bold' }}>NOT like</Text> to receive
+              correspondence via email or phone.
             </Text>
           </View>
-          <View style={styles.switchContainer}>
-            <CustomSwitch
-              value={formData.consent}
-              onValueChange={val =>
-                onFormDataChange({ ...formData, consent: val })
-              }
-            />
-          </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Address Information Card */}
@@ -1254,31 +1263,39 @@ const styles = StyleSheet.create({
     borderColor: '#C7D2FE',
     marginBottom: 16,
   },
-  termsRow: {
+  consentCheckboxRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
     paddingVertical: 8,
     paddingHorizontal: 4,
-    gap: 16,
+    gap: 12,
+  },
+  consentCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: Colors.border || '#E5E7EB',
+    backgroundColor: Colors.white || '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  consentCheckboxChecked: {
+    backgroundColor: Colors.primaryDark || '#2563EB',
+    borderColor: Colors.primaryDark || '#2563EB',
+  },
+  consentCheckboxTick: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 16,
   },
   termsLabelContainer: {
     flex: 1,
     flexShrink: 1,
-    paddingRight: 8,
-  },
-  termsLabel: {
-    fontSize: 15,
-    color: Colors.textPrimary,
-    fontWeight: '400',
-    lineHeight: 22,
-    flexWrap: 'wrap',
-  },
-  switchContainer: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 2,
-    flexShrink: 0,
+    paddingRight: 4,
   },
   termsLabelBold: {
     fontSize: 14,
