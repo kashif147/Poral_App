@@ -16,6 +16,10 @@ import { Platform } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { registerToken } from '../api/notification.api';
 import { maybeDispatchSessionRefresh } from './sessionRefresh.helper';
+import {
+  resolveMessageText,
+  stringifyNotificationData,
+} from '../helpers/notificationPayload.helper';
 
 const NOTIFICATION_CHANNEL_ID = 'portal_alerting_v1';
 
@@ -23,7 +27,10 @@ const NOTIFICATION_CHANNEL_ID = 'portal_alerting_v1';
 let notificationContextMethods = null;
 let activeForegroundUnsubscribe = null;
 let activeNotificationOpenedUnsubscribe = null;
+let activeTokenRefreshUnsubscribe = null;
 let isNotifeeBackgroundHandlerRegistered = false;
+/** Last successful auth ids used to re-register when FCM rotates the token. */
+let lastRegistrationUserData = null;
 
 // Function to set notification context methods (called from component)
 const setNotificationContextMethods = methods => {
@@ -90,21 +97,82 @@ const registerFcmTokenWithBackend = async (
     });
 
     const response = await registerToken(registrationData);
+    const ok =
+      (response?.status >= 200 && response?.status < 300) ||
+      response?.data?.status === 'success' ||
+      response?.data?.success === true;
 
-    if (response?.status === 200 || response?.data?.status === 'success') {
+    if (ok) {
       console.log('FCM token registered successfully');
       return true;
-    } else {
-      console.error(
-        'FCM token registration failed:',
-        response?.data?.message || 'Unknown error',
-      );
-      return false;
     }
+
+    console.error(
+      'FCM token registration failed:',
+      response?.data?.message || response?.data || 'Unknown error',
+    );
+    return false;
   } catch (error) {
     console.error('Error registering FCM token with backend:', error);
     return false;
   }
+};
+
+const persistAndRegisterToken = async (token, userData = null) => {
+  if (!token || token === 'DeviceToken') {
+    return false;
+  }
+
+  await AsyncStorage.setItem('fcmToken', token);
+
+  const effectiveUser = userData || lastRegistrationUserData;
+  if (!effectiveUser?.userId || !effectiveUser?.tenantId) {
+    console.log(
+      'User data not available yet — FCM token stored; backend register deferred',
+    );
+    return false;
+  }
+
+  lastRegistrationUserData = {
+    userId: effectiveUser.userId,
+    tenantId: effectiveUser.tenantId,
+  };
+
+  const deviceId = await getOrCreateDeviceId();
+  const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+
+  return registerFcmTokenWithBackend(
+    token,
+    effectiveUser.userId,
+    effectiveUser.tenantId,
+    deviceId,
+    platform,
+  );
+};
+
+/** iOS: FCM tokens obtained before APNs is ready often cannot receive pushes. */
+const waitForApnsToken = async (retries = 12, delayMs = 500) => {
+  if (Platform.OS !== 'ios') {
+    return true;
+  }
+
+  for (let attempt = 1; attempt <= retries; attempt += 1) {
+    try {
+      const apnsToken = await messaging().getAPNSToken();
+      if (apnsToken) {
+        console.log(`APNs token ready (attempt ${attempt})`);
+        return true;
+      }
+    } catch (error) {
+      console.log('getAPNSToken error', error?.message || error);
+    }
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+
+  console.warn(
+    '[notifications] APNs token missing after wait — iOS push will not deliver until device is registered (use a real device, enable Push capability, allow notifications)',
+  );
+  return false;
 };
 
 const getFcmToken = async (userData = null) => {
@@ -124,53 +192,42 @@ const getFcmToken = async (userData = null) => {
   }
 
   await ensureDefaultChannel();
+  // Permission first, then remote registration, then wait for APNs (iOS), then FCM token.
   await checkApplicationNotificationsPermission();
   await registerAppWithFcm();
+  await waitForApnsToken();
+
+  // Keep device token in sync with backend when FCM rotates it.
+  if (!activeTokenRefreshUnsubscribe) {
+    activeTokenRefreshUnsubscribe = messaging().onTokenRefresh(async newToken => {
+      console.log('FCM token refreshed');
+      try {
+        await persistAndRegisterToken(newToken, lastRegistrationUserData);
+      } catch (error) {
+        console.error('FCM token refresh registration error:', error);
+      }
+    });
+  }
 
   try {
     token = await messaging().getToken();
     console.log('FCM Token:', token);
 
     if (token) {
-      await AsyncStorage.setItem('fcmToken', token);
-      console.log('FCM token stored in AsyncStorage');
-
-      if (userData) {
-        const userId = userData.userId;
-        const tenantId = userData.tenantId;
-        const deviceId = await getOrCreateDeviceId();
-        const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-
-        if (userId && tenantId && deviceId) {
-          registerFcmTokenWithBackend(token, userId, tenantId, deviceId, platform)
-            .then(success => {
-              if (success) {
-                console.log('FCM token registration completed successfully');
-              } else {
-                console.warn(
-                  'FCM token registration failed, but token is still available',
-                );
-              }
-            })
-            .catch(error => {
-              console.error('FCM token registration error:', error);
-            });
-        } else {
-          console.warn('User data incomplete, skipping FCM token registration:', {
-            hasUserId: !!userId,
-            hasTenantId: !!tenantId,
-            hasDeviceId: !!deviceId,
-          });
-        }
-      } else {
-        console.log('User data not provided, FCM token will be registered later');
+      const registered = await persistAndRegisterToken(token, userData);
+      if (registered) {
+        console.log('FCM token registration completed successfully');
+      } else if (userData?.userId && userData?.tenantId) {
+        console.warn(
+          'FCM token registration failed, but token is still available locally',
+        );
       }
     } else {
       console.log('No FCM token received');
     }
   } catch (error) {
     console.log('Error getting FCM token', error);
-    token = 'DeviceToken';
+    token = null;
   }
 
   return token;
@@ -222,45 +279,32 @@ const checkApplicationNotificationsPermission = async () => {
 };
 
 const registerAppWithFcm = async () => {
-  if (Platform.OS === 'ios') {
-    try {
-      await messaging()
-        .registerDeviceForRemoteMessages()
-        .then(result => {
-          console.log('Device registered for remote messages', result);
-        })
-        .catch(error => {
-          if (
-            error?.message?.includes('aps-environment') ||
-            error?.code === 'messaging/unknown'
-          ) {
-            console.warn(
-              'Push notifications not configured: Missing "aps-environment" entitlement.',
-            );
-          } else {
-            console.log(
-              'Error registering device for remote messages:',
-              error.message || error,
-            );
-          }
-        });
-    } catch (error) {
-      if (
-        error?.message?.includes('aps-environment') ||
-        error?.code === 'messaging/unknown'
-      ) {
-        console.warn(
-          'Push notifications not configured: Missing "aps-environment" entitlement.',
-        );
-      } else {
-        console.log(
-          'Error registering device for remote messages:',
-          error.message || error,
-        );
-      }
-    }
-  } else {
+  if (Platform.OS !== 'ios') {
     console.log('Android device - remote message registration not required');
+    return;
+  }
+
+  try {
+    if (!messaging().isDeviceRegisteredForRemoteMessages) {
+      await messaging().registerDeviceForRemoteMessages();
+      console.log('Device registered for remote messages');
+    } else {
+      console.log('Device already registered for remote messages');
+    }
+  } catch (error) {
+    if (
+      error?.message?.includes('aps-environment') ||
+      error?.code === 'messaging/unknown'
+    ) {
+      console.warn(
+        'Push notifications not configured: Missing "aps-environment" entitlement. Enable Push Notifications in Xcode Signing & Capabilities.',
+      );
+    } else {
+      console.log(
+        'Error registering device for remote messages:',
+        error.message || error,
+      );
+    }
   }
 };
 
@@ -301,6 +345,12 @@ const unRegisterAppWithFcm = async () => {
       // Ignore storage errors
     }
   }
+
+  lastRegistrationUserData = null;
+  if (activeTokenRefreshUnsubscribe) {
+    activeTokenRefreshUnsubscribe();
+    activeTokenRefreshUnsubscribe = null;
+  }
 };
 
 const registerListenerWithFcm = navigationRef => {
@@ -322,39 +372,26 @@ const registerListenerWithFcm = navigationRef => {
   const unsubscribe = messaging().onMessage(async remoteMessage => {
     console.log('Foreground message received', remoteMessage);
 
-    const notificationTitle =
-      remoteMessage?.data?.title ||
-      remoteMessage?.notification?.title ||
-      'Notification';
-
-    const notificationBody =
-      remoteMessage?.data?.body ||
-      remoteMessage?.notification?.body ||
-      remoteMessage?.data?.message ||
-      remoteMessage?.data?.detail?.message ||
-      remoteMessage?.data?.details?.message ||
-      '';
-
+    const { title, body, data } = resolveMessageText(remoteMessage);
+    const notificationTitle = title || 'Notification';
+    const notificationBody = body || '';
     const messageId = remoteMessage?.messageId;
     const from = remoteMessage?.from;
 
-    if (notificationTitle || notificationBody) {
-      onDisplayNotificaiton(
-        notificationTitle,
-        notificationBody,
-        remoteMessage?.data,
-      );
+    if (String(notificationTitle).trim() || String(notificationBody).trim()) {
+      await onDisplayNotificaiton(notificationTitle, notificationBody, data);
 
-      if (notificationContextMethods) {
-        notificationContextMethods.incrementUnreadCount();
+      // addNotification already increments unreadCount — do not double-count.
+      if (notificationContextMethods?.addNotification) {
         notificationContextMethods.addNotification({
-          messageId: messageId || Date.now().toString(),
-          from: from,
+          messageId:
+            data?.notificationId || messageId || Date.now().toString(),
+          from,
           title: notificationTitle,
           body: notificationBody,
           read: false,
           timestamp: new Date().toISOString(),
-          data: remoteMessage.data || {},
+          data: data || {},
         });
       }
     }
@@ -466,21 +503,21 @@ const onDisplayNotificaiton = async (title, body, data) => {
     body ||
     data?.body ||
     data?.message ||
-    data?.detail?.message ||
-    data?.details?.message ||
+    (typeof data?.detail === 'object' && data?.detail?.message) ||
+    (typeof data?.details === 'object' && data?.details?.message) ||
     '';
 
   await notifee.displayNotification({
-    id:
-      data?.notificationId || data?.messageId || Date.now().toString(),
+    id: data?.notificationId || data?.messageId || Date.now().toString(),
     title: title || data?.title || 'Notification',
     body: resolvedBody,
-    data: data,
+    data: stringifyNotificationData(data),
     android: {
       channelId,
       importance: AndroidImportance.HIGH,
       visibility: AndroidVisibility.PUBLIC,
       showTimestamp: true,
+      smallIcon: 'ic_notification',
       style: {
         type: AndroidStyle.BIGTEXT,
         text: resolvedBody,

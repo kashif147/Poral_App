@@ -14,54 +14,12 @@ import notifee, {
 import App from './App';
 import { name as appName } from './app.json';
 import { maybeDispatchSessionRefresh } from './src/services/sessionRefresh.helper';
+import {
+  resolveMessageText,
+  stringifyNotificationData,
+} from './src/helpers/notificationPayload.helper';
 
 const NOTIFICATION_CHANNEL_ID = 'portal_alerting_v1';
-
-function parseMaybeJson(value) {
-  if (typeof value !== 'string') return null;
-  const t = value.trim();
-  if (!t.startsWith('{') && !t.startsWith('[')) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
-}
-
-/** Resolve title/body for data-only or hybrid payloads (nested JSON is common from backends). */
-function resolveMessageText(remoteMessage) {
-  const data = remoteMessage?.data || {};
-  const fromDataJson =
-    parseMaybeJson(data.detail) ||
-    parseMaybeJson(data.body) ||
-    parseMaybeJson(data.payload);
-
-  let title =
-    data.title ||
-    fromDataJson?.title ||
-    remoteMessage?.notification?.title ||
-    '';
-
-  let body =
-    data.body ||
-    data.message ||
-    data.detail?.message ||
-    data.details?.message ||
-    fromDataJson?.body ||
-    fromDataJson?.message ||
-    remoteMessage?.notification?.body ||
-    '';
-
-  if (typeof body === 'object' && body?.message) {
-    body = body.message;
-  }
-
-  return {
-    title: typeof title === 'string' ? title : '',
-    body: typeof body === 'string' ? body : '',
-    data,
-  };
-}
 
 // Pre-create channel as early as possible (mirrors native MainApplication channel).
 notifee.createChannel({
@@ -95,7 +53,7 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
       Date.now().toString(),
     title: title || 'Notification',
     body,
-    data,
+    data: stringifyNotificationData(data),
     android: {
       channelId,
       importance: AndroidImportance.HIGH,

@@ -19,20 +19,27 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Colors, wp, hp } from '../../utils/Styles';
 import ScreenHeader from '../../common/screenHeader';
 import { useNotification } from '../../contexts/notificationContext';
-import { fetchNotificationRequest, readNotificationRequest, deleteNotificationRequest, deleteAllNotificationRequest } from '../../api/notification.api';
+import { readNotificationRequest, deleteNotificationRequest, deleteAllNotificationRequest } from '../../api/notification.api';
 import notification_request from '../../api/notification_request';
-import moment from 'moment';
+import { loadNotificationInbox } from '../../helpers/notificationList.helper';
 
 const Notifications = ({ navigation }) => {
   const auth = useSelector(state => state.auth);
   const user = auth.user || auth.userDetail;
   const userId =
-    user?.id || user?._id || auth.userDetail?.id || auth.userDetail?._id;
+    user?.id ||
+    user?._id ||
+    auth.userDetail?.id ||
+    auth.userDetail?._id ||
+    auth.userDetail?.userId ||
+    auth.userDetail?.oid ||
+    auth.userDetail?.sub;
   const tenantId =
     user?.tenantId ||
     user?.userTenantId ||
     auth.userDetail?.tenantId ||
-    auth.userDetail?.userTenantId;
+    auth.userDetail?.userTenantId ||
+    auth.userDetail?.tid;
   const {
     notifications,
     unreadCount,
@@ -160,20 +167,6 @@ const Notifications = ({ navigation }) => {
     );
   };
 
-  const resolvePdfAttachments = notif => {
-    const attachments = Array.isArray(notif?.attachments)
-      ? notif.attachments
-      : Array.isArray(notif?.metadata?.attachments)
-      ? notif.metadata.attachments
-      : [];
-
-    return attachments.filter(attachment =>
-      String(attachment?.mimeType || '')
-        .toLowerCase()
-        .includes('pdf'),
-    );
-  };
-
   const handleDownloadAttachment = async attachment => {
     const attachmentPath = resolveAttachmentPath(attachment);
     const base64Data = attachment?.dataBase64 || attachment?.base64Data || '';
@@ -221,75 +214,20 @@ const Notifications = ({ navigation }) => {
   const fetchNotifications = async () => {
     setLoading(true);
     try {
-      const response = await fetchNotificationRequest({ page: 1, limit: 50 });
-      
-      // Check if response is successful (matching web version structure)
-      if (response?.status === 200 && response?.data?.success) {
-        const data = response.data.data;
-        // API returns notifications in data.notifications array
-        const notificationsList = data?.notifications || [];
-        
-        // Ensure notificationsList is an array
-        if (!Array.isArray(notificationsList)) {
-          console.warn('Notifications data is not an array:', notificationsList);
-          setNotificationsValue([]);
-          setUnreadCountValue(0);
-          return;
-        }
-        
-        // Map API response to notification format
-        const mappedNotifications = notificationsList.map(notif => {
-          const pdfAttachments = resolvePdfAttachments(notif);
-          return {
-            messageId: notif._id || notif.messageId || notif.id || Date.now().toString(),
-            from: notif.from,
-            title: notif.title || 'Notification',
-            body: notif.body || notif.message || '',
-            read: notif.isRead || notif.read || false,
-            timestamp:
-              notif.sentAt || notif.createdAt || notif.timestamp || new Date().toISOString(),
-            data: notif.data || {},
-            attachments: Array.isArray(notif?.attachments)
-              ? notif.attachments
-              : Array.isArray(notif?.metadata?.attachments)
-              ? notif.metadata.attachments
-              : [],
-            pdfAttachments,
-            // Extract type from data or infer from title/body
-            type:
-              notif.data?.type ||
-              (notif.title?.toLowerCase().includes('payment') ? 'payment' : 'subscription'),
-            // Format time
-            time: notif.sentAt || notif.createdAt || notif.timestamp
-              ? moment(notif.sentAt || notif.createdAt || notif.timestamp).fromNow()
-              : 'Just now',
-          };
-        });
-        
-        setNotificationsValue(mappedNotifications);
-        
-        // Set unread count from API response or calculate from notifications
-        const unread = data?.unreadCount !== undefined 
-          ? data.unreadCount 
-          : mappedNotifications.filter(n => !n.read).length;
-        setUnreadCountValue(unread);
-      } else {
-        // Handle error response
-        const errorMessage = response?.data?.message || 'Failed to fetch notifications';
-        console.error('Failed to fetch notifications:', errorMessage);
-        // Don't show alert for empty responses, just log
-        if (response?.status !== 200) {
-          Alert.alert('Error', errorMessage);
-        } else {
-          // Success but no data - set empty arrays
-          setNotificationsValue([]);
-          setUnreadCountValue(0);
-        }
-      }
+      const inbox = await loadNotificationInbox({ page: 1, limit: 50 });
+      setNotificationsValue(inbox.notifications);
+      setUnreadCountValue(inbox.unreadCount);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      Alert.alert('Error', 'Failed to load notifications. Please try again.');
-      // Set empty state on error
+      const status = error?.response?.status;
+      if (status && status !== 200) {
+        Alert.alert(
+          'Error',
+          error?.message || 'Failed to load notifications. Please try again.',
+        );
+      } else {
+        Alert.alert('Error', 'Failed to load notifications. Please try again.');
+      }
       setNotificationsValue([]);
       setUnreadCountValue(0);
     } finally {
@@ -344,8 +282,13 @@ const Notifications = ({ navigation }) => {
         tenantId,
       });
 
-      if (response?.status === 200 && response?.data?.success) {
-        // Update context
+      const ok =
+        response?.status >= 200 &&
+        response?.status < 300 &&
+        (response?.data?.success === true ||
+          response?.data?.status === 'success' ||
+          response?.data?.success !== false);
+      if (ok) {
         markAsReadContext(messageId);
       } else {
         console.error(
@@ -381,8 +324,13 @@ const Notifications = ({ navigation }) => {
         tenantId,
       });
 
-      if (response?.status === 200 && response?.data?.success) {
-        // Update context
+      const ok =
+        response?.status >= 200 &&
+        response?.status < 300 &&
+        (response?.data?.success === true ||
+          response?.data?.status === 'success' ||
+          response?.data?.success !== false);
+      if (ok) {
         markAllAsReadContext();
       } else {
         console.error(

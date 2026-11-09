@@ -60,6 +60,8 @@ function App() {
   const dispatch = useDispatch();
   const isSignedIn = useSelector(state => state.auth.isSignedIn);
   const isLoading = useSelector(state => state.auth.isLoading);
+  const authUser = useSelector(state => state.auth.user);
+  const authUserDetail = useSelector(state => state.auth.userDetail);
   const [showWebView, setShowWebView] = useState(false);
   const [authMode, setAuthMode] = useState('signin');
   const [b2cLogoutUrl, setB2cLogoutUrl] = useState(null);
@@ -69,6 +71,7 @@ function App() {
   const navigationRef = useRef(null);
   const notificationUnsubscribeRef = useRef(null);
   const notificationsInitializedRef = useRef(false);
+  const fcmTokenRegisteredRef = useRef(false);
   const notificationSetupTimeoutRef = useRef(null);
   const notificationRetryTimeoutRef = useRef(null);
   const processedAuthCodeRef = useRef(null);
@@ -366,11 +369,14 @@ function App() {
           hasUserId: !!userId,
           hasTenantId: !!tenantId,
         });
+        return false;
       }
 
       await getFcmToken(userDataForRegistration);
+      return true;
     } catch (error) {
       console.log('Error registering FCM after auth', error);
+      return false;
     }
   };
 
@@ -485,43 +491,11 @@ function App() {
     setShowOnboarding(false);
   };
 
-  // Initialize FCM when user is signed in
+  // Foreground listeners once per signed-in session.
   useEffect(() => {
-    if (isSignedIn) {
-      if (notificationsInitializedRef.current) {
-        return undefined;
-      }
-      notificationsInitializedRef.current = true;
-
-      const initializeNotifications = async () => {
-        try {
-          console.log('Initializing FCM notifications...');
-
-          // Wait a bit for navigation to be ready
-          notificationSetupTimeoutRef.current = setTimeout(() => {
-            if (navigationRef.current) {
-              const unsubscribe = registerListenerWithFcm(navigationRef);
-              notificationUnsubscribeRef.current = unsubscribe;
-            } else {
-              notificationRetryTimeoutRef.current = setTimeout(() => {
-                if (navigationRef.current) {
-                  const unsubscribe = registerListenerWithFcm(navigationRef);
-                  notificationUnsubscribeRef.current = unsubscribe;
-                }
-              }, 1000);
-            }
-          }, 500);
-        } catch (error) {
-          // Error handled silently
-          console.log('Error initializing notifications', error);
-          console.error('FCM Initialization Error:', error);
-        }
-      };
-
-      initializeNotifications();
-    } else {
+    if (!isSignedIn) {
       notificationsInitializedRef.current = false;
-      // Clean up on logout
+      fcmTokenRegisteredRef.current = false;
       if (notificationSetupTimeoutRef.current) {
         clearTimeout(notificationSetupTimeoutRef.current);
         notificationSetupTimeoutRef.current = null;
@@ -534,10 +508,27 @@ function App() {
         notificationUnsubscribeRef.current();
         notificationUnsubscribeRef.current = null;
       }
-      // unRegisterAppWithFcm().catch(() => {
-      //   // Error handled silently
-      // });
+      return undefined;
     }
+
+    if (notificationsInitializedRef.current) {
+      return undefined;
+    }
+    notificationsInitializedRef.current = true;
+
+    notificationSetupTimeoutRef.current = setTimeout(() => {
+      if (navigationRef.current) {
+        notificationUnsubscribeRef.current =
+          registerListenerWithFcm(navigationRef);
+      } else {
+        notificationRetryTimeoutRef.current = setTimeout(() => {
+          if (navigationRef.current) {
+            notificationUnsubscribeRef.current =
+              registerListenerWithFcm(navigationRef);
+          }
+        }, 1000);
+      }
+    }, 500);
 
     return () => {
       if (notificationSetupTimeoutRef.current) {
@@ -554,6 +545,35 @@ function App() {
       }
     };
   }, [isSignedIn]);
+
+  // Register FCM token with backend on login and on every session restore.
+  // Retries when userId/tenantId become available (JWT decode / /me timing).
+  useEffect(() => {
+    if (!isSignedIn || fcmTokenRegisteredRef.current) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const ensureFcmRegistered = async () => {
+      try {
+        console.log('Registering FCM token with notification-service...');
+        const registered = await registerFcmOnAuth(authUser, authUserDetail);
+        // Only lock once ids were present so a later userDetail hydrate can retry.
+        if (!cancelled && registered) {
+          fcmTokenRegisteredRef.current = true;
+        }
+      } catch (error) {
+        console.error('FCM registration error:', error);
+      }
+    };
+
+    ensureFcmRegistered();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isSignedIn, authUser, authUserDetail]);
 
   const appStatusBar = (
     <StatusBar
